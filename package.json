@@ -1,0 +1,33 @@
+{
+  "name": "aisobmffwvdfbutfaii",
+  "version": "1.0.0",
+  "description": "An ISOBMFF web visualizer done for better understanding the format and its intricacies.",
+  "main": "build/aisobmffwvdfbutfaii.js",
+  "scripts": {
+    "build": "webpack",
+    "min": "AISOBMFFWVDFBUTFAII_MINIFY=true webpack",
+    "watch": "webpack -w"
+  },
+  "author": "peaberberian",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "eslint": "^3.19.0",
+    "webpack": "^2.6.1",
+    "webpack-closure-compiler": "^2.1.4"
+  },
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/peaBerberian/AISOBMFFWVDFBUTFAII.git"
+  },
+  "keywords": [
+    "isobmff",
+    "parser",
+    "visualizer",
+    "mp4"
+  ],
+  "bugs": {
+    "url": "https://github.com/peaBerberian/AISOBMFFWVDFBUTFAII/issues"
+  },
+  "homepage": "https://github.com/peaBerberian/AISOBMFFWVDFBUTFAII#readme"
+}
