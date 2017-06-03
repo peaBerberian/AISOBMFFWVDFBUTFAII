@@ -1,0 +1,32 @@
+.box {
+  margin: 20px;
+}
+
+.box-name {
+  font-weight: bold;
+}
+
+.box-size {
+  font-style: italic;
+}
+
+.box-description {
+  font-style: italic;
+  margin-bottom: 7px;
+}
+
+.value-object-prop {
+  margin-left: 25px;
+}
+
+.value-object-line:nth-child(odd) {
+  background-color: #eee;
+}
+
+.value-object-line:nth-child(even) {
+  background-color: #ccc;
+}
+
+.value-object-line {
+  padding: 10px;
+}
