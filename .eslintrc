@@ -8,8 +8,13 @@
 
   "parserOptions": {
     "ecmaVersion": 2017,
-    "sourceType": "module"
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true
+    }
   },
+
+  "plugins": [ "react" ],
 
   "rules": {
     // Possible Errors <http://eslint.org/docs/rules/#possible-errors>
@@ -85,12 +90,14 @@
     'prefer-const': 1,
 
     'max-len': [1, 120, 2,
-      {'ignorePattern': maxLenIgnorePattern}
+    {'ignorePattern': maxLenIgnorePattern}
     ],
 
     "indent": [1, 2],
     "quotes": [1, "double"],
     "linebreak-style": [1, "unix"],
-    "semi": [1, "always"]
+    "semi": [1, "always"],
+    "react/jsx-uses-vars": [2],
+    "react/jsx-uses-react": [2]
   }
 }

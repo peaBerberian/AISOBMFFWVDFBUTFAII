@@ -1,5 +1,7 @@
 import parseBoxes from "./parser.js";
 import render from "./renderer.js";
+import React from "react";
+import ReactDOM from "react-dom";
 
 // Check for the various File API support.
 if (!window.File || !window.FileReader) {
@@ -31,3 +33,5 @@ function handleFileSelection(evt) {
 
 document.getElementById("file-input")
   .addEventListener("change", handleFileSelection, false);
+
+ReactDOM.render(<div />, document.getElementById("file-description"));
