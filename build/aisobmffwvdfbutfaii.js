@@ -1064,7 +1064,7 @@ const SYSTEM_IDS = {
   "9A04F07998404286AB92E65BE0885F95": "PlayReady",
   "EDEF8BA979D64ACEA3C827DCD51D21ED": "Widevine",
   "F239E769EFA348509C16A903C6932EFB": "PrimeTime",
-  "A1077EFECC0B24D02ACE33C1E52E2FB4B": "CENC",
+  "A1077EFECC0B24D02ACE33C1E52E2FB4B": "cenc",
 };
 
 /* harmony default export */ __webpack_exports__["a"] = ({
@@ -1096,8 +1096,8 @@ const SYSTEM_IDS = {
       }
     }
 
-    ret.dataLength = reader.bytesToInt(4);
-    ret.data = reader.bytesToHex(ret.dataLength);
+    ret.data_length = reader.bytesToInt(4);
+    ret.data = reader.bytesToHex(ret.data_length);
     return ret;
   },
 });
