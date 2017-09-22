@@ -77,6 +77,22 @@ function be8toi(bytes, off) {
   );
 }
 
+function bytesToHex(uint8arr, off, nbBytes) {
+  if (!uint8arr) {
+    return "";
+  }
+
+  const arr = uint8arr.slice(off, nbBytes + off);
+  let hexStr = "";
+  for (let i = 0; i < arr.length; i++) {
+    let hex = (arr[i] & 0xff).toString(16);
+    hex = (hex.length === 1) ? "0" + hex : hex;
+    hexStr += hex;
+  }
+
+  return hexStr.toUpperCase();
+}
+
 function hex2a(hex) {
   let str = "";
   for (let i = 0; i < hex.length; i += 2) {
@@ -104,4 +120,5 @@ export {
   be4toa,
   be5toa,
   be8toa,
+  bytesToHex,
 };
