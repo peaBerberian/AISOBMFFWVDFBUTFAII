@@ -17,6 +17,7 @@ import moov from "./moov.js";
 import mvex from "./mvex.js";
 import mvhd from "./mvhd.js";
 import pdin from "./pdin.js";
+import pssh from "./pssh.js";
 import sdtp from "./sdtp.js";
 import sidx from "./sidx.js";
 import skip from "./skip.js";
@@ -53,6 +54,7 @@ export default {
   mvex,
   mvhd,
   pdin,
+  pssh,
   sdtp,
   sidx,
   skip,

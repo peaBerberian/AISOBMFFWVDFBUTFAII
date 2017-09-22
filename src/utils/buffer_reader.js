@@ -11,6 +11,8 @@ import {
   be4toa,
   be5toa,
   be8toa,
+
+  bytesToHex,
 } from "./bytes.js";
 
 export default (buffer) => {
@@ -57,6 +59,15 @@ export default (buffer) => {
         throw new Error("not implemented yet.");
       }
 
+      currentOffset += nbBytes;
+      return res;
+    },
+
+    bytesToHex(nbBytes) {
+      if (this.getRemainingLength() < nbBytes) {
+        return ;
+      }
+      const res = bytesToHex(buffer, currentOffset, nbBytes);
       currentOffset += nbBytes;
       return res;
     },
