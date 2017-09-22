@@ -93,20 +93,15 @@ function bytesToHex(uint8arr, off, nbBytes) {
   return hexStr.toUpperCase();
 }
 
-function hex2a(hex) {
-  let str = "";
-  for (let i = 0; i < hex.length; i += 2) {
-    str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+// XXX TODO test that
+function betoa(uint8arr, off, nbBytes) {
+  if (!uint8arr) {
+    return "";
   }
-  return str;
-}
 
-const be1toa = (bytes, offset) => hex2a(bytes[offset].toString(16));
-const be2toa = (bytes, offset) => hex2a(be2toi(bytes, offset).toString(16));
-const be3toa = (bytes, offset) => hex2a(be3toi(bytes, offset).toString(16));
-const be4toa = (bytes, offset) => hex2a(be4toi(bytes, offset).toString(16));
-const be5toa = (bytes, offset) => hex2a(be5toi(bytes, offset).toString(16));
-const be8toa = (bytes, offset) => hex2a(be8toi(bytes, offset).toString(16));
+  const arr = uint8arr.slice(off, nbBytes + off);
+  return String.fromCharCode.apply(String, arr);
+}
 
 export {
   be2toi,
@@ -114,11 +109,6 @@ export {
   be4toi,
   be5toi,
   be8toi,
-  be1toa,
-  be2toa,
-  be3toa,
-  be4toa,
-  be5toa,
-  be8toa,
   bytesToHex,
+  betoa,
 };

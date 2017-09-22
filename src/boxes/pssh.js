@@ -36,7 +36,7 @@ export default {
     }
 
     ret.data_length = reader.bytesToInt(4);
-    ret.data = reader.bytesToHex(ret.data_length);
+    ret.data = reader.bytesToASCII(ret.data_length);
     return ret;
   },
 };

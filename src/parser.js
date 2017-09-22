@@ -1,4 +1,4 @@
-import { be4toi, be8toi, be4toa } from "./utils/bytes.js";
+import { be4toi, be8toi, betoa } from "./utils/bytes.js";
 import BufferReader from "./utils/buffer_reader.js";
 
 import definitions from "./boxes";
@@ -20,7 +20,7 @@ const parseBoxes = (arr) => {
       size = arr.length - i;
     }
 
-    const name = be4toa(arr, currentOffset);
+    const name = betoa(arr, currentOffset, 4);
     currentOffset += 4;
 
     const atomObject = {

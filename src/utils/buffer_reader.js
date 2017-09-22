@@ -4,13 +4,7 @@ import {
   be4toi,
   be5toi,
   be8toi,
-
-  be1toa,
-  be2toa,
-  be3toa,
-  be4toa,
-  be5toa,
-  be8toa,
+  betoa,
 
   bytesToHex,
 } from "./bytes.js";
@@ -76,29 +70,7 @@ export default (buffer) => {
       if (this.getRemainingLength() < nbBytes) {
         return ;
       }
-      let res;
-      switch(nbBytes) {
-      case 1:
-        res = be1toa(buffer, currentOffset);
-        break;
-      case 2:
-        res = be2toa(buffer, currentOffset);
-        break;
-      case 3:
-        res = be3toa(buffer, currentOffset);
-        break;
-      case 4:
-        res = be4toa(buffer, currentOffset);
-        break;
-      case 5:
-        res = be5toa(buffer, currentOffset);
-        break;
-      case 8:
-        res = be8toa(buffer, currentOffset);
-        break;
-      default:
-        throw new Error("not implemented yet.");
-      }
+      const res = betoa(buffer, currentOffset, nbBytes);
 
       currentOffset += nbBytes;
       return res;
