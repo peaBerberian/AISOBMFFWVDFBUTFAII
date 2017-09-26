@@ -3,6 +3,14 @@ import BufferReader from "./utils/buffer_reader.js";
 
 import definitions from "./boxes";
 
+/**
+ * Parse ISOBMFF Uint8Array and translate it into a more useful array containing
+ * "atom objects" (descriptions of the contained atoms), ready to be displayed
+ * by a UI.
+ * TODO document the "atom objects" structures.
+ * @param {Uint8Array} arr
+ * @returns {Array.<Object>}
+ */
 const parseBoxes = (arr) => {
   let i = 0;
   const returnedArray = [];

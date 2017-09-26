@@ -9,7 +9,10 @@ if (!window.File || !window.FileReader) {
   throw new Error("Your browser is not compatible.");
 }
 
-function handleFileSelection(evt) {
+/**
+ * @param {Event} evt
+ */
+function onFileSelection(evt) {
   const files = evt.target.files; // FileList object
 
   if (!files.length) {
@@ -30,4 +33,4 @@ function handleFileSelection(evt) {
 }
 
 document.getElementById("file-input")
-  .addEventListener("change", handleFileSelection, false);
+  .addEventListener("change", onFileSelection, false);
