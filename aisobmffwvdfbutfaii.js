@@ -119,13 +119,8 @@
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return be4toi; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "f", function() { return be5toi; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "b", function() { return be8toi; });
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "h", function() { return be1toa; });
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "i", function() { return be2toa; });
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "j", function() { return be3toa; });
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "c", function() { return be4toa; });
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "k", function() { return be5toa; });
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "l", function() { return be8toa; });
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "g", function() { return bytesToHex; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "c", function() { return betoa; });
 /**
  * Translate groups of 2 big-endian bytes to Integer (from 0 up to 65535).
  * @param {TypedArray} bytes
@@ -221,20 +216,15 @@ function bytesToHex(uint8arr, off, nbBytes) {
   return hexStr.toUpperCase();
 }
 
-function hex2a(hex) {
-  let str = "";
-  for (let i = 0; i < hex.length; i += 2) {
-    str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+// XXX TODO test that
+function betoa(uint8arr, off, nbBytes) {
+  if (!uint8arr) {
+    return "";
   }
-  return str;
-}
 
-const be1toa = (bytes, offset) => hex2a(bytes[offset].toString(16));
-const be2toa = (bytes, offset) => hex2a(be2toi(bytes, offset).toString(16));
-const be3toa = (bytes, offset) => hex2a(be3toi(bytes, offset).toString(16));
-const be4toa = (bytes, offset) => hex2a(be4toi(bytes, offset).toString(16));
-const be5toa = (bytes, offset) => hex2a(be5toi(bytes, offset).toString(16));
-const be8toa = (bytes, offset) => hex2a(be8toi(bytes, offset).toString(16));
+  const arr = uint8arr.slice(off, nbBytes + off);
+  return String.fromCharCode.apply(String, arr);
+}
 
 
 
@@ -252,6 +242,14 @@ const be8toa = (bytes, offset) => hex2a(be8toi(bytes, offset).toString(16));
 
 
 
+/**
+ * Parse ISOBMFF Uint8Array and translate it into a more useful array containing
+ * "atom objects" (descriptions of the contained atoms), ready to be displayed
+ * by a UI.
+ * TODO document the "atom objects" structures.
+ * @param {Uint8Array} arr
+ * @returns {Array.<Object>}
+ */
 const parseBoxes = (arr) => {
   let i = 0;
   const returnedArray = [];
@@ -269,7 +267,7 @@ const parseBoxes = (arr) => {
       size = arr.length - i;
     }
 
-    const name = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils_bytes_js__["c" /* be4toa */])(arr, currentOffset);
+    const name = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__utils_bytes_js__["c" /* betoa */])(arr, currentOffset, 4);
     currentOffset += 4;
 
     const atomObject = {
@@ -1060,11 +1058,27 @@ const Box = (box) => {
 
 "use strict";
 const SYSTEM_IDS = {
+  "1077EFECC0B24D02ACE33C1E52E2FB4B": "cenc",
+  "1F83E1E86EE94F0DBA2F5EC4E3ED1A66": "SecureMedia",
+  "35BF197B530E42D78B651B4BF415070F": "DivX DRM",
+  "45D481CB8FE049C0ADA9AB2D2455B2F2": "CoreCrypt",
+  "5E629AF538DA4063897797FFBD9902D4": "Marlin",
+  "616C7469636173742D50726F74656374": "AltiProtect",
+  "644FE7B5260F4FAD949A0762FFB054B4": "CMLA",
   "69F908AF481646EA910CCD5DCCCB0A3A": "Marlin",
+  "6A99532D869F59229A91113AB7B1E2F3": "MobiDRM",
+  "80A6BE7E14484C379E70D5AEBE04C8D2": "Irdeto",
+  "94CE86FB07FF4F43ADB893D2FA968CA2": "FairPlay",
+  "992C46E6C4374899B6A050FA91AD0E39": "SteelKnot",
   "9A04F07998404286AB92E65BE0885F95": "PlayReady",
+  "9A27DD82FDE247258CBC4234AA06EC09": "Verimatrix VCAS",
+  "A68129D3575B4F1A9CBA3223846CF7C3": "VideoGuard Everywhere",
+  "ADB41C242DBF4A6D958B4457C0D27B95": "Nagra",
+  "B4413586C58CFFB094A5D4896C1AF6C3": "Viaccess-Orca",
+  "DCF4E3E362F158187BA60A6FE33FF3DD": "DigiCAP",
+  "E2719D58A985B3C9781AB030AF78D30E": "ClearKey",
   "EDEF8BA979D64ACEA3C827DCD51D21ED": "Widevine",
   "F239E769EFA348509C16A903C6932EFB": "PrimeTime",
-  "A1077EFECC0B24D02ACE33C1E52E2FB4B": "cenc",
 };
 
 /* harmony default export */ __webpack_exports__["a"] = ({
@@ -1097,7 +1111,7 @@ const SYSTEM_IDS = {
     }
 
     ret.data_length = reader.bytesToInt(4);
-    ret.data = reader.bytesToHex(ret.data_length);
+    ret.data = reader.bytesToASCII(ret.data_length);
     return ret;
   },
 });
@@ -1566,7 +1580,10 @@ if (!window.File || !window.FileReader) {
   throw new Error("Your browser is not compatible.");
 }
 
-function handleFileSelection(evt) {
+/**
+ * @param {Event} evt
+ */
+function onFileSelection(evt) {
   const files = evt.target.files; // FileList object
 
   if (!files.length) {
@@ -1587,7 +1604,7 @@ function handleFileSelection(evt) {
 }
 
 document.getElementById("file-input")
-  .addEventListener("change", handleFileSelection, false);
+  .addEventListener("change", onFileSelection, false);
 
 
 /***/ }),
@@ -1659,29 +1676,7 @@ document.getElementById("file-input")
       if (this.getRemainingLength() < nbBytes) {
         return ;
       }
-      let res;
-      switch(nbBytes) {
-      case 1:
-        res = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__bytes_js__["h" /* be1toa */])(buffer, currentOffset);
-        break;
-      case 2:
-        res = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__bytes_js__["i" /* be2toa */])(buffer, currentOffset);
-        break;
-      case 3:
-        res = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__bytes_js__["j" /* be3toa */])(buffer, currentOffset);
-        break;
-      case 4:
-        res = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__bytes_js__["c" /* be4toa */])(buffer, currentOffset);
-        break;
-      case 5:
-        res = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__bytes_js__["k" /* be5toa */])(buffer, currentOffset);
-        break;
-      case 8:
-        res = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__bytes_js__["l" /* be8toa */])(buffer, currentOffset);
-        break;
-      default:
-        throw new Error("not implemented yet.");
-      }
+      const res = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__bytes_js__["c" /* betoa */])(buffer, currentOffset, nbBytes);
 
       currentOffset += nbBytes;
       return res;
