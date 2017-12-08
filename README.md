@@ -48,4 +48,9 @@ The parser only parses the following ISOBMFF boxes for now:
 
 I plan to support each one of them but UUIDs (I may add support for some of them in the future, for example for Smooth Streaming ones).
 
+## Contribute
+
 You can help me to add parsing logic for other boxes by updating the ``src/boxes`` directory.
+
+You can base yourself on already-defined boxes. Each of the ``parser`` functions there receive a ``bufferReader`` object.
+This object is obtained by giving the box's content as an ``Uint8Array`` to the ``createBufferReader`` function defined and documented in ``src/utils/buffer_reader.js``.

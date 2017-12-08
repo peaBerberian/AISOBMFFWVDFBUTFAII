@@ -9,14 +9,32 @@ import {
   bytesToHex,
 } from "./bytes.js";
 
-export default (buffer) => {
+/**
+ * Create object allowing to easily parse an ISOBMFF box.
+ *
+ * The BufferReader saves in its state the current offset after each method
+ * call, allowing to easily parse contiguous bytes in box parsers.
+ *
+ * @param {Uint8Array} buffer
+ * @returns {Object}
+ */
+export default function createBufferReader(buffer) {
   let currentOffset = 0;
 
   return {
+    /**
+     * Returns the following byte, as a number between 0 and 255.
+     * @returns {number}
+     */
     getNextByte() {
       this.getNextBytes(1);
     },
 
+    /**
+     * Returns the N next bytes, as an Uint8Array
+     * @param {number} nb
+     * @returns {Uint8Array}
+     */
     getNextBytes(nb) {
       if (this.getRemainingLength() < nb) {
         return ;
@@ -25,6 +43,18 @@ export default (buffer) => {
       return buffer.slice(0, nb);
     },
 
+    /**
+     * Returns the N next bytes, as a single number.
+     *
+     * /!\ only work for now for 1, 2, 3, 4, 5 or 8 bytes.
+     * TODO Define a more global solution.
+     *
+     * /!\ Depending on the size of the number, it may be larger than JS'
+     * limit.
+     *
+     * @param {number} nb
+     * @returns {number}
+     */
     bytesToInt(nbBytes) {
       if (this.getRemainingLength() < nbBytes) {
         return ;
@@ -57,6 +87,11 @@ export default (buffer) => {
       return res;
     },
 
+    /**
+     * Returns the N next bytes into a string of Hexadecimal values.
+     * @param {number}
+     * @returns {string}
+     */
     bytesToHex(nbBytes) {
       if (this.getRemainingLength() < nbBytes) {
         return ;
@@ -66,6 +101,11 @@ export default (buffer) => {
       return res;
     },
 
+    /**
+     * Returns the N next bytes into a string.
+     * @param {number}
+     * @returns {string}
+     */
     bytesToASCII(nbBytes) {
       if (this.getRemainingLength() < nbBytes) {
         return ;
@@ -76,16 +116,28 @@ export default (buffer) => {
       return res;
     },
 
+    /**
+     * Returns the total length of the buffer
+     * @returns {number}
+     */
     getTotalLength() {
       return buffer.length;
     },
 
+    /**
+     * Returns the length of the buffer which is not yet parsed.
+     * @returns {number}
+     */
     getRemainingLength() {
       return Math.max(0, buffer.length - currentOffset);
     },
 
+    /**
+     * Returns true if this buffer is entirely parsed.
+     * @returns {boolean}
+     */
     isFinished() {
       return buffer.length <= currentOffset;
     },
   };
-};
+}
