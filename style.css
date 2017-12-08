@@ -1,3 +1,23 @@
+h2 {
+  border-bottom: 1px dotted black;
+  font-size: 18px;
+}
+
+#selection {
+  background-color: #f6f8ff;
+  margin: 5px;
+  padding: 10px;
+}
+
+.choices-element {
+  margin: 9px;
+}
+
+#file-description {
+  margin: 5px;
+  padding: 10px;
+}
+
 .box {
   margin: 20px;
 }
