@@ -1,9 +1,15 @@
-const el = document.getElementById("file-description");
+const wrapper = document.getElementById("file-description");
 
 const sanitize = (str) => {
   const div = document.createElement("div");
   div.appendChild(document.createTextNode(str));
   return div.innerHTML;
+};
+
+const title = () => {
+  return `
+    <h2 id="result-title">Results</h2>
+  `;
 };
 
 const getObjectDisplay = (obj) => {
@@ -87,6 +93,8 @@ const Box = (box) => {
 };
 
 export default (arr = []) => {
-  console.log(arr);
-  el.innerHTML =  arr.map(Box).join("");
+  console.log("rendering...", arr);
+  wrapper.style.display = "none";
+  wrapper.innerHTML =  title() + arr.map(Box).join("");
+  wrapper.style.display = "block";
 };

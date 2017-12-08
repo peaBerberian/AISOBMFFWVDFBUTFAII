@@ -5,7 +5,24 @@
 <title>AISOBMFFWVDFBUTFAII</title>
 </head>
   <body>
-    <input type="file" id="file-input" name="file">
+    <h1 id="title">
+      ISOBMFF Parser
+    </h1>
+    <div id="selection">
+      <h2 id="selection-title">
+        File selection
+      </h2>
+      <div id="choices-local-segment" class="choices-element choices-input">
+        <i>Choose a file locally:</i><input type="file" id="file-input" name="file" />
+      </div>
+      <div id="choices-separator" class="choices-element">
+        <b><i>or</i></b>
+      </div>
+      <div id="choices-url-segment" class="choices-element choices-input">
+        <input id="url-input" style="width: 350px;" name="url" placeholder="URL to the file" />
+        <button type="button" id="url-button">OK</button>
+      </div>
+    </div>
     <div id="file-description"></div>
     <script type="text/javascript" src="./aisobmffwvdfbutfaii.js" charset="utf-8"></script>
   </body>

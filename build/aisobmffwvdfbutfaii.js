@@ -357,12 +357,18 @@ const parseBoxes = (arr) => {
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-const el = document.getElementById("file-description");
+const wrapper = document.getElementById("file-description");
 
 const sanitize = (str) => {
   const div = document.createElement("div");
   div.appendChild(document.createTextNode(str));
   return div.innerHTML;
+};
+
+const title = () => {
+  return `
+    <h2 id="result-title">Results</h2>
+  `;
 };
 
 const getObjectDisplay = (obj) => {
@@ -446,8 +452,10 @@ const Box = (box) => {
 };
 
 /* harmony default export */ __webpack_exports__["a"] = ((arr = []) => {
-  console.log(arr);
-  el.innerHTML =  arr.map(Box).join("");
+  console.log("rendering...", arr);
+  wrapper.style.display = "none";
+  wrapper.innerHTML =  title() + arr.map(Box).join("");
+  wrapper.style.display = "block";
 });
 
 
@@ -1572,39 +1580,98 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 
 
 
-// Check for the various File API support.
-if (!window.File || !window.FileReader) {
-  const div = document.createElement("div");
-  div.innerHTML = "Your browser is not compatible.";
-  document.body.appendChild(div);
-  throw new Error("Your browser is not compatible.");
-}
+// -- Feature switching based on the various API support --
 
-/**
- * @param {Event} evt
- */
-function onFileSelection(evt) {
-  const files = evt.target.files; // FileList object
+if (window.File && window.FileReader && window.Uint8Array) {
 
-  if (!files.length) {
-    return;
+  /**
+   * @param {Event} evt
+   * @returns {Boolean}
+   */
+  function onFileSelection(evt) {
+    const files = evt.target.files; // FileList object
+
+    if (!files.length) {
+      return;
+    }
+
+    const file = files[0];
+    const reader = new FileReader();
+
+    // TODO read progressively to skip mdat and whatnot
+    reader.onload = (evt) => {
+      const arr = new Uint8Array(evt.target.result);
+      const res = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__parser_js__["a" /* default */])(arr);
+      __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__renderer_js__["a" /* default */])(res);
+    };
+
+    reader.readAsArrayBuffer(file);
+    return false;
   }
 
-  const file = files[0];
-  const reader = new FileReader();
+  document.getElementById("file-input")
+    .addEventListener("change", onFileSelection, false);
 
-  // TODO read progressively to skip mdat and whatnot
-  reader.onload = (evt) => {
-    const arr = new Uint8Array(evt.target.result);
-    const res = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__parser_js__["a" /* default */])(arr);
-    __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__renderer_js__["a" /* default */])(res);
-  };
+} else {
+  const localSegmentInput = document.getElementById("choices-local-segment");
+  localSegmentInput.style.display = "none";
 
-  reader.readAsArrayBuffer(file);
+  const choiceSeparator = document.getElementById("choices-separator");
+  choiceSeparator.style.display = "none";
 }
 
-document.getElementById("file-input")
-  .addEventListener("change", onFileSelection, false);
+if (window.fetch && window.Uint8Array) {
+
+  /**
+   * @param {Event} evt
+   */
+  function onUrlValidation(url) {
+    fetch(url)
+      .then(response => response.arrayBuffer())
+      .then((arrayBuffer) => {
+        const parsed = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__parser_js__["a" /* default */])(new Uint8Array(arrayBuffer));
+        __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_1__renderer_js__["a" /* default */])(parsed);
+      });
+  }
+
+  /**
+   * @returns {Boolean}
+   */
+  function onButtonClicking() {
+    const url = document.getElementById("url-input").value;
+    if (url) {
+      onUrlValidation(url);
+      return false;
+    }
+  }
+
+  /**
+   * @param {Event} evt
+   * @returns {Boolean}
+   */
+  function onInputKeyPress(evt) {
+    const keyCode = evt.keyCode || evt.which;
+    if (keyCode == 13) {
+      const url = evt.target.value;
+      if (url) {
+        onUrlValidation(url);
+      }
+      return false;
+    }
+  }
+
+  document.getElementById("url-input")
+    .addEventListener("keypress", onInputKeyPress, false);
+
+  document.getElementById("url-button")
+    .addEventListener("click", onButtonClicking, false);
+} else {
+  const choiceSeparator = document.getElementById("choices-separator");
+  choiceSeparator.style.display = "none";
+
+  const urlSegmentInput = document.getElementById("choices-url-segment");
+  urlSegmentInput.style.display = "none";
+}
 
 
 /***/ }),
