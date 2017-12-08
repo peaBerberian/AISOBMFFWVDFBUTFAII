@@ -17,8 +17,6 @@ The parser only parses the following ISOBMFF boxes for now:
   - free
   - ftyp
   - hdlr
-  - iods
-  - leva
   - mdat
   - mdhd
   - mdia
