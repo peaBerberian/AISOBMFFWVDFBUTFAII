@@ -1,4 +1,4 @@
-import parseBoxes from "./parser.js";
+import inspectISOBMFF from "isobmff-inspector";
 import render from "./renderer.js";
 
 // -- Feature switching based on the various API support --
@@ -22,7 +22,7 @@ if (window.File && window.FileReader && window.Uint8Array) {
     // TODO read progressively to skip mdat and whatnot
     reader.onload = (evt) => {
       const arr = new Uint8Array(evt.target.result);
-      const res = parseBoxes(arr);
+      const res = inspectISOBMFF(arr);
       render(res);
     };
 
@@ -50,7 +50,7 @@ if (window.fetch && window.Uint8Array) {
     fetch(url)
       .then(response => response.arrayBuffer())
       .then((arrayBuffer) => {
-        const parsed = parseBoxes(new Uint8Array(arrayBuffer));
+        const parsed = inspectISOBMFF(new Uint8Array(arrayBuffer));
         render(parsed);
       });
   }
