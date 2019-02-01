@@ -1,3 +1,5 @@
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FpeaBerberian%2FAISOBMFFWVDFBUTFAII.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2FpeaBerberian%2FAISOBMFFWVDFBUTFAII?ref=badge_shield)
+
 # AISOBMFFWVDFBUTFAII ##########################################################
 
 **A**n **ISOBMFF** **W**eb **V**isualizer **D**one **F**or **B**etter
@@ -71,3 +73,7 @@ you're welcome to improve.
 To help with box parsing, most of the parsing logic is actually in another
 repository, the
 [isobmff-inspector](https://github.com/peaBerberian/isobmff-inspector).
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FpeaBerberian%2FAISOBMFFWVDFBUTFAII.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2FpeaBerberian%2FAISOBMFFWVDFBUTFAII?ref=badge_large)
