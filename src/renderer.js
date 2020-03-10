@@ -19,7 +19,7 @@ const getObjectDisplay = (obj) => {
         <span class="value-object-key">${sanitize(key)}</span>:
         <span class="value-object-value">${getValueToDisplay(obj[key])}</span>
       </div>
-    `
+    `,
   ).join("");
   return `
     <div class="value-object-line">
