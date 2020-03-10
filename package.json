@@ -1,6 +1,6 @@
 {
   "name": "aisobmffwvdfbutfaii",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "An ISOBMFF web visualizer done for better understanding the format and its intricacies.",
   "main": "build/aisobmffwvdfbutfaii.js",
   "scripts": {
