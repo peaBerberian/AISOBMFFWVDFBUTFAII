@@ -1,958 +1,124 @@
-/******/ !function(modules) {
-    // webpackBootstrap
-    /******/ // The module cache
-    /******/ var installedModules = {};
-    /******/
-    /******/ // The require function
-    /******/    function __webpack_require__(moduleId) {
-        /******/
-        /******/ // Check if module is in cache
-        /******/ if (installedModules[moduleId]) 
-        /******/ return installedModules[moduleId].exports;
-        /******/
-        /******/ // Create a new module (and put it into the cache)
-        /******/        var module = installedModules[moduleId] = {
-            /******/ i: moduleId,
-            /******/ l: !1,
-            /******/ exports: {}
-            /******/        };
-        /******/
-        /******/ // Execute the module function
-        /******/        
-        /******/
-        /******/ // Return the exports of the module
-        /******/ return modules[moduleId].call(module.exports, module, module.exports, __webpack_require__), 
-        /******/
-        /******/ // Flag the module as loaded
-        /******/ module.l = !0, module.exports;
-        /******/    }
-    /******/
-    /******/
-    /******/ // expose the modules object (__webpack_modules__)
-    /******/    
-    /******/
-    /******/
-    /******/ // Load entry module and return exports
-    /******/ __webpack_require__.m = modules, 
-    /******/
-    /******/ // expose the module cache
-    /******/ __webpack_require__.c = installedModules, 
-    /******/
-    /******/ // define getter function for harmony exports
-    /******/ __webpack_require__.d = function(exports, name, getter) {
-        /******/ __webpack_require__.o(exports, name) || 
-        /******/ Object.defineProperty(exports, name, {
-            enumerable: !0,
-            get: getter
-        })
-        /******/;
-    }, 
-    /******/
-    /******/ // define __esModule on exports
-    /******/ __webpack_require__.r = function(exports) {
-        /******/ "undefined" != typeof Symbol && Symbol.toStringTag && 
-        /******/ Object.defineProperty(exports, Symbol.toStringTag, {
-            value: "Module"
-        })
-        /******/ , Object.defineProperty(exports, "__esModule", {
-            value: !0
-        });
-    }, 
-    /******/
-    /******/ // create a fake namespace object
-    /******/ // mode & 1: value is a module id, require it
-    /******/ // mode & 2: merge all properties of value into the ns
-    /******/ // mode & 4: return value when already ns object
-    /******/ // mode & 8|1: behave like require
-    /******/ __webpack_require__.t = function(value, mode) {
-        /******/ if (
-        /******/ 1 & mode && (value = __webpack_require__(value)), 8 & mode) return value;
-        /******/        if (4 & mode && "object" == typeof value && value && value.__esModule) return value;
-        /******/        var ns = Object.create(null);
-        /******/        
-        /******/ if (__webpack_require__.r(ns), 
-        /******/ Object.defineProperty(ns, "default", {
-            enumerable: !0,
-            value: value
-        }), 2 & mode && "string" != typeof value) for (var key in value) __webpack_require__.d(ns, key, function(key) {
-            return value[key];
-        }.bind(null, key));
-        /******/        return ns;
-        /******/    }, 
-    /******/
-    /******/ // getDefaultExport function for compatibility with non-harmony modules
-    /******/ __webpack_require__.n = function(module) {
-        /******/ var getter = module && module.__esModule ? 
-        /******/ function getDefault() {
-            return module.default;
-        } : 
-        /******/ function getModuleExports() {
-            return module;
-        };
-        /******/        
-        /******/ return __webpack_require__.d(getter, "a", getter), getter;
-        /******/    }, 
-    /******/
-    /******/ // Object.prototype.hasOwnProperty.call
-    /******/ __webpack_require__.o = function(object, property) {
-        return Object.prototype.hasOwnProperty.call(object, property);
-    }, 
-    /******/
-    /******/ // __webpack_public_path__
-    /******/ __webpack_require__.p = "", __webpack_require__(__webpack_require__.s = 1);
-    /******/}
+/******/ (function(modules) { // webpackBootstrap
+/******/ 	// The module cache
+/******/ 	var installedModules = {};
+/******/
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/
+/******/ 		// Check if module is in cache
+/******/ 		if(installedModules[moduleId]) {
+/******/ 			return installedModules[moduleId].exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = installedModules[moduleId] = {
+/******/ 			i: moduleId,
+/******/ 			l: false,
+/******/ 			exports: {}
+/******/ 		};
+/******/
+/******/ 		// Execute the module function
+/******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/
+/******/ 		// Flag the module as loaded
+/******/ 		module.l = true;
+/******/
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/
+/******/
+/******/ 	// expose the modules object (__webpack_modules__)
+/******/ 	__webpack_require__.m = modules;
+/******/
+/******/ 	// expose the module cache
+/******/ 	__webpack_require__.c = installedModules;
+/******/
+/******/ 	// define getter function for harmony exports
+/******/ 	__webpack_require__.d = function(exports, name, getter) {
+/******/ 		if(!__webpack_require__.o(exports, name)) {
+/******/ 			Object.defineProperty(exports, name, { enumerable: true, get: getter });
+/******/ 		}
+/******/ 	};
+/******/
+/******/ 	// define __esModule on exports
+/******/ 	__webpack_require__.r = function(exports) {
+/******/ 		if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 			Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 		}
+/******/ 		Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 	};
+/******/
+/******/ 	// create a fake namespace object
+/******/ 	// mode & 1: value is a module id, require it
+/******/ 	// mode & 2: merge all properties of value into the ns
+/******/ 	// mode & 4: return value when already ns object
+/******/ 	// mode & 8|1: behave like require
+/******/ 	__webpack_require__.t = function(value, mode) {
+/******/ 		if(mode & 1) value = __webpack_require__(value);
+/******/ 		if(mode & 8) return value;
+/******/ 		if((mode & 4) && typeof value === 'object' && value && value.__esModule) return value;
+/******/ 		var ns = Object.create(null);
+/******/ 		__webpack_require__.r(ns);
+/******/ 		Object.defineProperty(ns, 'default', { enumerable: true, value: value });
+/******/ 		if(mode & 2 && typeof value != 'string') for(var key in value) __webpack_require__.d(ns, key, function(key) { return value[key]; }.bind(null, key));
+/******/ 		return ns;
+/******/ 	};
+/******/
+/******/ 	// getDefaultExport function for compatibility with non-harmony modules
+/******/ 	__webpack_require__.n = function(module) {
+/******/ 		var getter = module && module.__esModule ?
+/******/ 			function getDefault() { return module['default']; } :
+/******/ 			function getModuleExports() { return module; };
+/******/ 		__webpack_require__.d(getter, 'a', getter);
+/******/ 		return getter;
+/******/ 	};
+/******/
+/******/ 	// Object.prototype.hasOwnProperty.call
+/******/ 	__webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
+/******/
+/******/ 	// __webpack_public_path__
+/******/ 	__webpack_require__.p = "";
+/******/
+/******/
+/******/ 	// Load entry module and return exports
+/******/ 	return __webpack_require__(__webpack_require__.s = "./src/index.js");
+/******/ })
 /************************************************************************/
-/******/ ([ 
-/* 0 */
-/***/ function(module, exports, __webpack_require__) {
-    !function(global, factory) {
-        module.exports = function() {
-            "use strict";
-            /**
-   * Translate groups of 2 big-endian bytes to Integer (from 0 up to 65535).
-   * @param {TypedArray} bytes
-   * @param {Number} off - The offset (from the start of the given array)
-   * @returns {Number}
-   */            function be2toi(bytes, off) {
-                return (bytes[0 + off] << 8) + bytes[1 + off];
-            }
-            /**
-   * Translate groups of 3 big-endian bytes to Integer.
-   * @param {TypedArray} bytes
-   * @param {Number} off - The offset (from the start of the given array)
-   * @returns {Number}
-   */            function be3toi(bytes, off) {
-                return 65536 * bytes[0 + off] + 256 * bytes[1 + off] + bytes[2 + off];
-            }
-            /**
-   * Translate groups of 4 big-endian bytes to Integer.
-   * @param {TypedArray} bytes
-   * @param {Number} off - The offset (from the start of the given array)
-   * @returns {Number}
-   */            function be4toi(bytes, off) {
-                return 16777216 * bytes[0 + off] + 65536 * bytes[1 + off] + 256 * bytes[2 + off] + bytes[3 + off];
-            }
-            /**
-   * Translate groups of 4 big-endian bytes to Integer.
-   * @param {TypedArray} bytes
-   * @param {Number} off - The offset (from the start of the given array)
-   * @returns {Number}
-   */            function be5toi(bytes, off) {
-                return 4294967296 * bytes[0 + off] + 16777216 * bytes[1 + off] + 65536 * bytes[2 + off] + 256 * bytes[3 + off] + bytes[4 + off];
-            }
-            /**
-   * Translate groups of 8 big-endian bytes to Integer.
-   * @param {TypedArray} bytes
-   * @param {Number} off - The offset (from the start of the given array)
-   * @returns {Number}
-   */            function be8toi(bytes, off) {
-                return 4294967296 * (16777216 * bytes[0 + off] + 65536 * bytes[1 + off] + 256 * bytes[2 + off] + bytes[3 + off]) + 16777216 * bytes[4 + off] + 65536 * bytes[5 + off] + 256 * bytes[6 + off] + bytes[7 + off];
-            }
-            function bytesToHex(uint8arr, off, nbBytes) {
-                if (!uint8arr) return "";
-                for (var arr = uint8arr.slice(off, nbBytes + off), hexStr = "", i = 0; i < arr.length; i++) {
-                    var hex = (255 & arr[i]).toString(16);
-                    hex = 1 === hex.length ? "0" + hex : hex, hexStr += hex;
-                }
-                return hexStr.toUpperCase();
-            }
-            // XXX TODO test that
-                        function betoa(uint8arr, off, nbBytes) {
-                if (!uint8arr) return "";
-                var arr = uint8arr.slice(off, nbBytes + off);
-                return String.fromCharCode.apply(String, arr);
-            }
-            /**
-   * Create object allowing to easily parse an ISOBMFF box.
-   *
-   * The BufferReader saves in its state the current offset after each method
-   * call, allowing to easily parse contiguous bytes in box parsers.
-   *
-   * @param {Uint8Array} buffer
-   * @returns {Object}
-   */            function createBufferReader(buffer) {
-                var currentOffset = 0;
-                return {
-                    /**
-       * Returns the following byte, as a number between 0 and 255.
-       * @returns {number}
-       */
-                    getNextByte: function getNextByte() {
-                        this.getNextBytes(1);
-                    },
-                    /**
-       * Returns the N next bytes, as an Uint8Array
-       * @param {number} nb
-       * @returns {Uint8Array}
-       */
-                    getNextBytes: function getNextBytes(nb) {
-                        if (!(this.getRemainingLength() < nb)) return currentOffset += nb, buffer.slice(0, nb);
-                    },
-                    /**
-       * Returns the N next bytes, as a single number.
-       *
-       * /!\ only work for now for 1, 2, 3, 4, 5 or 8 bytes.
-       * TODO Define a more global solution.
-       *
-       * /!\ Depending on the size of the number, it may be larger than JS'
-       * limit.
-       *
-       * @param {number} nb
-       * @returns {number}
-       */
-                    bytesToInt: function bytesToInt(nbBytes) {
-                        if (!(this.getRemainingLength() < nbBytes)) {
-                            var res = void 0;
-                            switch (nbBytes) {
-                              case 1:
-                                res = buffer[currentOffset];
-                                break;
+/******/ ({
 
-                              case 2:
-                                res = be2toi(buffer, currentOffset);
-                                break;
+/***/ "./node_modules/isobmff-inspector/dist/bundle.js":
+/*!*******************************************************!*\
+  !*** ./node_modules/isobmff-inspector/dist/bundle.js ***!
+  \*******************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
 
-                              case 3:
-                                res = be3toi(buffer, currentOffset);
-                                break;
+eval("(function (global, factory) {\n   true ? module.exports = factory() :\n  undefined;\n}(this, (function () { 'use strict';\n\n  /**\n   * Translate groups of 2 big-endian bytes to Integer (from 0 up to 65535).\n   * @param {TypedArray} bytes\n   * @param {Number} off - The offset (from the start of the given array)\n   * @returns {Number}\n   */\n  function be2toi(bytes, off) {\n    return (bytes[0 + off] << 8) + bytes[1 + off];\n  }\n  /**\n   * Translate groups of 3 big-endian bytes to Integer.\n   * @param {TypedArray} bytes\n   * @param {Number} off - The offset (from the start of the given array)\n   * @returns {Number}\n   */\n\n\n  function be3toi(bytes, off) {\n    return bytes[0 + off] * 0x0010000 + bytes[1 + off] * 0x0000100 + bytes[2 + off];\n  }\n  /**\n   * Translate groups of 4 big-endian bytes to Integer.\n   * @param {TypedArray} bytes\n   * @param {Number} off - The offset (from the start of the given array)\n   * @returns {Number}\n   */\n\n\n  function be4toi(bytes, off) {\n    return bytes[0 + off] * 0x1000000 + bytes[1 + off] * 0x0010000 + bytes[2 + off] * 0x0000100 + bytes[3 + off];\n  }\n  /**\n   * Translate groups of 4 big-endian bytes to Integer.\n   * @param {TypedArray} bytes\n   * @param {Number} off - The offset (from the start of the given array)\n   * @returns {Number}\n   */\n\n\n  function be5toi(bytes, off) {\n    return bytes[0 + off] * 0x100000000 + bytes[1 + off] * 0x001000000 + bytes[2 + off] * 0x000010000 + bytes[3 + off] * 0x000000100 + bytes[4 + off];\n  }\n  /**\n   * Translate groups of 8 big-endian bytes to Integer.\n   * @param {TypedArray} bytes\n   * @param {Number} off - The offset (from the start of the given array)\n   * @returns {Number}\n   */\n\n\n  function be8toi(bytes, off) {\n    return (bytes[0 + off] * 0x1000000 + bytes[1 + off] * 0x0010000 + bytes[2 + off] * 0x0000100 + bytes[3 + off]) * 0x100000000 + bytes[4 + off] * 0x1000000 + bytes[5 + off] * 0x0010000 + bytes[6 + off] * 0x0000100 + bytes[7 + off];\n  }\n\n  function bytesToHex(uint8arr, off, nbBytes) {\n    if (!uint8arr) {\n      return \"\";\n    }\n\n    var arr = uint8arr.slice(off, nbBytes + off);\n    var hexStr = \"\";\n\n    for (var i = 0; i < arr.length; i++) {\n      var hex = (arr[i] & 0xff).toString(16);\n      hex = hex.length === 1 ? \"0\" + hex : hex;\n      hexStr += hex;\n    }\n\n    return hexStr.toUpperCase();\n  } // XXX TODO test that\n\n\n  function betoa(uint8arr, off, nbBytes) {\n    if (!uint8arr) {\n      return \"\";\n    }\n\n    var arr = uint8arr.slice(off, nbBytes + off);\n    return String.fromCharCode.apply(String, arr);\n  }\n\n  /**\n   * Create object allowing to easily parse an ISOBMFF box.\n   *\n   * The BufferReader saves in its state the current offset after each method\n   * call, allowing to easily parse contiguous bytes in box parsers.\n   *\n   * @param {Uint8Array} buffer\n   * @returns {Object}\n   */\n\n  function createBufferReader(buffer) {\n    var currentOffset = 0;\n    return {\n      /**\n       * Returns the following byte, as a number between 0 and 255.\n       * @returns {number}\n       */\n      getNextByte: function getNextByte() {\n        this.getNextBytes(1);\n      },\n\n      /**\n       * Returns the N next bytes, as an Uint8Array\n       * @param {number} nb\n       * @returns {Uint8Array}\n       */\n      getNextBytes: function getNextBytes(nb) {\n        if (this.getRemainingLength() < nb) {\n          return;\n        }\n\n        currentOffset += nb;\n        return buffer.slice(0, nb);\n      },\n\n      /**\n       * Returns the N next bytes, as a single number.\n       *\n       * /!\\ only work for now for 1, 2, 3, 4, 5 or 8 bytes.\n       * TODO Define a more global solution.\n       *\n       * /!\\ Depending on the size of the number, it may be larger than JS'\n       * limit.\n       *\n       * @param {number} nb\n       * @returns {number}\n       */\n      bytesToInt: function bytesToInt(nbBytes) {\n        if (this.getRemainingLength() < nbBytes) {\n          return;\n        }\n\n        var res;\n\n        switch (nbBytes) {\n          case 1:\n            res = buffer[currentOffset];\n            break;\n\n          case 2:\n            res = be2toi(buffer, currentOffset);\n            break;\n\n          case 3:\n            res = be3toi(buffer, currentOffset);\n            break;\n\n          case 4:\n            res = be4toi(buffer, currentOffset);\n            break;\n\n          case 5:\n            res = be5toi(buffer, currentOffset);\n            break;\n\n          case 8:\n            res = be8toi(buffer, currentOffset);\n            break;\n\n          default:\n            throw new Error(\"not implemented yet.\");\n        }\n\n        currentOffset += nbBytes;\n        return res;\n      },\n\n      /**\n       * Returns the N next bytes into a string of Hexadecimal values.\n       * @param {number}\n       * @returns {string}\n       */\n      bytesToHex: function bytesToHex$1(nbBytes) {\n        if (this.getRemainingLength() < nbBytes) {\n          return;\n        }\n\n        var res = bytesToHex(buffer, currentOffset, nbBytes);\n\n        currentOffset += nbBytes;\n        return res;\n      },\n\n      /**\n       * Returns the N next bytes into a string.\n       * @param {number}\n       * @returns {string}\n       */\n      bytesToASCII: function bytesToASCII(nbBytes) {\n        if (this.getRemainingLength() < nbBytes) {\n          return;\n        }\n\n        var res = betoa(buffer, currentOffset, nbBytes);\n        currentOffset += nbBytes;\n        return res;\n      },\n\n      /**\n       * Returns the total length of the buffer\n       * @returns {number}\n       */\n      getTotalLength: function getTotalLength() {\n        return buffer.length;\n      },\n\n      /**\n       * Returns the length of the buffer which is not yet parsed.\n       * @returns {number}\n       */\n      getRemainingLength: function getRemainingLength() {\n        return Math.max(0, buffer.length - currentOffset);\n      },\n\n      /**\n       * Returns true if this buffer is entirely parsed.\n       * @returns {boolean}\n       */\n      isFinished: function isFinished() {\n        return buffer.length <= currentOffset;\n      }\n    };\n  }\n\n  var dinf = {\n    name: \"Data Information Box\",\n    description: \"Objects that declare the location of the media information in a track.\",\n    container: true\n  };\n\n  var dref = {\n    name: \"Data Reference Box\",\n    description: \"\",\n    container: true,\n    parser: function parser(reader) {\n      var version = reader.bytesToInt(1);\n      var flags = reader.bytesToInt(3);\n\n      if (version !== 0) {\n        throw new Error(\"invalid version\");\n      }\n\n      if (flags !== 0) {\n        throw new Error(\"invalid flags\");\n      }\n\n      var entry_count = reader.bytesToInt(4);\n      return {\n        version: version,\n        flags: flags,\n        entry_count: entry_count\n      };\n    }\n  };\n\n  var edts = {\n    name: \"Edit Box\",\n    description: \"Maps the presentation time‐line to the media time‐line as it is stored in the file.\",\n    container: true\n  };\n\n  var free = {\n    name: \"Free Space Box\",\n    description: \"This box can be completely ignored\"\n  };\n\n  var ftyp = {\n    name: \"File Type Box\",\n    description: \"File type and compatibility\",\n    content: [{\n      /* name: \"major brand\", */\n      // optional name\n      key: \"major_brand\",\n      description: \"Brand identifier.\"\n    }, {\n      key: \"minor_version\",\n      description: \"informative integer for the minor version of the major brand\"\n    }, {\n      key: \"compatible_brands\",\n      description: \"List of brands\"\n    }],\n    parser: function parser(reader) {\n      var len = reader.getTotalLength();\n      var major_brand = reader.bytesToASCII(4);\n      var minor_version = reader.bytesToInt(4);\n      var compatArr = [];\n\n      for (var i = 8; i < len; i += 4) {\n        compatArr.push(reader.bytesToASCII(4));\n      }\n\n      return {\n        major_brand: major_brand,\n        minor_version: minor_version,\n        compatible_brands: compatArr.join(\", \")\n      };\n    }\n  };\n\n  var hdlr = {\n    name: \"Handler Reference Box\",\n    description: \"This box within a Media Box declares media type of the track, \" + \"and thus the process by which the media‐data in the track is presented\",\n    parser: function parser(r) {\n      var ret = {\n        version: r.bytesToInt(1),\n        flags: r.bytesToInt(3),\n        pre_defined: r.bytesToInt(4),\n        handler_type: r.bytesToInt(4),\n        reserved: [r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4)]\n      };\n      var remaining = r.getRemainingLength();\n      ret.name = \"\";\n\n      while (remaining--) {\n        ret.name += String.fromCharCode(parseInt(r.bytesToInt(1), 10));\n      }\n\n      return ret;\n    }\n  };\n\n  // TODO\n  var iods = {\n    name: \"Initial Object Descriptor Box\"\n  };\n\n  var leva = {\n    name: \"Level Assignment Box\",\n    // TODO\n    parser: function parser(reader) {\n      var version = reader.bytesToInt(1);\n      var flags = reader.bytesToInt(3); // ...\n\n      return {\n        version: version,\n        flags: flags\n      };\n    }\n  };\n\n  var mdat = {\n    name: \"Media Data Box\",\n    description: \"the content's data\"\n  };\n\n  var mdhd = {\n    name: \"Media Header Box\",\n    description: \"The media header declares overall information that is \" + \"media‐independent, and relevant to characteristics of the media in a track.\",\n    parser: function parser(r) {\n      var version = r.bytesToInt(1);\n      var flags = r.bytesToInt(3);\n      var creation_time = r.bytesToInt(version ? 8 : 4);\n      var modification_time = r.bytesToInt(version ? 8 : 4);\n      var timescale = r.bytesToInt(4);\n      var duration = r.bytesToInt(version ? 8 : 4);\n      var next2Bytes = r.bytesToInt(2);\n      var pad = next2Bytes >> 15 & 0x01;\n      var language = [String.fromCharCode((next2Bytes >> 10 & 0x1F) + 0x60), String.fromCharCode((next2Bytes >> 5 & 0x1F) + 0x60), String.fromCharCode((next2Bytes & 0x1F) + 0x60)].join(\"\");\n      var predifined = r.bytesToInt(2);\n      return {\n        version: version,\n        flags: flags,\n        creation_time: creation_time,\n        modification_time: modification_time,\n        timescale: timescale,\n        duration: duration,\n        pad: pad,\n        language: language,\n        predifined: predifined\n      };\n    }\n  };\n\n  var mdia = {\n    name: \"Track Media Structure\",\n    description: \"declare information about the media data within a track.\",\n    container: true\n  };\n\n  var mehd = {\n    name: \"Movie Extends Header Box\",\n    description: \"Provides the overall duration, including fragments, of a \" + \"fragmented movie. If this box is not present, the overall duration must \" + \"be computed by examining each fragment.\",\n    parser: function parser(reader) {\n      var version = reader.bytesToInt(1);\n\n      if (version > 1) {\n        throw new Error(\"invalid version\");\n      }\n\n      var flags = reader.bytesToInt(3);\n      var fragmentDuration = version === 1 ? reader.bytesToInt(8) : reader.bytesToInt(4);\n      return {\n        version: version,\n        flags: flags,\n        \"fragment_duration\": fragmentDuration\n      };\n    }\n  };\n\n  var mfhd = {\n    name: \"Movie Fragment Header Box\",\n    description: \"This box contains just a sequence number (usually starting at 1), as a safety check.\",\n    parser: function parser(r) {\n      return {\n        version: r.bytesToInt(1),\n        flags: r.bytesToInt(3),\n        sequence_number: r.bytesToInt(4)\n      };\n    }\n  };\n\n  var minf = {\n    name: \"Media Information Box\",\n    description: \"This box contains all the objects that declare characteristic information of the media in the track.\",\n    container: true\n  };\n\n  var moof = {\n    name: \"Movie Fragment Box\",\n    description: \"\",\n    container: true\n  };\n\n  var moov = {\n    name: \"Movie Box\",\n    description: \"The movie metadata\",\n    container: true\n  };\n\n  var mvex = {\n    name: \"Movie Extends Box\",\n    container: true\n  };\n\n  var mvhd = {\n    name: \"Movie Header Box\",\n    description: \"This box defines overall information which is \" + \"media‐independent, and relevant to the entire presentation \" + \"considered as a whole.\",\n    content: [{\n      name: \"version\",\n      description: \"mvhd version\",\n      key: \"version\"\n    }, {\n      name: \"flags\",\n      description: \"mvhd flags\",\n      key: \"flags\"\n    }, {\n      name: \"creation_time\",\n      description: \"An integer that declares the creation time of the \" + \"presentation (in seconds since midnight, Jan. 1, 1904, in UTC time)\",\n      key: \"creationTime\"\n    }, {\n      name: \"modification_time\",\n      description: \"An integer that declares the most recent time the \" + \"presentation was modified (in seconds since midnight, Jan. 1, 1904, \" + \"in UTC time)\",\n      key: \"modificationTime\"\n    }, {\n      name: \"timescale\",\n      description: \"An integer that specifies the time‐scale for the entire \" + \"presentation; this is the number of time units that pass in one second. \" + \"For example, a t me coordinate system that measures time in sixtieths \" + \"of a second has a time scale of 60.\",\n      key: \"timescale\"\n    }, {\n      name: \"duration\",\n      description: \"An integer that declares length of the presentation (in the \" + \"indicated timescale). This property is derived from the presentation’s \" + \"tracks: the value of this field corresponds to the duration of the \" + \"longest track in the presentation. If the durat ion cannot be \" + \"determined then duration is set to all 1s.\",\n      key: \"duration\"\n    }, {\n      name: \"rate\",\n      description: \"A fixed point 16.16 number that indicates the preferred \" + \"rate to play the presentation; 1.0 (0x00010000) is normal forward playback \",\n      key: \"rate\"\n    }, {\n      name: \"volume\",\n      description: \"A fixed point 8.8 number that indicates the preferred playback \" + \"volume. 1.0 (0x0100) is full volume.\",\n      key: \"volume\"\n    }, {\n      name: \"reserved 1\",\n      description: \"Reserved 16 bits\",\n      key: \"reserved1\"\n    }, {\n      name: \"reserved 2\",\n      description: \"Reserved 2*32 bits\",\n      key: \"reserved2\"\n    }, {\n      name: \"matrix\",\n      description: \"Provides a transformation matrix for the video; (u,v,w) are \" + \" restricted here to (0,0,1), hex values (0,0,0x40000000).\",\n      key: \"matrix\"\n    }, {\n      name: \"pre-defined\",\n      description: \"Pre-defined 32*6 bits.\",\n      key: \"predefined\"\n    }, {\n      name: \"next_track_ID\",\n      description: \"A non‐zero integer that indicates a value to use for the \" + \"track ID of the next track to be added to this presentation. \" + \"Zero is not a valid track ID value. The value of next_track_ID shall \" + \"be larger than the largest track‐ID in use. If this valu e is equal to \" + \"all 1s (32‐bit maxint), and a new media track is to be added, then a \" + \"search must be made in the file for an unused track identifier.\",\n      key: \"nextTrackId\"\n    }],\n    parser: function parser(reader) {\n      var version = reader.bytesToInt(1);\n\n      if (version > 1) {\n        throw new Error(\"invalid version\");\n      }\n\n      var flags = reader.bytesToInt(3);\n      var creationTime, modificationTime, timescale, duration;\n\n      if (version === 1) {\n        creationTime = reader.bytesToInt(8);\n        modificationTime = reader.bytesToInt(8);\n        timescale = reader.bytesToInt(4);\n        duration = reader.bytesToInt(8);\n      } else {\n        creationTime = reader.bytesToInt(4);\n        modificationTime = reader.bytesToInt(4);\n        timescale = reader.bytesToInt(4);\n        duration = reader.bytesToInt(4);\n      }\n\n      var rate = [reader.bytesToInt(2), reader.bytesToInt(2)].join(\".\");\n      var volume = [reader.bytesToInt(1), reader.bytesToInt(1)].join(\".\");\n      var reserved1 = reader.bytesToInt(2);\n      var reserved2 = [reader.bytesToInt(4), reader.bytesToInt(4)];\n      var matrixArr = [];\n\n      for (var i = 0; i < 9; i++) {\n        matrixArr.push(reader.bytesToInt(4));\n      }\n\n      var predefined = [reader.bytesToInt(4), reader.bytesToInt(4), reader.bytesToInt(4), reader.bytesToInt(4), reader.bytesToInt(4), reader.bytesToInt(4)];\n      var nextTrackId = reader.bytesToInt(4);\n      return {\n        version: version,\n        flags: flags,\n        creationTime: creationTime,\n        modificationTime: modificationTime,\n        timescale: timescale,\n        duration: duration,\n        rate: rate,\n        volume: volume,\n        reserved1: reserved1,\n        reserved2: reserved2,\n        matrix: matrixArr,\n        predefined: predefined,\n        nextTrackId: nextTrackId\n      };\n    }\n  };\n\n  var pdin = {\n    name: \"Progressive Download Information Box\",\n    description: \"\",\n    content: [{\n      name: \"version\",\n      description: \"pdin version\",\n      key: \"version\"\n    }, {\n      name: \"flags\",\n      description: \"pdin flags\",\n      key: \"flags\"\n    }, {\n      name: \"rate\",\n      description: \"Download rate expressed in bytes/second\",\n      key: \"rate\"\n    }, {\n      name: \"initial_delay\",\n      description: \"Suggested delay to use when playing the file, such \" + \"that if download continues at the given rate, all data within \" + \"the file will arrive in time for its use and playback should \" + \"not need to stall.\",\n      key: \"delay\"\n    }],\n    parser: function parser(reader) {\n      var version = reader.bytesToInt(1);\n\n      if (version !== 0) {\n        throw new Error(\"invalid version\");\n      }\n\n      return {\n        version: version,\n        flags: reader.bytesToInt(3),\n        rate: reader.bytesToInt(4),\n        delay: reader.bytesToInt(4)\n      };\n    }\n  };\n\n  var SYSTEM_IDS = {\n    \"1077EFECC0B24D02ACE33C1E52E2FB4B\": \"cenc\",\n    \"1F83E1E86EE94F0DBA2F5EC4E3ED1A66\": \"SecureMedia\",\n    \"35BF197B530E42D78B651B4BF415070F\": \"DivX DRM\",\n    \"45D481CB8FE049C0ADA9AB2D2455B2F2\": \"CoreCrypt\",\n    \"5E629AF538DA4063897797FFBD9902D4\": \"Marlin\",\n    \"616C7469636173742D50726F74656374\": \"AltiProtect\",\n    \"644FE7B5260F4FAD949A0762FFB054B4\": \"CMLA\",\n    \"69F908AF481646EA910CCD5DCCCB0A3A\": \"Marlin\",\n    \"6A99532D869F59229A91113AB7B1E2F3\": \"MobiDRM\",\n    \"80A6BE7E14484C379E70D5AEBE04C8D2\": \"Irdeto\",\n    \"94CE86FB07FF4F43ADB893D2FA968CA2\": \"FairPlay\",\n    \"992C46E6C4374899B6A050FA91AD0E39\": \"SteelKnot\",\n    \"9A04F07998404286AB92E65BE0885F95\": \"PlayReady\",\n    \"9A27DD82FDE247258CBC4234AA06EC09\": \"Verimatrix VCAS\",\n    \"A68129D3575B4F1A9CBA3223846CF7C3\": \"VideoGuard Everywhere\",\n    \"ADB41C242DBF4A6D958B4457C0D27B95\": \"Nagra\",\n    \"B4413586C58CFFB094A5D4896C1AF6C3\": \"Viaccess-Orca\",\n    \"DCF4E3E362F158187BA60A6FE33FF3DD\": \"DigiCAP\",\n    \"E2719D58A985B3C9781AB030AF78D30E\": \"ClearKey\",\n    \"EDEF8BA979D64ACEA3C827DCD51D21ED\": \"Widevine\",\n    \"F239E769EFA348509C16A903C6932EFB\": \"PrimeTime\"\n  };\n  var pssh = {\n    name: \"Protection System Specific Header\",\n    description: \"\",\n    parser: function parser(reader) {\n      var ret = {};\n      ret.version = reader.bytesToInt(1);\n\n      if (ret.version > 1) {\n        throw new Error(\"invalid version\");\n      }\n\n      ret.flags = reader.bytesToInt(3);\n      ret.systemID = reader.bytesToHex(16);\n      var systemIDName = SYSTEM_IDS[ret.systemID];\n\n      if (systemIDName) {\n        ret.systemID += \" (\".concat(systemIDName, \")\");\n      }\n\n      if (ret.version === 1) {\n        ret.KID_count = reader.bytesToInt(4);\n        ret.KIDs = [];\n        var i = ret.KID_count;\n\n        while (i--) {\n          ret.KIDs.push([reader.bytesToHex(16)]);\n        }\n      }\n\n      ret.data_length = reader.bytesToInt(4);\n      ret.data = reader.bytesToHex(ret.data_length);\n      return ret;\n    }\n  };\n\n  var saio = {\n    name: \"Sample Auxiliary Information Offsets\",\n    description: \"\",\n    parser: function parser(r) {\n      var ret = {};\n      ret.version = r.bytesToInt(1);\n      ret.flags = r.bytesToInt(3);\n\n      if (ret.flags == 1) {\n        ret.aux_info_type = r.bytesToInt(4);\n        ret.aux_info_type_parameter = r.bytesToInt(4);\n      }\n\n      ret.entry_count = r.bytesToInt(4);\n      ret.offset = [];\n      var i = ret.entry_count;\n\n      while (i--) {\n        ret.offset.push(r.bytesToInt(ret.version == 0 ? 4 : 8));\n      }\n\n      return ret;\n    }\n  };\n\n  var saiz = {\n    name: \"Sample Auxiliary Information Sizes\",\n    description: \"\",\n    parser: function parser(r) {\n      var ret = {};\n      ret.version = r.bytesToInt(1);\n      ret.flags = r.bytesToInt(3);\n\n      if (ret.flags == 1) {\n        ret.aux_info_type = r.bytesToInt(4);\n        ret.aux_info_type_parameter = r.bytesToInt(4);\n      }\n\n      ret.default_sample_info_size = r.bytesToInt(1);\n      ret.sample_count = r.bytesToInt(4);\n\n      if (ret.default_sample_info_size == 0) {\n        ret.sample_info_size = [];\n        var i = ret.sample_count;\n\n        while (i--) {\n          ret.sample_info_size.push(r.bytesToInt(1));\n        }\n      }\n\n      return ret;\n    }\n  };\n\n  var sdtp = {\n    name: \"Independent and Disposable Samples Box\",\n    description: \"\",\n    parser: function parser(r) {\n      var ret = {\n        version: r.bytesToInt(1),\n        flags: r.bytesToInt(3)\n      };\n      var remaining = r.getRemainingLength();\n      var i = remaining;\n      ret.samples = [];\n\n      while (i--) {\n        var _byte = r.bytesToInt(1);\n\n        ret.samples.push({\n          is_leading: _byte >> 6 & 0x03,\n          sample_depends_on: _byte >> 4 & 0x03,\n          sample_is_depended_on: _byte >> 2 & 0x03,\n          sample_has_redundancy: _byte & 0x03\n        });\n      }\n\n      return ret;\n    }\n  };\n\n  var sidx = {\n    name: \"Segment Index Box\",\n    description: \"Index of the media stream\",\n    parser: function parser(r) {\n      var version = r.bytesToInt(1);\n      var flags = r.bytesToInt(3);\n      var reference_id = r.bytesToInt(4);\n      var timescale = r.bytesToInt(4);\n      var earliest_presentation_time = r.bytesToInt(version === 0 ? 4 : 8);\n      var first_offset = r.bytesToInt(version === 0 ? 4 : 8);\n      var reserved = r.bytesToInt(2);\n      var reference_count = r.bytesToInt(2);\n      var items = [];\n      var i = reference_count;\n\n      while (i--) {\n        var first4Bytes = r.bytesToInt(4);\n        var second4Bytes = r.bytesToInt(4);\n        var third4Bytes = r.bytesToInt(4);\n        items.push({\n          reference_type: first4Bytes >> 31 & 0x01,\n          referenced_size: first4Bytes & 0x7FFFFFFF,\n          subsegment_duration: second4Bytes,\n          starts_with_SAP: third4Bytes >> 31 & 0x01,\n          SAP_type: third4Bytes >> 28 & 0x07,\n          SAP_delta_time: third4Bytes & 0x0FFFFFFF\n        });\n      }\n\n      return {\n        version: version,\n        flags: flags,\n        reference_id: reference_id,\n        timescale: timescale,\n        earliest_presentation_time: earliest_presentation_time,\n        first_offset: first_offset,\n        reserved: reserved,\n        reference_count: reference_count,\n        items: items\n      };\n    }\n  };\n\n  var skip = {\n    name: \"Free Space Box\",\n    description: \"This box can be completely ignored.\"\n  };\n\n  var stbl = {\n    name: \"Sample Table\",\n    description: \"\",\n    container: true\n  };\n\n  var stco = {\n    name: \"Chunk Offset\",\n    description: \"\",\n    parser: function parser(r) {\n      var ret = {};\n      ret.version = r.bytesToInt(1);\n      ret.flags = r.bytesToInt(3);\n      ret.entry_count = r.bytesToInt(4);\n      ret.chunk_offsets = [];\n      var i = ret.entry_count;\n\n      while (i--) {\n        ret.chunk_offsets.push(r.bytesToInt(4));\n      }\n\n      return ret;\n    }\n  };\n\n  var stsc = {\n    name: \"Sample To Chunk\",\n    description: \"\",\n    parser: function parser(r) {\n      var ret = {};\n      ret.version = r.bytesToInt(1);\n      ret.flags = r.bytesToInt(3);\n      ret.entry_count = r.bytesToInt(4);\n      ret.entries = [];\n      var i = ret.entry_count;\n\n      while (i--) {\n        var e = {};\n        e.first_chunk = r.bytesToInt(4);\n        e.samples_per_chunk = r.bytesToInt(4);\n        e.sample_description_index = r.bytesToInt(4);\n        ret.entries.push(e);\n      }\n\n      return ret;\n    }\n  };\n\n  var stsd = {\n    name: \"Sample Description\",\n    description: \"Information about the coding type used\",\n    parser: function parser(r) {\n      var ret = {};\n      ret.version = r.bytesToInt(1);\n      ret.flags = r.bytesToInt(3);\n      ret.entry_count = r.bytesToInt(4);\n      return ret;\n    },\n    container: true\n  };\n\n  var stsz = {\n    name: \"Sample Size\",\n    description: \"\",\n    parser: function parser(r) {\n      var ret = {};\n      ret.version = r.bytesToInt(1);\n      ret.flags = r.bytesToInt(3);\n      ret.sample_size = r.bytesToInt(4);\n      ret.sample_count = r.bytesToInt(4);\n\n      if (ret.sample_size == 0) {\n        ret.entries = [];\n        var i = ret.sample_count;\n\n        while (i--) {\n          ret.entries.push(r.bytesToInt(4));\n        }\n      }\n\n      return ret;\n    }\n  };\n\n  var stts = {\n    name: \"Decoding Time to Sample\",\n    description: \"\",\n    parser: function parser(r) {\n      var ret = {};\n      ret.version = r.bytesToInt(1);\n      ret.flags = r.bytesToInt(3);\n      ret.entry_count = r.bytesToInt(4);\n      ret.entries = [];\n      var i = ret.entry_count;\n\n      while (i--) {\n        var e = {};\n        e.sample_count = r.bytesToInt(4);\n        e.sample_delta = r.bytesToInt(4);\n        ret.entries.push(e);\n      }\n\n      return ret;\n    }\n  };\n\n  var styp = {\n    name: \"Segment Type Box\",\n    description: \"\",\n    content: ftyp.content,\n    parser: ftyp.parser\n  };\n\n  var tfdt = {\n    name: \"Track Fragment Decode Time\",\n    description: \"The absolute decode time, measured on the media timeline, of \" + \"the first sample in decode order in the track fragment\",\n    parser: function parser(r) {\n      var version = r.bytesToInt(1);\n      return {\n        version: version,\n        flags: r.bytesToInt(3),\n        baseMediaDecodeTime: r.bytesToInt(version ? 8 : 4)\n      };\n    }\n  };\n\n  var tfhd = {\n    name: \"Track Fragment Header Box\",\n    description: \"\",\n    parser: function parser(r) {\n      var ret = {};\n      ret.version = r.bytesToInt(1);\n      var flags = r.bytesToInt(3);\n      var hasBaseDataOffset = flags & 0x000001;\n      var hasSampleDescriptionIndex = flags & 0x000002;\n      var hasDefaultSampleDuration = flags & 0x000008;\n      var hasDefaultSampleSize = flags & 0x000010;\n      var hasDefaultSampleFlags = flags & 0x000020;\n      var durationIsEmpty = flags & 0x010000;\n      var defaultBaseIsMOOF = flags & 0x020000;\n      ret.flags = {\n        \"base-data-offset-present\": !!hasBaseDataOffset,\n        \"sample-description-index-present\": !!hasSampleDescriptionIndex,\n        \"default-sample-duration-present\": !!hasDefaultSampleDuration,\n        \"default-sample-size-present\": !!hasDefaultSampleSize,\n        \"default-sample-flags-present\": !!hasDefaultSampleFlags,\n        \"duration-is-empty\": !!durationIsEmpty,\n        \"default-base-is-moof\": !!defaultBaseIsMOOF\n      };\n      ret.track_ID = r.bytesToInt(4);\n\n      if (hasBaseDataOffset) {\n        ret.base_data_offset = r.bytesToInt(8);\n      }\n\n      if (hasSampleDescriptionIndex) {\n        ret.sample_description_index = r.bytesToInt(4);\n      }\n\n      if (hasDefaultSampleDuration) {\n        ret.default_sample_duration = r.bytesToInt(4);\n      }\n\n      if (hasDefaultSampleSize) {\n        ret.default_sample_size = r.bytesToInt(4);\n      }\n\n      if (hasDefaultSampleFlags) {\n        ret.default_sample_flags = r.bytesToInt(4);\n      }\n\n      return ret;\n    }\n  };\n\n  var tkhd = {\n    name: \"Track Header Box\",\n    description: \"Characteristics of a single track.\",\n    parser: function parser(r) {\n      var version = r.bytesToInt(1);\n      return {\n        version: version,\n        flags: r.bytesToInt(3),\n        creation_time: r.bytesToInt(version ? 8 : 4),\n        modification_time: r.bytesToInt(version ? 8 : 4),\n        track_ID: r.bytesToInt(4),\n        reserved1: r.bytesToInt(4),\n        duration: r.bytesToInt(version ? 8 : 4),\n        reserved2: [r.bytesToInt(4), r.bytesToInt(4)],\n        // TODO template? signed?\n        layer: r.bytesToInt(2),\n        alternate_group: r.bytesToInt(2),\n        volume: [r.bytesToInt(1), r.bytesToInt(1)].join(\".\"),\n        reserved3: r.bytesToInt(2),\n        matrix: [r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4)],\n        width: [r.bytesToInt(2), r.bytesToInt(2)],\n        height: [r.bytesToInt(2), r.bytesToInt(2)]\n      };\n    }\n  };\n\n  var traf = {\n    name: \"Track Fragment Box\",\n    description: \"\",\n    container: true\n  };\n\n  var trak = {\n    name: \"Track Box\",\n    description: \"Container box for a single track of a presentation. \" + \"A presentation consists of one or more tracks. Each track is independent \" + \"of the other tracks in the presentation and carries its own temporal and \" + \"spatial information. Each track will contain its associated Media Box.\",\n    container: true\n  };\n\n  var trex = {\n    name: \"Track Extends Box\",\n    description: \"sets up default values used by the movie fragments. \" + \"By setting defaults in this way, space and complexity can be saved \" + \"in each Track Fragment Box\",\n    parser: function parser(reader) {\n      return {\n        version: reader.bytesToInt(1),\n        flags: reader.bytesToInt(3),\n        \"track_id\": reader.bytesToInt(4),\n        \"default_sample_description_index\": reader.bytesToInt(4),\n        \"default_sample_duration\": reader.bytesToInt(4),\n        \"default_sample_size\": reader.bytesToInt(4),\n        \"default_sample_flags\": reader.bytesToInt(4)\n      };\n    }\n  };\n\n  var trun = {\n    name: \"Track Fragment Run Box\",\n    parser: function parser(r) {\n      var ret = {};\n      ret.version = r.bytesToInt(1);\n      var flags = r.bytesToInt(3);\n      var hasDataOffset = flags & 0x000001;\n      var hasFirstSampleFlags = flags & 0x000004;\n      var hasSampleDuration = flags & 0x000100;\n      var hasSampleSize = flags & 0x000200;\n      var hasSampleFlags = flags & 0x000400;\n      var hasSampleCompositionOffset = flags & 0x000800;\n      ret.flags = {\n        \"data-offset-present\": !!hasDataOffset,\n        \"first-sample-flags-present\": !!hasFirstSampleFlags,\n        \"sample-duration-present\": !!hasSampleDuration,\n        \"sample-size-present\": !!hasSampleSize,\n        \"sample-flags-present\": !!hasSampleFlags,\n        \"sample-composition-time-offset-present\": !!hasSampleCompositionOffset\n      };\n      ret.sample_count = r.bytesToInt(4); // two's complement\n\n      if (hasDataOffset) {\n        ret.data_offset = ~~r.bytesToInt(4);\n      }\n\n      if (hasFirstSampleFlags) {\n        ret.first_sample_flags = r.bytesToInt(4);\n      }\n\n      var i = ret.sample_count;\n      ret.samples = [];\n\n      while (i--) {\n        var sample = {};\n\n        if (hasSampleDuration) {\n          sample.sample_duration = r.bytesToInt(4);\n        }\n\n        if (hasSampleSize) {\n          sample.sample_size = r.bytesToInt(4);\n        }\n\n        if (hasSampleFlags) {\n          sample.sample_flags = r.bytesToInt(4);\n        }\n\n        if (hasSampleCompositionOffset) {\n          sample.sample_composition_time_offset = ret.version === 0 ? r.bytesToInt(4) : ~~r.bytesToInt(4);\n        }\n\n        ret.samples.push(sample);\n      }\n\n      return ret;\n    }\n  };\n\n  var url_ = {\n    name: \"Data Entry Url Box\",\n    description: \"declare the location(s) of the media data used within the presentation.\",\n    parser: function parser(r) {\n      var ret = {};\n      ret.version = r.bytesToInt(1);\n      ret.flags = r.bytesToInt(3);\n      var remaining = r.getRemainingLength();\n\n      if (remaining) {\n        ret.location = String.fromCharCode.apply(String, r.bytesToInt(r.getRemainingLength()));\n      }\n\n      return ret;\n    }\n  };\n\n  var urn_ = {\n    name: \"Data Entry Url Box\",\n    description: \"declare the location(s) of the media data used within the presentation.\",\n    parser: function parser(r) {\n      var ret = {};\n      ret.version = r.bytesToInt(1);\n      ret.flags = r.bytesToInt(3);\n      var remaining = r.getRemainingLength(); // TODO Check NULL-terminated stream for name+location\n      // might also check flags for that\n\n      if (remaining) {\n        ret.name = String.fromCharCode.apply(String, r.bytesToInt(r.getRemainingLength()));\n      }\n\n      return ret;\n    }\n  };\n\n  var uuid = {\n    name: \"User-defined Box\",\n    description: \"Custom box. Those are not yet parsed here.\"\n  };\n\n  var vmhd = {\n    name: \"Video Media Header\",\n    description: \"The video media header contains general presentation \" + \"information, independent of the coding, for video media.\",\n    parser: function parser(reader) {\n      var version = reader.bytesToInt(1);\n      var flags = reader.bytesToInt(3);\n\n      if (version !== 0) {\n        throw new Error(\"invalid version\");\n      }\n\n      if (flags !== 1) {\n        throw new Error(\"invalid flags\");\n      } // TODO template?\n\n\n      var graphicsmode = reader.bytesToInt(2);\n      var opcolor = [reader.bytesToInt(2), reader.bytesToInt(2), reader.bytesToInt(2)];\n      return {\n        version: version,\n        flags: flags,\n        graphicsmode: graphicsmode,\n        opcolor: opcolor\n      };\n    }\n  };\n\n  var definitions = {\n    dinf: dinf,\n    dref: dref,\n    edts: edts,\n    free: free,\n    ftyp: ftyp,\n    hdlr: hdlr,\n    iods: iods,\n    leva: leva,\n    mdat: mdat,\n    mdhd: mdhd,\n    mdia: mdia,\n    mehd: mehd,\n    mfhd: mfhd,\n    minf: minf,\n    moof: moof,\n    moov: moov,\n    mvex: mvex,\n    mvhd: mvhd,\n    pdin: pdin,\n    pssh: pssh,\n    saio: saio,\n    saiz: saiz,\n    sdtp: sdtp,\n    sidx: sidx,\n    skip: skip,\n    stbl: stbl,\n    stco: stco,\n    stsc: stsc,\n    stsd: stsd,\n    stsz: stsz,\n    stts: stts,\n    styp: styp,\n    tfdt: tfdt,\n    tfhd: tfhd,\n    tkhd: tkhd,\n    traf: traf,\n    trak: trak,\n    trex: trex,\n    trun: trun,\n    \"url \": url_,\n    \"urn \": urn_,\n    uuid: uuid,\n    vmhd: vmhd\n  };\n\n  /**\n   * Parse recursively ISOBMFF Uint8Array.\n   * @param {Uint8Array} arr\n   * @returns {Array.<Object>}\n   */\n\n  function recursiveParseBoxes(arr) {\n    var i = 0;\n    var returnedArray = [];\n\n    var _loop = function _loop() {\n      var currentOffset = i;\n      var size = be4toi(arr, currentOffset);\n      currentOffset += 4;\n\n      if (size === 1) {\n        size = be8toi(arr, currentOffset);\n        currentOffset += 8;\n      } else if (size === 0) {\n        size = arr.length - i;\n      }\n\n      var name = betoa(arr, currentOffset, 4);\n      currentOffset += 4;\n      var atomObject = {\n        alias: name,\n        size: size,\n        values: []\n      };\n\n      if (name === \"uuid\") {\n        var subtype = [];\n        var j = 16;\n\n        while (j--) {\n          subtype.push(arr[currentOffset]);\n          currentOffset += 1;\n        }\n\n        atomObject.subtype = subtype;\n      }\n\n      returnedArray.push(atomObject);\n\n      if (definitions[name]) {\n        var config = definitions[name];\n        var contentInfos = config.content ? config.content.reduce(function (acc, el) {\n          acc[el.key] = {\n            name: el.name || \"\",\n            description: el.description | \"\"\n          };\n          return acc;\n        }, {}) : {\n          name: \"\",\n          description: \"\"\n        };\n        atomObject.name = config.name || \"\";\n        atomObject.description = config.description || \"\";\n        var hasChildren = !!config.container;\n        var content = arr.slice(currentOffset, size + i);\n        var contentForChildren;\n\n        if (typeof config.parser === \"function\") {\n          var parserReader = createBufferReader(content);\n          var result = {};\n\n          try {\n            result = config.parser(parserReader);\n          } catch (e) {\n            console.warn(\"impossible to parse \\\"\".concat(name, \"\\\" box.\"), e);\n          }\n\n          if (hasChildren) {\n            var remaining = parserReader.getRemainingLength();\n            contentForChildren = content.slice(content.length - remaining);\n          } else if (!parserReader.isFinished()) {\n            console.warn(\"not everything has been parsed for box: \" + name + \". Missing\", parserReader.getRemainingLength(), \"bytes.\");\n          }\n\n          delete result.__data__;\n          Object.keys(result).forEach(function (key) {\n            var infos = contentInfos[key] || {};\n\n            if (!infos.name) {\n              infos.name = key;\n            }\n\n            atomObject.values.push(Object.assign({\n              value: result[key]\n            }, infos));\n          });\n        }\n\n        if (hasChildren) {\n          var childrenResult = parseBoxes(contentForChildren || content);\n          atomObject.children = childrenResult;\n        }\n      }\n\n      i += size;\n    };\n\n    while (i < arr.length) {\n      _loop();\n    }\n\n    return returnedArray;\n  }\n  /**\n   * Parse ISOBMFF file and translate it into a more useful array containing\n   * \"atom objects\".\n   * @param {ArrayBuffer|Uint8Array} arr\n   * @returns {Array.<Object>}\n   */\n\n\n  function parseBoxes(arr) {\n    if (arr instanceof Uint8Array) {\n      return recursiveParseBoxes(arr);\n    }\n\n    if (arr instanceof ArrayBuffer) {\n      return recursiveParseBoxes(new Uint8Array(arr));\n    }\n\n    if (arr.buffer instanceof ArrayBuffer) {\n      return recursiveParseBoxes(new Uint8Array(arr.buffer));\n    }\n\n    throw new Error(\"Unrecognized format. \" + \"Please give an ArrayBuffer or TypedArray instead.\");\n  }\n\n  return parseBoxes;\n\n})));\n\n\n//# sourceURL=webpack:///./node_modules/isobmff-inspector/dist/bundle.js?");
 
-                              case 4:
-                                res = be4toi(buffer, currentOffset);
-                                break;
+/***/ }),
 
-                              case 5:
-                                res = be5toi(buffer, currentOffset);
-                                break;
+/***/ "./src/index.js":
+/*!**********************!*\
+  !*** ./src/index.js ***!
+  \**********************/
+/*! no exports provided */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
 
-                              case 8:
-                                res = be8toi(buffer, currentOffset);
-                                break;
+"use strict";
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var isobmff_inspector__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! isobmff-inspector */ \"./node_modules/isobmff-inspector/dist/bundle.js\");\n/* harmony import */ var isobmff_inspector__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(isobmff_inspector__WEBPACK_IMPORTED_MODULE_0__);\n/* harmony import */ var _renderer_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./renderer.js */ \"./src/renderer.js\");\n\n\n\n// -- Feature switching based on the various API support --\n\nif (window.File && window.FileReader && window.Uint8Array) {\n\n  /**\n   * @param {Event} evt\n   * @returns {Boolean}\n   */\n  function onFileSelection(evt) {\n    const files = evt.target.files; // FileList object\n\n    if (!files.length) {\n      return;\n    }\n\n    const file = files[0];\n    const reader = new FileReader();\n\n    // TODO read progressively to skip mdat and whatnot\n    reader.onload = (evt) => {\n      const arr = new Uint8Array(evt.target.result);\n      const res = isobmff_inspector__WEBPACK_IMPORTED_MODULE_0___default()(arr);\n      Object(_renderer_js__WEBPACK_IMPORTED_MODULE_1__[\"default\"])(res);\n    };\n\n    reader.readAsArrayBuffer(file);\n    return false;\n  }\n\n  document.getElementById(\"file-input\")\n    .addEventListener(\"change\", onFileSelection, false);\n\n} else {\n  const localSegmentInput = document.getElementById(\"choices-local-segment\");\n  localSegmentInput.style.display = \"none\";\n\n  const choiceSeparator = document.getElementById(\"choices-separator\");\n  choiceSeparator.style.display = \"none\";\n}\n\nif (window.fetch && window.Uint8Array) {\n\n  /**\n   * @param {Event} evt\n   */\n  function onUrlValidation(url) {\n    fetch(url)\n      .then(response => response.arrayBuffer())\n      .then((arrayBuffer) => {\n        const parsed = isobmff_inspector__WEBPACK_IMPORTED_MODULE_0___default()(new Uint8Array(arrayBuffer));\n        Object(_renderer_js__WEBPACK_IMPORTED_MODULE_1__[\"default\"])(parsed);\n      });\n  }\n\n  /**\n   * @returns {Boolean}\n   */\n  function onButtonClicking() {\n    const url = document.getElementById(\"url-input\").value;\n    if (url) {\n      onUrlValidation(url);\n      return false;\n    }\n  }\n\n  /**\n   * @param {Event} evt\n   * @returns {Boolean}\n   */\n  function onInputKeyPress(evt) {\n    const keyCode = evt.keyCode || evt.which;\n    if (keyCode == 13) {\n      const url = evt.target.value;\n      if (url) {\n        onUrlValidation(url);\n      }\n      return false;\n    }\n  }\n\n  document.getElementById(\"url-input\")\n    .addEventListener(\"keypress\", onInputKeyPress, false);\n\n  document.getElementById(\"url-button\")\n    .addEventListener(\"click\", onButtonClicking, false);\n} else {\n  const choiceSeparator = document.getElementById(\"choices-separator\");\n  choiceSeparator.style.display = \"none\";\n\n  const urlSegmentInput = document.getElementById(\"choices-url-segment\");\n  urlSegmentInput.style.display = \"none\";\n}\n\n\n//# sourceURL=webpack:///./src/index.js?");
 
-                              default:
-                                throw new Error("not implemented yet.");
-                            }
-                            return currentOffset += nbBytes, res;
-                        }
-                    },
-                    /**
-       * Returns the N next bytes into a string of Hexadecimal values.
-       * @param {number}
-       * @returns {string}
-       */
-                    bytesToHex: function bytesToHex$$1(nbBytes) {
-                        if (!(this.getRemainingLength() < nbBytes)) {
-                            var res = bytesToHex(buffer, currentOffset, nbBytes);
-                            return currentOffset += nbBytes, res;
-                        }
-                    },
-                    /**
-       * Returns the N next bytes into a string.
-       * @param {number}
-       * @returns {string}
-       */
-                    bytesToASCII: function bytesToASCII(nbBytes) {
-                        if (!(this.getRemainingLength() < nbBytes)) {
-                            var res = betoa(buffer, currentOffset, nbBytes);
-                            return currentOffset += nbBytes, res;
-                        }
-                    },
-                    /**
-       * Returns the total length of the buffer
-       * @returns {number}
-       */
-                    getTotalLength: function getTotalLength() {
-                        return buffer.length;
-                    },
-                    /**
-       * Returns the length of the buffer which is not yet parsed.
-       * @returns {number}
-       */
-                    getRemainingLength: function getRemainingLength() {
-                        return Math.max(0, buffer.length - currentOffset);
-                    },
-                    /**
-       * Returns true if this buffer is entirely parsed.
-       * @returns {boolean}
-       */
-                    isFinished: function isFinished() {
-                        return buffer.length <= currentOffset;
-                    }
-                };
-            }
-            var ftypBox = {
-                name: "File Type Box",
-                description: "File type and compatibility",
-                content: [ {
-                    /* name: "major brand", */ // optional name
-                    key: "major_brand",
-                    description: "Brand identifier."
-                }, {
-                    key: "minor_version",
-                    description: "informative integer for the minor version of the major brand"
-                }, {
-                    key: "compatible_brands",
-                    description: "List of brands"
-                } ],
-                parser: function parser(reader) {
-                    for (var len = reader.getTotalLength(), major_brand = reader.bytesToASCII(4), minor_version = reader.bytesToInt(4), compatArr = [], i = 8; i < len; i += 4) compatArr.push(reader.bytesToASCII(4));
-                    return {
-                        major_brand: major_brand,
-                        minor_version: minor_version,
-                        compatible_brands: compatArr.join(", ")
-                    };
-                }
-            }, SYSTEM_IDS = {
-                "1077EFECC0B24D02ACE33C1E52E2FB4B": "cenc",
-                "1F83E1E86EE94F0DBA2F5EC4E3ED1A66": "SecureMedia",
-                "35BF197B530E42D78B651B4BF415070F": "DivX DRM",
-                "45D481CB8FE049C0ADA9AB2D2455B2F2": "CoreCrypt",
-                "5E629AF538DA4063897797FFBD9902D4": "Marlin",
-                "616C7469636173742D50726F74656374": "AltiProtect",
-                "644FE7B5260F4FAD949A0762FFB054B4": "CMLA",
-                "69F908AF481646EA910CCD5DCCCB0A3A": "Marlin",
-                "6A99532D869F59229A91113AB7B1E2F3": "MobiDRM",
-                "80A6BE7E14484C379E70D5AEBE04C8D2": "Irdeto",
-                "94CE86FB07FF4F43ADB893D2FA968CA2": "FairPlay",
-                "992C46E6C4374899B6A050FA91AD0E39": "SteelKnot",
-                "9A04F07998404286AB92E65BE0885F95": "PlayReady",
-                "9A27DD82FDE247258CBC4234AA06EC09": "Verimatrix VCAS",
-                A68129D3575B4F1A9CBA3223846CF7C3: "VideoGuard Everywhere",
-                ADB41C242DBF4A6D958B4457C0D27B95: "Nagra",
-                B4413586C58CFFB094A5D4896C1AF6C3: "Viaccess-Orca",
-                DCF4E3E362F158187BA60A6FE33FF3DD: "DigiCAP",
-                E2719D58A985B3C9781AB030AF78D30E: "ClearKey",
-                EDEF8BA979D64ACEA3C827DCD51D21ED: "Widevine",
-                F239E769EFA348509C16A903C6932EFB: "PrimeTime"
-            }, definitions = {
-                dinf: {
-                    name: "Data Information Box",
-                    description: "Objects that declare the location of the media information in a track.",
-                    container: !0
-                },
-                dref: {
-                    name: "Data Reference Box",
-                    description: "",
-                    container: !0,
-                    parser: function parser(reader) {
-                        var version = reader.bytesToInt(1), flags = reader.bytesToInt(3);
-                        if (0 !== version) throw new Error("invalid version");
-                        if (0 !== flags) throw new Error("invalid flags");
-                        var entry_count = reader.bytesToInt(4);
-                        return {
-                            version: version,
-                            flags: flags,
-                            entry_count: entry_count
-                        };
-                    }
-                },
-                edts: {
-                    name: "Edit Box",
-                    description: "Maps the presentation time‐line to the media time‐line as it is stored in the file.",
-                    container: !0
-                },
-                free: {
-                    name: "Free Space Box",
-                    description: "This box can be completely ignored"
-                },
-                ftyp: ftypBox,
-                hdlr: {
-                    name: "Handler Reference Box",
-                    description: "This box within a Media Box declares media type of the track, and thus the process by which the media‐data in the track is presented",
-                    parser: function parser(r) {
-                        var ret = {
-                            version: r.bytesToInt(1),
-                            flags: r.bytesToInt(3),
-                            pre_defined: r.bytesToInt(4),
-                            handler_type: r.bytesToInt(4),
-                            reserved: [ r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4) ]
-                        }, remaining = r.getRemainingLength();
-                        for (ret.name = ""; remaining--; ) ret.name += String.fromCharCode(parseInt(r.bytesToInt(1), 10));
-                        return ret;
-                    }
-                },
-                iods: {
-                    name: "Initial Object Descriptor Box"
-                },
-                leva: {
-                    name: "Level Assignment Box",
-                    // TODO
-                    parser: function parser(reader) {
-                        var version = reader.bytesToInt(1), flags = reader.bytesToInt(3);
-                        // ...
-                        return {
-                            version: version,
-                            flags: flags
-                        };
-                    }
-                },
-                mdat: {
-                    name: "Media Data Box",
-                    description: "the content's data"
-                },
-                mdhd: {
-                    name: "Media Header Box",
-                    description: "The media header declares overall information that is media‐independent, and relevant to characteristics of the media in a track.",
-                    parser: function parser(r) {
-                        var version = r.bytesToInt(1), flags = r.bytesToInt(3), creation_time = r.bytesToInt(version ? 8 : 4), modification_time = r.bytesToInt(version ? 8 : 4), timescale = r.bytesToInt(4), duration = r.bytesToInt(version ? 8 : 4), next2Bytes = r.bytesToInt(2), pad = next2Bytes >> 15 & 1, language = [ String.fromCharCode(96 + (next2Bytes >> 10 & 31)), String.fromCharCode(96 + (next2Bytes >> 5 & 31)), String.fromCharCode(96 + (31 & next2Bytes)) ].join(""), predifined = r.bytesToInt(2);
-                        return {
-                            version: version,
-                            flags: flags,
-                            creation_time: creation_time,
-                            modification_time: modification_time,
-                            timescale: timescale,
-                            duration: duration,
-                            pad: pad,
-                            language: language,
-                            predifined: predifined
-                        };
-                    }
-                },
-                mdia: {
-                    name: "Track Media Structure",
-                    description: "declare information about the media data within a track.",
-                    container: !0
-                },
-                mehd: {
-                    name: "Movie Extends Header Box",
-                    description: "Provides the overall duration, including fragments, of a fragmented movie. If this box is not present, the overall duration must be computed by examining each fragment.",
-                    parser: function parser(reader) {
-                        var version = reader.bytesToInt(1);
-                        if (version > 1) throw new Error("invalid version");
-                        var flags = reader.bytesToInt(3), fragmentDuration = 1 === version ? reader.bytesToInt(8) : reader.bytesToInt(4);
-                        return {
-                            version: version,
-                            flags: flags,
-                            fragment_duration: fragmentDuration
-                        };
-                    }
-                },
-                mfhd: {
-                    name: "Movie Fragment Header Box",
-                    description: "This box contains just a sequence number (usually starting at 1), as a safety check.",
-                    parser: function parser(r) {
-                        return {
-                            version: r.bytesToInt(1),
-                            flags: r.bytesToInt(3),
-                            sequence_number: r.bytesToInt(4)
-                        };
-                    }
-                },
-                minf: {
-                    name: "Media Information Box",
-                    description: "This box contains all the objects that declare characteristic information of the media in the track.",
-                    container: !0
-                },
-                moof: {
-                    name: "Movie Fragment Box",
-                    description: "",
-                    container: !0
-                },
-                moov: {
-                    name: "Movie Box",
-                    description: "The movie metadata",
-                    container: !0
-                },
-                mvex: {
-                    name: "Movie Extends Box",
-                    container: !0
-                },
-                mvhd: {
-                    name: "Movie Header Box",
-                    description: "This box defines overall information which is media‐independent, and relevant to the entire presentation considered as a whole.",
-                    content: [ {
-                        name: "version",
-                        description: "mvhd version",
-                        key: "version"
-                    }, {
-                        name: "flags",
-                        description: "mvhd flags",
-                        key: "flags"
-                    }, {
-                        name: "creation_time",
-                        description: "An integer that declares the creation time of the presentation (in seconds since midnight, Jan. 1, 1904, in UTC time)",
-                        key: "creationTime"
-                    }, {
-                        name: "modification_time",
-                        description: "An integer that declares the most recent time the presentation was modified (in seconds since midnight, Jan. 1, 1904, in UTC time)",
-                        key: "modificationTime"
-                    }, {
-                        name: "timescale",
-                        description: "An integer that specifies the time‐scale for the entire presentation; this is the number of time units that pass in one second. For example, a t me coordinate system that measures time in sixtieths of a second has a time scale of 60.",
-                        key: "timescale"
-                    }, {
-                        name: "duration",
-                        description: "An integer that declares length of the presentation (in the indicated timescale). This property is derived from the presentation’s tracks: the value of this field corresponds to the duration of the longest track in the presentation. If the durat ion cannot be determined then duration is set to all 1s.",
-                        key: "duration"
-                    }, {
-                        name: "rate",
-                        description: "A fixed point 16.16 number that indicates the preferred rate to play the presentation; 1.0 (0x00010000) is normal forward playback ",
-                        key: "rate"
-                    }, {
-                        name: "volume",
-                        description: "A fixed point 8.8 number that indicates the preferred playback volume. 1.0 (0x0100) is full volume.",
-                        key: "volume"
-                    }, {
-                        name: "reserved 1",
-                        description: "Reserved 16 bits",
-                        key: "reserved1"
-                    }, {
-                        name: "reserved 2",
-                        description: "Reserved 2*32 bits",
-                        key: "reserved2"
-                    }, {
-                        name: "matrix",
-                        description: "Provides a transformation matrix for the video; (u,v,w) are restricted here to (0,0,1), hex values (0,0,0x40000000).",
-                        key: "matrix"
-                    }, {
-                        name: "pre-defined",
-                        description: "Pre-defined 32*6 bits.",
-                        key: "predefined"
-                    }, {
-                        name: "next_track_ID",
-                        description: "A non‐zero integer that indicates a value to use for the track ID of the next track to be added to this presentation. Zero is not a valid track ID value. The value of next_track_ID shall be larger than the largest track‐ID in use. If this valu e is equal to all 1s (32‐bit maxint), and a new media track is to be added, then a s earch must be made in the file for an unused track identifier.",
-                        key: "nextTrackId"
-                    } ],
-                    parser: function parser(reader) {
-                        var version = reader.bytesToInt(1);
-                        if (version > 1) throw new Error("invalid version");
-                        var flags = reader.bytesToInt(3), creationTime = void 0, modificationTime = void 0, timescale = void 0, duration = void 0;
-                        1 === version ? (creationTime = reader.bytesToInt(8), modificationTime = reader.bytesToInt(8), 
-                        timescale = reader.bytesToInt(4), duration = reader.bytesToInt(8)) : (creationTime = reader.bytesToInt(4), 
-                        modificationTime = reader.bytesToInt(4), timescale = reader.bytesToInt(4), duration = reader.bytesToInt(4));
-                        for (var rate = [ reader.bytesToInt(2), reader.bytesToInt(2) ].join("."), volume = [ reader.bytesToInt(1), reader.bytesToInt(1) ].join("."), reserved1 = reader.bytesToInt(2), reserved2 = [ reader.bytesToInt(4), reader.bytesToInt(4) ], matrixArr = [], i = 0; i < 9; i++) matrixArr.push(reader.bytesToInt(4));
-                        var predefined = [ reader.bytesToInt(4), reader.bytesToInt(4), reader.bytesToInt(4), reader.bytesToInt(4), reader.bytesToInt(4), reader.bytesToInt(4) ], nextTrackId = reader.bytesToInt(4);
-                        return {
-                            version: version,
-                            flags: flags,
-                            creationTime: creationTime,
-                            modificationTime: modificationTime,
-                            timescale: timescale,
-                            duration: duration,
-                            rate: rate,
-                            volume: volume,
-                            reserved1: reserved1,
-                            reserved2: reserved2,
-                            matrix: matrixArr,
-                            predefined: predefined,
-                            nextTrackId: nextTrackId
-                        };
-                    }
-                },
-                pdin: {
-                    name: "Progressive Download Information Box",
-                    description: "",
-                    content: [ {
-                        name: "version",
-                        description: "pdin version",
-                        key: "version"
-                    }, {
-                        name: "flags",
-                        description: "pdin flags",
-                        key: "flags"
-                    }, {
-                        name: "rate",
-                        description: "Download rate expressed in bytes/second",
-                        key: "rate"
-                    }, {
-                        name: "initial_delay",
-                        description: "Suggested delay to use when playing the file, such that if download continues at the given rate, all data within the file will arrive in time for its use and playback should not need to stall.",
-                        key: "delay"
-                    } ],
-                    parser: function parser(reader) {
-                        var version = reader.bytesToInt(1);
-                        if (0 !== version) throw new Error("invalid version");
-                        return {
-                            version: version,
-                            flags: reader.bytesToInt(3),
-                            rate: reader.bytesToInt(4),
-                            delay: reader.bytesToInt(4)
-                        };
-                    }
-                },
-                pssh: {
-                    name: "Protection System Specific Header",
-                    description: "",
-                    parser: function parser(reader) {
-                        var ret = {};
-                        if (ret.version = reader.bytesToInt(1), ret.version > 1) throw new Error("invalid version");
-                        ret.flags = reader.bytesToInt(3), ret.systemID = reader.bytesToHex(16);
-                        var systemIDName = SYSTEM_IDS[ret.systemID];
-                        if (systemIDName && (ret.systemID += " (" + systemIDName + ")"), 1 === ret.version) {
-                            ret.KID_count = reader.bytesToInt(4), ret.KIDs = [];
-                            for (var i = ret.KID_count; i--; ) ret.KIDs.push(reader.bytesToASCII(16));
-                        }
-                        return ret.data_length = reader.bytesToInt(4), ret.data = reader.bytesToASCII(ret.data_length), 
-                        ret;
-                    }
-                },
-                sdtp: {
-                    name: "Independent and Disposable Samples Box",
-                    description: "",
-                    parser: function parser(r) {
-                        var ret = {
-                            version: r.bytesToInt(1),
-                            flags: r.bytesToInt(3)
-                        }, remaining = r.getRemainingLength(), i = remaining;
-                        for (ret.samples = []; i--; ) {
-                            var byte = r.bytesToInt(1);
-                            ret.samples.push({
-                                is_leading: byte >> 6 & 3,
-                                sample_depends_on: byte >> 4 & 3,
-                                sample_is_depended_on: byte >> 2 & 3,
-                                sample_has_redundancy: 3 & byte
-                            });
-                        }
-                        return ret;
-                    }
-                },
-                sidx: {
-                    name: "Segment Index Box",
-                    description: "Index of the media stream",
-                    parser: function parser(r) {
-                        for (var version = r.bytesToInt(1), flags = r.bytesToInt(3), reference_id = r.bytesToInt(4), timescale = r.bytesToInt(4), earliest_presentation_time = r.bytesToInt(0 === version ? 4 : 8), first_offset = r.bytesToInt(0 === version ? 4 : 8), reserved = r.bytesToInt(2), reference_count = r.bytesToInt(2), items = [], i = reference_count; i--; ) {
-                            var first4Bytes = r.bytesToInt(4), second4Bytes = r.bytesToInt(4), third4Bytes = r.bytesToInt(4);
-                            items.push({
-                                reference_type: first4Bytes >> 31 & 1,
-                                referenced_size: 2147483647 & first4Bytes,
-                                subsegment_duration: second4Bytes,
-                                starts_with_SAP: third4Bytes >> 31 & 1,
-                                SAP_type: third4Bytes >> 28 & 7,
-                                SAP_delta_time: 268435455 & third4Bytes
-                            });
-                        }
-                        return {
-                            version: version,
-                            flags: flags,
-                            reference_id: reference_id,
-                            timescale: timescale,
-                            earliest_presentation_time: earliest_presentation_time,
-                            first_offset: first_offset,
-                            reserved: reserved,
-                            reference_count: reference_count,
-                            items: items
-                        };
-                    }
-                },
-                skip: {
-                    name: "Free Space Box",
-                    description: "This box can be completely ignored."
-                },
-                styp: {
-                    name: "Segment Type Box",
-                    description: "",
-                    content: ftypBox.content,
-                    parser: ftypBox.parser
-                },
-                tfdt: {
-                    name: "Track Fragment Decode Time",
-                    description: "The absolute decode time, measured on the media timeline, of the first sample in decode order in the track fragment",
-                    parser: function parser(r) {
-                        var version = r.bytesToInt(1);
-                        return {
-                            version: version,
-                            flags: r.bytesToInt(3),
-                            baseMediaDecodeTime: r.bytesToInt(version ? 8 : 4)
-                        };
-                    }
-                },
-                tfhd: {
-                    name: "Track Fragment Header Box",
-                    description: "",
-                    parser: function parser(r) {
-                        var ret = {};
-                        ret.version = r.bytesToInt(1);
-                        var flags = r.bytesToInt(3), hasBaseDataOffset = 1 & flags, hasSampleDescriptionIndex = 2 & flags, hasDefaultSampleDuration = 8 & flags, hasDefaultSampleSize = 16 & flags, hasDefaultSampleFlags = 32 & flags, durationIsEmpty = 65536 & flags, defaultBaseIsMOOF = 131072 & flags;
-                        return ret.flags = {
-                            "base-data-offset-present": !!hasBaseDataOffset,
-                            "sample-description-index-present": !!hasSampleDescriptionIndex,
-                            "default-sample-duration-present": !!hasDefaultSampleDuration,
-                            "default-sample-size-present": !!hasDefaultSampleSize,
-                            "default-sample-flags-present": !!hasDefaultSampleFlags,
-                            "duration-is-empty": !!durationIsEmpty,
-                            "default-base-is-moof": !!defaultBaseIsMOOF
-                        }, ret.track_ID = r.bytesToInt(4), hasBaseDataOffset && (ret.base_data_offset = r.bytesToInt(8)), 
-                        hasSampleDescriptionIndex && (ret.sample_description_index = r.bytesToInt(4)), hasDefaultSampleDuration && (ret.default_sample_duration = r.bytesToInt(4)), 
-                        hasDefaultSampleSize && (ret.default_sample_size = r.bytesToInt(4)), hasDefaultSampleFlags && (ret.default_sample_flags = r.bytesToInt(4)), 
-                        ret;
-                    }
-                },
-                tkhd: {
-                    name: "Track Header Box",
-                    description: "Characteristics of a single track.",
-                    parser: function parser(r) {
-                        var version = r.bytesToInt(1);
-                        return {
-                            version: version,
-                            flags: r.bytesToInt(3),
-                            creation_time: r.bytesToInt(version ? 8 : 4),
-                            modification_time: r.bytesToInt(version ? 8 : 4),
-                            track_ID: r.bytesToInt(4),
-                            reserved1: r.bytesToInt(4),
-                            duration: r.bytesToInt(version ? 8 : 4),
-                            reserved2: [ r.bytesToInt(4), r.bytesToInt(4) ],
-                            // TODO template? signed?
-                            layer: r.bytesToInt(2),
-                            alternate_group: r.bytesToInt(2),
-                            volume: [ r.bytesToInt(1), r.bytesToInt(1) ].join("."),
-                            reserved3: r.bytesToInt(2),
-                            matrix: [ r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4), r.bytesToInt(4) ],
-                            width: [ r.bytesToInt(2), r.bytesToInt(2) ],
-                            height: [ r.bytesToInt(2), r.bytesToInt(2) ]
-                        };
-                    }
-                },
-                traf: {
-                    name: "Track Fragment Box",
-                    description: "",
-                    container: !0
-                },
-                trak: {
-                    name: "Track Box",
-                    description: "Container box for a single track of a presentation. A presentation consists of one or more tracks. Each track is independent of the other tracks in the presentation and carries its own temporal and spatial information. Each track will contain its associated Media Box.",
-                    container: !0
-                },
-                trex: {
-                    name: "Track Extends Box",
-                    description: "sets up default values used by the movie fragments. By setting defaults in this way, space and complexity can be saved in each Track Fragment Box",
-                    parser: function parser(reader) {
-                        return {
-                            version: reader.bytesToInt(1),
-                            flags: reader.bytesToInt(3),
-                            track_id: reader.bytesToInt(4),
-                            default_sample_description_index: reader.bytesToInt(4),
-                            default_sample_duration: reader.bytesToInt(4),
-                            default_sample_size: reader.bytesToInt(4),
-                            default_sample_flags: reader.bytesToInt(4)
-                        };
-                    }
-                },
-                trun: {
-                    name: "Track Fragment Run Box",
-                    parser: function parser(r) {
-                        var ret = {};
-                        ret.version = r.bytesToInt(1);
-                        var flags = r.bytesToInt(3), hasDataOffset = 1 & flags, hasFirstSampleFlags = 4 & flags, hasSampleDuration = 256 & flags, hasSampleSize = 512 & flags, hasSampleFlags = 1024 & flags, hasSampleCompositionOffset = 2048 & flags;
-                        ret.flags = {
-                            "data-offset-present": !!hasDataOffset,
-                            "first-sample-flags-present": !!hasFirstSampleFlags,
-                            "sample-duration-present": !!hasSampleDuration,
-                            "sample-size-present": !!hasSampleSize,
-                            "sample-flags-present": !!hasSampleFlags,
-                            "sample-composition-time-offset-present": !!hasSampleCompositionOffset
-                        }, ret.sample_count = r.bytesToInt(4), 
-                        // two's complement
-                        hasDataOffset && (ret.data_offset = ~~r.bytesToInt(4)), hasFirstSampleFlags && (ret.first_sample_flags = r.bytesToInt(4));
-                        var i = ret.sample_count;
-                        for (ret.samples = []; i--; ) {
-                            var sample = {};
-                            hasSampleDuration && (sample.sample_duration = r.bytesToInt(4)), hasSampleSize && (sample.sample_size = r.bytesToInt(4)), 
-                            hasSampleFlags && (sample.sample_flags = r.bytesToInt(4)), hasSampleCompositionOffset && (sample.sample_composition_time_offset = 0 === ret.version ? r.bytesToInt(4) : ~~r.bytesToInt(4)), 
-                            ret.samples.push(sample);
-                        }
-                        return ret;
-                    }
-                },
-                "url ": {
-                    name: "Data Entry Url Box",
-                    description: "declare the location(s) of the media data used within the presentation.",
-                    parser: function parser(r) {
-                        var ret = {};
-                        ret.version = r.bytesToInt(1), ret.flags = r.bytesToInt(3);
-                        var remaining = r.getRemainingLength();
-                        return remaining && (ret.location = String.fromCharCode.apply(String, r.bytesToInt(r.getRemainingLength()))), 
-                        ret;
-                    }
-                },
-                "urn ": {
-                    name: "Data Entry Url Box",
-                    description: "declare the location(s) of the media data used within the presentation.",
-                    parser: function parser(r) {
-                        var ret = {};
-                        ret.version = r.bytesToInt(1), ret.flags = r.bytesToInt(3);
-                        var remaining = r.getRemainingLength();
-                        // TODO Check NULL-terminated stream for name+location
-                        // might also check flags for that
-                                                return remaining && (ret.name = String.fromCharCode.apply(String, r.bytesToInt(r.getRemainingLength()))), 
-                        ret;
-                    }
-                },
-                uuid: {
-                    name: "User-defined Box",
-                    description: "Custom box. Those are not yet parsed here."
-                },
-                vmhd: {
-                    name: "Video Media Header",
-                    description: "The video media header contains general presentation information, independent of the coding, for video media.",
-                    parser: function parser(reader) {
-                        var version = reader.bytesToInt(1), flags = reader.bytesToInt(3);
-                        if (0 !== version) throw new Error("invalid version");
-                        if (1 !== flags) throw new Error("invalid flags");
-                        // TODO template?
-                                                var graphicsmode = reader.bytesToInt(2), opcolor = [ reader.bytesToInt(2), reader.bytesToInt(2), reader.bytesToInt(2) ];
-                        return {
-                            version: version,
-                            flags: flags,
-                            graphicsmode: graphicsmode,
-                            opcolor: opcolor
-                        };
-                    }
-                }
-            };
-            /**
-   * Parse recursively ISOBMFF Uint8Array.
-   * @param {Uint8Array} arr
-   * @returns {Array.<Object>}
-   */
-            function recursiveParseBoxes(arr) {
-                for (var i = 0, returnedArray = [], _loop = function _loop() {
-                    var currentOffset = i, size = be4toi(arr, currentOffset);
-                    currentOffset += 4, 1 === size ? (size = be8toi(arr, currentOffset), currentOffset += 8) : 0 === size && (size = arr.length - i);
-                    var name = betoa(arr, currentOffset, 4);
-                    currentOffset += 4;
-                    var atomObject = {
-                        alias: name,
-                        size: size,
-                        values: []
-                    };
-                    if ("uuid" === name) {
-                        for (var subtype = [], j = 16; j--; ) subtype.push(arr[currentOffset]), currentOffset += 1;
-                        atomObject.subtype = subtype;
-                    }
-                    if (returnedArray.push(atomObject), definitions[name]) {
-                        var config = definitions[name], contentInfos = config.content ? config.content.reduce(function(acc, el) {
-                            return acc[el.key] = {
-                                name: el.name || "",
-                                description: "" | el.description
-                            }, acc;
-                        }, {}) : {
-                            name: "",
-                            description: ""
-                        };
-                        atomObject.name = config.name || "", atomObject.description = config.description || "";
-                        var hasChildren = !!config.container, content = arr.slice(currentOffset, size + i), contentForChildren = void 0;
-                        if ("function" == typeof config.parser) {
-                            var parserReader = createBufferReader(content), result = {};
-                            try {
-                                result = config.parser(parserReader);
-                            } catch (e) {
-                                console.warn('impossible to parse "' + name + '" box.', e);
-                            }
-                            if (hasChildren) {
-                                var remaining = parserReader.getRemainingLength();
-                                contentForChildren = content.slice(content.length - remaining);
-                            } else parserReader.isFinished() || console.warn("not everything has been parsed for box: " + name + ". Missing", parserReader.getRemainingLength(), "bytes.");
-                            delete result.__data__, Object.keys(result).forEach(function(key) {
-                                var infos = contentInfos[key] || {};
-                                infos.name || (infos.name = key), atomObject.values.push(Object.assign({
-                                    value: result[key]
-                                }, infos));
-                            });
-                        }
-                        if (hasChildren) {
-                            var childrenResult = parseBoxes(contentForChildren || content);
-                            atomObject.children = childrenResult;
-                        }
-                    }
-                    i += size;
-                }; i < arr.length; ) _loop();
-                return returnedArray;
-            }
-            /**
-   * Parse ISOBMFF file and translate it into a more useful array containing
-   * "atom objects".
-   * @param {ArrayBuffer|Uint8Array} arr
-   * @returns {Array.<Object>}
-   */            function parseBoxes(arr) {
-                if (arr instanceof Uint8Array) return recursiveParseBoxes(arr);
-                if (arr instanceof ArrayBuffer) return recursiveParseBoxes(new Uint8Array(arr));
-                if (arr.buffer instanceof ArrayBuffer) return recursiveParseBoxes(new Uint8Array(arr.buffer));
-                throw new Error("Unrecognized format. Please give an ArrayBuffer or TypedArray instead.");
-            }
-            return parseBoxes;
-        }();
-    }();
-    /***/}, 
-/* 1 */
-/***/ function(module, __webpack_exports__, __webpack_require__) {
-    "use strict";
-    __webpack_require__.r(__webpack_exports__);
-    // EXTERNAL MODULE: ./node_modules/isobmff-inspector/dist/bundle.js
-    var bundle = __webpack_require__(0), bundle_default = /* */ __webpack_require__.n(bundle);
-    // CONCATENATED MODULE: ./src/renderer.js
-    const wrapper = document.getElementById("file-description"), sanitize = str => {
-        const div = document.createElement("div");
-        return div.appendChild(document.createTextNode(str)), div.innerHTML;
-    }, title = () => '\n    <h2 id="result-title">Results</h2>\n  ', getObjectDisplay = obj => {
-        return `\n    <div class="value-object-line">\n      ${Object.keys(obj).map(key => `\n      <div class="value-object-prop">\n        <span class="value-object-key">${sanitize(key)}</span>:\n        <span class="value-object-value">${getValueToDisplay(obj[key])}</span>\n      </div>\n    `).join("")}\n    </div>\n  `;
-    }, getValueToDisplay = val => {
-        if (null != val) {
-            switch (typeof val) {
-              case "object":
-                return Array.isArray(val) ? val.length ? "number" == typeof val[0] ? val.join(" ") : val.map(getObjectDisplay).join(" ") : "no element" : getObjectDisplay(val);
+/***/ }),
 
-              case "string":
-                return `"${sanitize(val)}"`;
-            }
-            return sanitize(val);
-        }
-    }, BoxTitle = box => `\n    <div class="box-title">\n      <span class="box-name">${sanitize(box.name)}</span>\n      <span class="box-alias">("${sanitize(box.alias)}")</span>\n      <span class="box-size">${sanitize(box.size)} bytes</span>\n    </div>\n  `, BoxDescription = box => `\n    <div class="box-description">\n      ${sanitize(box.description)}\n    </div>\n  `, BoxValue = value => `\n    <div class="box-value-entry">\n      <span class="box-value-key">${sanitize(value.name)}</span>:\n      <span class="box-value-value">${getValueToDisplay(value.value)}</span>\n    </div>\n  `, BoxValues = box => (box.values || []).map(v => BoxValue(v)).join(""), Box = box => {
-        const children = (box.children || []).map(Box).join("");
-        return `\n    <div class="box">\n      ${BoxTitle(box)}\n      ${BoxDescription(box)}\n      ${BoxValues(box)}\n      ${children}\n    </div>\n  `;
-    };
-    /* harmony default export */ var renderer = (arr = []) => {
-        console.log("rendering...", arr), wrapper.style.display = "none", wrapper.innerHTML = title() + arr.map(Box).join(""), 
-        wrapper.style.display = "block";
-    };
-    // CONCATENATED MODULE: ./src/index.js
-    // -- Feature switching based on the various API support --
-        if (window.File && window.FileReader && window.Uint8Array) {
-        document.getElementById("file-input").addEventListener("change", 
-        /**
-   * @param {Event} evt
-   * @returns {Boolean}
-   */
-        function onFileSelection(evt) {
-            const files = evt.target.files;
- // FileList object
-                        if (!files.length) return;
-            const file = files[0], reader = new FileReader();
-            // TODO read progressively to skip mdat and whatnot
-            return reader.onload = (evt => {
-                const arr = new Uint8Array(evt.target.result), res = bundle_default()(arr);
-                renderer(res);
-            }), reader.readAsArrayBuffer(file), !1;
-        }, !1);
-    } else {
-        document.getElementById("choices-local-segment").style.display = "none", document.getElementById("choices-separator").style.display = "none";
-    }
-    if (window.fetch && window.Uint8Array) {
-        /**
-   * @param {Event} evt
-   */
-        function onUrlValidation(url) {
-            fetch(url).then(response => response.arrayBuffer()).then(arrayBuffer => {
-                const parsed = bundle_default()(new Uint8Array(arrayBuffer));
-                renderer(parsed);
-            });
-        }
-        /**
-   * @returns {Boolean}
-   */        document.getElementById("url-input").addEventListener("keypress", 
-        /**
-   * @param {Event} evt
-   * @returns {Boolean}
-   */
-        function onInputKeyPress(evt) {
-            if (13 == (evt.keyCode || evt.which)) {
-                const url = evt.target.value;
-                return url && onUrlValidation(url), !1;
-            }
-        }, !1), document.getElementById("url-button").addEventListener("click", function onButtonClicking() {
-            const url = document.getElementById("url-input").value;
-            if (url) return onUrlValidation(url), !1;
-        }, !1);
-    } else {
-        document.getElementById("choices-separator").style.display = "none", document.getElementById("choices-url-segment").style.display = "none";
-    }
-    /***/}
-/******/ ]);
+/***/ "./src/renderer.js":
+/*!*************************!*\
+  !*** ./src/renderer.js ***!
+  \*************************/
+/*! exports provided: default */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+eval("__webpack_require__.r(__webpack_exports__);\nconst wrapper = document.getElementById(\"file-description\");\n\nconst sanitize = (str) => {\n  const div = document.createElement(\"div\");\n  div.appendChild(document.createTextNode(str));\n  return div.innerHTML;\n};\n\nconst title = () => {\n  return `\n    <h2 id=\"result-title\">Results</h2>\n  `;\n};\n\nconst getObjectDisplay = (obj) => {\n  const props = Object.keys(obj).map(key =>\n    `\n      <div class=\"value-object-prop\">\n        <span class=\"value-object-key\">${sanitize(key)}</span>:\n        <span class=\"value-object-value\">${getValueToDisplay(obj[key])}</span>\n      </div>\n    `,\n  ).join(\"\");\n  return `\n    <div class=\"value-object-line\">\n      ${props}\n    </div>\n  `;\n};\n\nconst getValueToDisplay = (val) => {\n  if (val == null) {\n    return undefined;\n  }\n  switch (typeof val) {\n  case \"object\":\n    if (Array.isArray(val)) {\n      if (!val.length) {\n        return \"no element\";\n      }\n      if (typeof val[0] === \"number\") {\n        return val.join(\" \");\n      }\n      return val.map(getObjectDisplay).join(\" \");\n    }\n\n    return getObjectDisplay(val);\n  case \"string\":\n    return `\"${sanitize(val)}\"`;\n  }\n\n  return sanitize(val);\n};\n\nconst BoxTitle = (box) =>\n  `\n    <div class=\"box-title\">\n      <span class=\"box-name\">${sanitize(box.name)}</span>\n      <span class=\"box-alias\">(\"${sanitize(box.alias)}\")</span>\n      <span class=\"box-size\">${sanitize(box.size)} bytes</span>\n    </div>\n  `;\n\nconst BoxDescription = (box) =>\n  `\n    <div class=\"box-description\">\n      ${sanitize(box.description)}\n    </div>\n  `;\n\nconst BoxValue = (value) => {\n  return `\n    <div class=\"box-value-entry\">\n      <span class=\"box-value-key\">${sanitize(value.name)}</span>:\n      <span class=\"box-value-value\">${getValueToDisplay(value.value)}</span>\n    </div>\n  `;\n};\n\nconst BoxValues = (box) =>\n  (box.values || []).map(v => BoxValue(v)).join(\"\");\n\nconst Box = (box) => {\n  const children = (box.children || []).map(Box).join(\"\");\n  return `\n    <div class=\"box\">\n      ${BoxTitle(box)}\n      ${BoxDescription(box)}\n      ${BoxValues(box)}\n      ${children}\n    </div>\n  `;\n};\n\n/* harmony default export */ __webpack_exports__[\"default\"] = ((arr = []) => {\n  console.log(\"rendering...\", arr);\n  wrapper.style.display = \"none\";\n  wrapper.innerHTML =  title() + arr.map(Box).join(\"\");\n  wrapper.style.display = \"block\";\n});\n\n\n//# sourceURL=webpack:///./src/renderer.js?");
+
+/***/ })
+
+/******/ });
