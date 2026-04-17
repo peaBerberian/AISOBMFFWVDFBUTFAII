@@ -4,35 +4,46 @@ import render from "./renderer.js";
 // -- Feature switching based on the various API support --
 
 if (window.File && window.FileReader && window.Uint8Array) {
-
   /**
    * @param {Event} evt
    * @returns {Boolean}
    */
   function onFileSelection(evt) {
-    const files = evt.target.files; // FileList object
-
-    if (!files.length) {
+    const fileInputElt = /** @type {HTMLInputElement | null} */ (evt.target);
+    if (fileInputElt === null) {
       return;
     }
 
-    const file = files[0];
-    const reader = new FileReader();
+    /** @type FileList | null */
+    const files = fileInputElt.files; // FileList object
 
-    // TODO read progressively to skip mdat and whatnot
-    reader.onload = (evt) => {
-      const arr = new Uint8Array(evt.target.result);
-      const res = inspectISOBMFF(arr);
-      render(res);
-    };
+    if (files !== null && !files.length) {
+      return;
+    }
 
-    reader.readAsArrayBuffer(file);
+    inspectISOBMFF(files[0])
+      .then(
+        /** @param {*} data */
+        (data) => {
+          render(data);
+        },
+      )
+      .catch(
+        /** @param {unknown} err */
+        (err) => {
+          // TODO: Also display error in UI
+          console.error(
+            "An error happened which prevented parsing the segment",
+            err,
+          );
+        },
+      );
     return false;
   }
 
-  document.getElementById("file-input")
+  document
+    .getElementById("file-input")
     .addEventListener("change", onFileSelection, false);
-
 } else {
   const localSegmentInput = document.getElementById("choices-local-segment");
   localSegmentInput.style.display = "none";
@@ -42,24 +53,31 @@ if (window.File && window.FileReader && window.Uint8Array) {
 }
 
 if (window.fetch && window.Uint8Array) {
-
   /**
-   * @param {Event} evt
+   * @param {string} url
    */
   function onUrlValidation(url) {
     fetch(url)
-      .then(response => response.arrayBuffer())
-      .then((arrayBuffer) => {
-        const parsed = inspectISOBMFF(new Uint8Array(arrayBuffer));
-        render(parsed);
-      });
+      .then((response) => inspectISOBMFF(response))
+      .then(
+        (parsed) => {
+          render(parsed);
+        },
+        (error) => {
+          // TODO: Also display error in UI
+          console.error("Parsing error:", error);
+        },
+      );
   }
 
   /**
    * @returns {Boolean}
    */
   function onButtonClicking() {
-    const url = document.getElementById("url-input").value;
+    const urlInput = /** @type {HTMLInputElement} */ (
+      document.getElementById("url-input")
+    );
+    const url = urlInput.value;
     if (url) {
       onUrlValidation(url);
       return false;
@@ -67,13 +85,14 @@ if (window.fetch && window.Uint8Array) {
   }
 
   /**
-   * @param {Event} evt
+   * @param {KeyboardEvent} evt
    * @returns {Boolean}
    */
   function onInputKeyPress(evt) {
     const keyCode = evt.keyCode || evt.which;
-    if (keyCode == 13) {
-      const url = evt.target.value;
+    if (keyCode === 13) {
+      const urlInput = /** @type {HTMLInputElement | null} */ (evt.target);
+      const url = urlInput?.value;
       if (url) {
         onUrlValidation(url);
       }
@@ -81,10 +100,12 @@ if (window.fetch && window.Uint8Array) {
     }
   }
 
-  document.getElementById("url-input")
+  document
+    .getElementById("url-input")
     .addEventListener("keypress", onInputKeyPress, false);
 
-  document.getElementById("url-button")
+  document
+    .getElementById("url-button")
     .addEventListener("click", onButtonClicking, false);
 } else {
   const choiceSeparator = document.getElementById("choices-separator");

@@ -13,14 +13,17 @@ const title = () => {
 };
 
 const getObjectDisplay = (obj) => {
-  const props = Object.keys(obj).map(key =>
-    `
+  const props = obj
+    .map(
+      (f) =>
+        `
       <div class="value-object-prop">
-        <span class="value-object-key">${sanitize(key)}</span>:
-        <span class="value-object-value">${getValueToDisplay(obj[key])}</span>
+        <span class="value-object-key">${sanitize(f.key)}</span>:
+        <span class="value-object-value">${getValueToDisplay(f)}</span>
       </div>
     `,
-  ).join("");
+    )
+    .join("");
   return `
     <div class="value-object-line">
       ${props}
@@ -28,35 +31,43 @@ const getObjectDisplay = (obj) => {
   `;
 };
 
-const getValueToDisplay = (val) => {
-  if (val == null) {
+const getValueToDisplay = (prop) => {
+  if (prop == null) {
     return undefined;
   }
-  switch (typeof val) {
-  case "object":
-    if (Array.isArray(val)) {
-      if (!val.length) {
+  if (typeof prop !== "object") {
+    if (typeof prop === "string") {
+      return `"${sanitize(prop)}"`;
+    }
+    return `${sanitize(prop)}`;
+  }
+  switch (prop.kind) {
+    case "array":
+      if (!prop.items.length) {
         return "no element";
       }
-      if (typeof val[0] === "number") {
-        return val.join(" ");
+      if (typeof prop.items[0] === "number") {
+        return prop.items.join(" ");
       }
-      return val.map(getObjectDisplay).join(" ");
-    }
-
-    return getObjectDisplay(val);
-  case "string":
-    return `"${sanitize(val)}"`;
+      return prop.items.map(getValueToDisplay).join(" ");
+    case "struct":
+    case "bits":
+      return getObjectDisplay(prop.fields);
+    case "flags":
+      return getObjectDisplay(prop.flags);
+    default:
+      if (typeof prop.value === "string") {
+        return `"${sanitize(prop.value)}"`;
+      }
+      return `${sanitize(prop.value)}`;
   }
-
-  return sanitize(val);
 };
 
 const BoxTitle = (box) =>
   `
     <div class="box-title">
       <span class="box-name">${sanitize(box.name)}</span>
-      <span class="box-alias">("${sanitize(box.alias)}")</span>
+      <span class="box-alias">("${sanitize(box.type)}")</span>
       <span class="box-size">${sanitize(box.size)} bytes</span>
     </div>
   `;
@@ -71,14 +82,13 @@ const BoxDescription = (box) =>
 const BoxValue = (value) => {
   return `
     <div class="box-value-entry">
-      <span class="box-value-key">${sanitize(value.name)}</span>:
-      <span class="box-value-value">${getValueToDisplay(value.value)}</span>
+      <span class="box-value-key">${sanitize(value.key)}</span>:
+      <span class="box-value-value">${getValueToDisplay(value)}</span>
     </div>
   `;
 };
 
-const BoxValues = (box) =>
-  (box.values || []).map(v => BoxValue(v)).join("");
+const BoxValues = (box) => (box.values || []).map((v) => BoxValue(v)).join("");
 
 const Box = (box) => {
   const children = (box.children || []).map(Box).join("");
@@ -95,6 +105,6 @@ const Box = (box) => {
 export default (arr = []) => {
   console.log("rendering...", arr);
   wrapper.style.display = "none";
-  wrapper.innerHTML =  title() + arr.map(Box).join("");
+  wrapper.innerHTML = title() + arr.map(Box).join("");
   wrapper.style.display = "block";
 };

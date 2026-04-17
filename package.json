@@ -4,17 +4,20 @@
   "description": "An ISOBMFF web visualizer done for better understanding the format and its intricacies.",
   "main": "build/aisobmffwvdfbutfaii.js",
   "scripts": {
-    "build": "webpack",
-    "lint": "eslint src/**/*.js",
-    "min": "AISOBMFFWVDFBUTFAII_MINIFY=true webpack",
-    "watch": "webpack -w"
+    "build": "node scripts/build.mjs",
+    "check": "npm run lint && npm run typecheck",
+    "format": "biome format --write .",
+    "lint": "biome check .",
+    "min": "AISOBMFFWVDFBUTFAII_MINIFY=true node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "watch": "node scripts/build.mjs --watch"
   },
   "author": "peaberberian",
   "license": "UNLICENSED",
   "devDependencies": {
-    "eslint": "8.14.0",
-    "webpack": "5.72.0",
-    "webpack-cli": "4.9.2"
+    "@biomejs/biome": "2.4.12",
+    "esbuild": "^0.28.0",
+    "typescript": "^5.9.2"
   },
   "dependencies": {
     "isobmff-inspector": "0.2.2"
