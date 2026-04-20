@@ -25,10 +25,9 @@
     mod
   ));
 
-  // ../isobmff-inspector/dist/bundle.js
+  // node_modules/isobmff-inspector/dist/bundle.js
   var require_bundle = __commonJS({
-    "../isobmff-inspector/dist/bundle.js"(exports, module) {
-      "use strict";
+    "node_modules/isobmff-inspector/dist/bundle.js"(exports, module) {
       (function(global, factory) {
         typeof exports === "object" && typeof module !== "undefined" ? module.exports = factory() : typeof define === "function" && define.amd ? define(factory) : (global = typeof globalThis !== "undefined" ? globalThis : global || self, global.inspectISOBMFF = factory());
       })(exports, function() {
@@ -122,7 +121,7 @@
             default: () => main_default,
             parse: () => parse,
             parseBuffer: () => parseBuffer,
-            parseEvents: () => parseEvents
+            parseEvents: () => parseEvents2
           });
           var MAC_EPOCH_TO_UNIX_EPOCH_SECONDS = 2082844800;
           function decodeFixedPoint(value, fractionalBits) {
@@ -2183,9 +2182,9 @@
                * @param {Record<string, { description?: string }>} acc
                * @param {import("./types.js").BoxContentEntry} el
                */
-              (acc, el) => {
-                acc[el.key] = {
-                  description: el.description || void 0
+              (acc, el2) => {
+                acc[el2.key] = {
+                  description: el2.description || void 0
                 };
                 return acc;
               },
@@ -2905,7 +2904,7 @@
             }
             return returnedArray;
           }
-          function parseEvents(input) {
+          function parseEvents2(input) {
             return __asyncGenerator(this, null, function* () {
               yield* __yieldStar(parseBoxEvents(input, recursiveParseBoxes));
             });
@@ -3125,179 +3124,501 @@
   var import_isobmff_inspector = __toESM(require_bundle());
 
   // src/renderer.js
-  var wrapper = document.getElementById("file-description");
-  var sanitize = (str) => {
-    const div = document.createElement("div");
-    div.appendChild(document.createTextNode(str));
-    return div.innerHTML;
+  var esc = (s) => {
+    const d = document.createElement("div");
+    d.appendChild(document.createTextNode(String(s)));
+    return d.innerHTML;
   };
-  var title = () => {
-    return `
-    <h2 id="result-title">Results</h2>
-  `;
-  };
-  var getObjectDisplay = (obj) => {
-    const props = obj.map(
-      (f) => `
-      <div class="value-object-prop">
-        <span class="value-object-key">${sanitize(f.key)}</span>:
-        <span class="value-object-value">${getValueToDisplay(f)}</span>
-      </div>
-    `
-    ).join("");
-    return `
-    <div class="value-object-line">
-      ${props}
-    </div>
-  `;
-  };
-  var getValueToDisplay = (prop) => {
-    if (prop == null) {
-      return void 0;
+  function fmtBytes(n) {
+    const b = Number(n);
+    if (b < 1024) {
+      return `${b} B`;
     }
-    if (typeof prop !== "object") {
-      if (typeof prop === "string") {
-        return `"${sanitize(prop)}"`;
+    if (b < 1048576) {
+      return `${(b / 1024).toFixed(1)} KB`;
+    }
+    return `${(b / 1048576).toFixed(2)} MB`;
+  }
+  function el(tag, cls, html) {
+    const e = document.createElement(tag);
+    if (cls) {
+      e.className = cls;
+    }
+    if (html) {
+      e.innerHTML = html;
+    }
+    return e;
+  }
+  function renderValue(f) {
+    if (f == null) {
+      return el("span", "vv-null", "null");
+    }
+    if (typeof f !== "object") {
+      const s = el("span", typeof f === "string" ? "vv-str" : "vv-num");
+      s.textContent = typeof f === "string" ? `"${f}"` : String(f);
+      return s;
+    }
+    switch (f.kind) {
+      case "number":
+      case "bigint": {
+        const s = el("span", "vv-num");
+        s.textContent = String(f.value);
+        return s;
       }
-      return `${sanitize(prop)}`;
+      case "string": {
+        const s = el("span", "vv-str");
+        s.textContent = `"${f.value}"`;
+        return s;
+      }
+      case "boolean": {
+        const s = el("span", "vv-bool");
+        s.textContent = String(f.value);
+        return s;
+      }
+      case "null": {
+        return el("span", "vv-null", "null");
+      }
+      case "fixed-point": {
+        const wrap = el("span", "vv-fp");
+        const num = el("span", "vv-fp-val");
+        num.textContent = String(f.value);
+        const fmt = el("span", "vv-fp-fmt");
+        fmt.textContent = ` ${f.format} fixed`;
+        if (f.signed === false) {
+          fmt.textContent += ", unsigned";
+        }
+        wrap.appendChild(num);
+        wrap.appendChild(fmt);
+        return wrap;
+      }
+      case "date": {
+        const wrap = el("div", "vv-date");
+        if (f.date) {
+          const human = el("span", "vv-date-human");
+          human.textContent = f.date;
+          wrap.appendChild(human);
+        }
+        const raw = el("span", "vv-date-raw");
+        raw.textContent = `raw ${f.value} \xB7 epoch ${f.epoch ?? "??"} \xB7 unit ${f.unit ?? "?"}`;
+        wrap.appendChild(raw);
+        return wrap;
+      }
+      case "flags": {
+        const wrap = el("div", "flags-grid");
+        for (const flag of f.flags ?? []) {
+          const chip = el("span", `flag-chip${flag.value ? " on" : ""}`);
+          chip.textContent = flag.key;
+          wrap.appendChild(chip);
+        }
+        if (!f.flags?.length) {
+          wrap.textContent = "\u2014";
+        }
+        return wrap;
+      }
+      case "bits": {
+        const wrap = el("div", "bits-row");
+        for (const b of f.fields ?? []) {
+          const part = el("span", "bits-field");
+          part.innerHTML = `${esc(b.key)}=<span>${esc(b.value)}</span>`;
+          wrap.appendChild(part);
+        }
+        return wrap;
+      }
+      case "struct": {
+        if (f.layout === "matrix-3x3") {
+          const grid = el("div", "matrix-grid");
+          for (const cell of f.fields ?? []) {
+            const c = el("span");
+            const value = (
+              /** @type {{ value?: unknown }} */
+              cell.value
+            );
+            c.textContent = value != null ? String(value) : "\u2014";
+            grid.appendChild(c);
+          }
+          return grid;
+        }
+        if (f.layout === "iso-639-2-t") {
+          const lang = (f.fields ?? []).find((x) => x.key === "language");
+          const s = el("span", "vv-str");
+          const value = lang ? (
+            /** @type {{ value?: unknown }} */
+            lang.value
+          ) : null;
+          s.textContent = value != null ? `"${value}"` : "\u2014";
+          return s;
+        }
+        const tbl = (
+          /** @type {HTMLTableElement} */
+          el("table", "values-table")
+        );
+        for (const sf of f.fields ?? []) {
+          const row = tbl.insertRow();
+          row.insertCell().className = "vk";
+          row.cells[0].textContent = sf.key;
+          row.insertCell().appendChild(renderValue(sf));
+        }
+        return tbl;
+      }
+      case "array": {
+        if (!f.items?.length) {
+          const s = el("span", "vv-null");
+          s.textContent = "[]";
+          return s;
+        }
+        if (f.items.every((i) => i.kind === "number" || i.kind === "bigint")) {
+          const s = el("span", "vv-num");
+          s.textContent = `[${f.items.map((i) => i.value).join(", ")}]`;
+          return s;
+        }
+        const wrap = el("div");
+        f.items.forEach((item, idx) => {
+          const row = el("div", "arr-item");
+          const lbl = el("span", "arr-label");
+          lbl.textContent = `[${idx}] `;
+          row.appendChild(lbl);
+          row.appendChild(renderValue(item));
+          wrap.appendChild(row);
+        });
+        return wrap;
+      }
     }
-    switch (prop.kind) {
-      case "array":
-        if (!prop.items.length) {
-          return "no element";
+  }
+  function buildBoxEl(box, shallow = false) {
+    const hasValues = box.values?.length > 0;
+    const hasChildren = !shallow && box.children?.length > 0;
+    const hasContent = hasValues || hasChildren || box.description || box.issues?.length;
+    const makeDot = () => {
+      if (!box.issues?.length) {
+        return null;
+      }
+      const dot = el("span");
+      const isWarnOnly = box.issues.every((i) => i.severity === "warning");
+      dot.className = `box-issue-dot${isWarnOnly ? " warn" : ""}`;
+      return dot;
+    };
+    const makeHeader = () => {
+      const header = el("span", "box-header");
+      const typeSpan = el("span", "box-type");
+      typeSpan.textContent = box.type;
+      header.appendChild(typeSpan);
+      if (box.name) {
+        const nameSpan = el("span", "box-name");
+        nameSpan.textContent = box.name;
+        header.appendChild(nameSpan);
+      }
+      const sizeSpan = el("span", "box-size");
+      sizeSpan.textContent = fmtBytes(box.size);
+      header.appendChild(sizeSpan);
+      const dot = makeDot();
+      if (dot) {
+        header.appendChild(dot);
+      }
+      return header;
+    };
+    const makeBody = () => {
+      const body = el("div", "box-body");
+      if (box.description) {
+        const desc = el("div", "box-desc");
+        desc.textContent = box.description;
+        body.appendChild(desc);
+      }
+      if (hasValues) {
+        const tbl = (
+          /** @type {HTMLTableElement} */
+          el("table", "values-table")
+        );
+        for (const v of box.values) {
+          const row = tbl.insertRow();
+          row.className = "box-value-line";
+          const keyCell = row.insertCell();
+          keyCell.className = "vk";
+          keyCell.textContent = v.key;
+          if (v.description) {
+            keyCell.title = v.description;
+          }
+          const valCell = row.insertCell();
+          valCell.appendChild(renderValue(v));
         }
-        if (typeof prop.items[0] === "number") {
-          return prop.items.join(" ");
+        body.appendChild(tbl);
+      }
+      if (box.issues?.length) {
+        const isWarnOnly = box.issues.every((i) => i.severity === "warning");
+        const issueEl = el("div", `issue-list${isWarnOnly ? " warn" : ""}`);
+        for (const issue of box.issues) {
+          const item = el("div", "issue-item");
+          item.textContent = issue.message;
+          issueEl.appendChild(item);
         }
-        return prop.items.map(getValueToDisplay).join(" ");
-      case "struct":
-      case "bits":
-        return getObjectDisplay(prop.fields);
-      case "flags":
-        return getObjectDisplay(prop.flags);
-      default:
-        if (typeof prop.value === "string") {
-          return `"${sanitize(prop.value)}"`;
-        }
-        return `${sanitize(prop.value)}`;
+        body.appendChild(issueEl);
+      }
+      return body;
+    };
+    if (!hasContent && !box.children) {
+      const div = el("div", "leaf-box");
+      const caret2 = el("span", "box-caret");
+      caret2.textContent = "";
+      caret2.style.opacity = "0";
+      div.appendChild(caret2);
+      div.appendChild(makeHeader());
+      return div;
     }
-  };
-  var BoxTitle = (box) => `
-    <div class="box-title">
-      <span class="box-name">${sanitize(box.name)}</span>
-      <span class="box-alias">("${sanitize(box.type)}")</span>
-      <span class="box-size">${sanitize(box.size)} bytes</span>
-    </div>
-  `;
-  var BoxDescription = (box) => `
-    <div class="box-description">
-      ${sanitize(box.description)}
-    </div>
-  `;
-  var BoxValue = (value) => {
-    return `
-    <div class="box-value-entry">
-      <span class="box-value-key">${sanitize(value.key)}</span>:
-      <span class="box-value-value">${getValueToDisplay(value)}</span>
-    </div>
-  `;
-  };
-  var BoxValues = (box) => (box.values || []).map((v) => BoxValue(v)).join("");
-  var Box = (box) => {
-    const children = (box.children || []).map(Box).join("");
-    return `
-    <div class="box">
-      ${BoxTitle(box)}
-      ${BoxDescription(box)}
-      ${BoxValues(box)}
-      ${children}
-    </div>
-  `;
-  };
-  var renderer_default = (arr = []) => {
-    console.log("rendering...", arr);
-    wrapper.style.display = "none";
-    wrapper.innerHTML = title() + arr.map(Box).join("");
-    wrapper.style.display = "block";
-  };
+    const det = document.createElement("details");
+    det.open = true;
+    const summary = document.createElement("summary");
+    const caret = el("span", "box-caret");
+    caret.setAttribute("aria-hidden", "true");
+    summary.appendChild(caret);
+    summary.appendChild(makeHeader());
+    det.appendChild(summary);
+    if (hasContent) {
+      det.appendChild(makeBody());
+    }
+    const childWrap = el("div", "box-children");
+    det.appendChild(childWrap);
+    if (hasChildren) {
+      for (const child of box.children) {
+        childWrap.appendChild(buildBoxEl(child, false));
+      }
+    }
+    return det;
+  }
+  var CHART_COLORS = [
+    "#378ADD",
+    "#1D9E75",
+    "#D85A30",
+    "#BA7517",
+    "#8B5CF6",
+    "#D4537E",
+    "#639922",
+    "#E24B4A",
+    "#888780"
+  ];
+  function flattenBoxes(boxes, depth, colors, out) {
+    boxes.forEach((box, index) => {
+      const color = colors.get(box) ?? CHART_COLORS[(depth + index) % CHART_COLORS.length];
+      out.push({ box, depth, color });
+      if (box.children?.length) {
+        flattenBoxes(box.children, depth + 1, colors, out);
+      }
+    });
+  }
+  function renderSizeChart(boxes) {
+    const container = document.getElementById("size-chart");
+    if (!container || !boxes.length) {
+      return;
+    }
+    const total = boxes.reduce((s, b) => s + Number(b.size ?? 0), 0) || 1;
+    const sorted = [...boxes].sort(
+      (a, b) => Number(b.size ?? 0) - Number(a.size ?? 0)
+    );
+    const colors = /* @__PURE__ */ new WeakMap();
+    sorted.forEach((box, index) => {
+      colors.set(box, CHART_COLORS[index % CHART_COLORS.length]);
+    });
+    const rows = [];
+    flattenBoxes(boxes, 0, colors, rows);
+    container.innerHTML = "";
+    const bar = el("div", "size-bar");
+    sorted.forEach((b, i) => {
+      const pct = Number(b.size ?? 0) / total * 100;
+      const seg = el("div", "size-bar-seg");
+      seg.style.width = `${pct}%`;
+      seg.style.background = CHART_COLORS[i % CHART_COLORS.length];
+      seg.title = `${b.type}: ${fmtBytes(b.size)} (${pct.toFixed(1)}%)`;
+      bar.appendChild(seg);
+    });
+    container.appendChild(bar);
+    const legend = el("div", "size-legend");
+    rows.forEach(({ box: b, depth, color }) => {
+      const pct = Number(b.size ?? 0) / total * 100;
+      const row = el("div", "size-row");
+      row.style.setProperty("--box-depth", String(depth));
+      row.innerHTML = `
+      <span class="size-pct">${pct.toFixed(1)}%</span>
+      <div class="size-track"><div class="size-fill" style="width:${pct}%;background:${color}"></div></div>
+      <span class="size-type">${esc(b.type)}</span>
+      <span class="size-depth">${depth === 0 ? "top-level" : `child level ${depth}`}</span>
+      <span class="size-bytes">${esc(fmtBytes(b.size))}</span>
+    `;
+      legend.appendChild(row);
+    });
+    container.appendChild(legend);
+  }
 
   // src/index.js
+  var wrapper = document.getElementById("file-description");
+  var progressBar = document.getElementById("progress-bar");
+  var statusLine = document.getElementById("status-line");
+  var tabs = document.getElementById("tabs");
+  function setStatus(msg) {
+    statusLine.textContent = msg;
+    statusLine.style.visibility = msg ? "visible" : "hidden";
+  }
+  var fadeTimeout = null;
+  var resetTimeout = null;
+  function clearPending() {
+    clearTimeout(fadeTimeout);
+    clearTimeout(resetTimeout);
+    progressBar.style.transition = "none";
+    progressBar.style.opacity = "1";
+  }
+  function startProgress() {
+    clearPending();
+    progressBar.style.width = "5%";
+    progressBar.style.transition = "width 0.3s ease";
+  }
+  function endProgress() {
+    clearPending();
+    progressBar.style.width = "100%";
+    progressBar.style.backgroundColor = "#65bf77";
+    fadeTimeout = setTimeout(() => {
+      progressBar.style.transition = "opacity 0.5s ease";
+      progressBar.style.opacity = "0";
+      resetTimeout = setTimeout(() => {
+        progressBar.style.backgroundColor = "transparent";
+        progressBar.style.opacity = "1";
+      }, 500);
+    }, 1e3);
+  }
+  var topLevelBoxes = [];
+  async function parseAndRender(input) {
+    wrapper.innerHTML = "";
+    topLevelBoxes.length = 0;
+    tabs.style.display = "none";
+    startProgress();
+    setStatus("parsing\u2026");
+    let boxCount = 0;
+    const stack = [];
+    try {
+      for await (const event of (0, import_isobmff_inspector.parseEvents)(input)) {
+        if (event.event === "box-start") {
+          boxCount++;
+          const depth = event.path.length - 1;
+          stack.length = depth;
+          const parent = depth === 0 ? wrapper : stack[depth - 1]?.childWrap;
+          if (!parent) {
+            throw new Error(`missing parent for ${event.path.join("/")}`);
+          }
+          const box = {
+            type: event.type,
+            size: event.size,
+            offset: event.offset,
+            headerSize: event.headerSize,
+            sizeField: event.sizeField,
+            uuid: event.uuid,
+            values: [],
+            issues: [],
+            children: []
+          };
+          const element = buildBoxEl(
+            box,
+            /* shallow = */
+            true
+          );
+          parent.appendChild(element);
+          stack[depth] = {
+            element,
+            childWrap: (
+              /** @type {HTMLElement | null} */
+              element.querySelector(":scope > .box-children")
+            )
+          };
+          if (boxCount % 5 === 0) {
+            setStatus(`parsed ${boxCount} boxes\u2026`);
+          }
+          continue;
+        }
+        if (event.event === "box-complete") {
+          const box = event.box;
+          const depth = event.path.length - 1;
+          const current = stack[depth];
+          if (!current) {
+            throw new Error(`missing started box for ${event.path.join("/")}`);
+          }
+          const element = buildBoxEl(
+            box,
+            /* shallow = */
+            true
+          );
+          const oldChildWrap = current.childWrap;
+          const newChildWrap = (
+            /** @type {HTMLElement | null} */
+            element.querySelector(":scope > .box-children")
+          );
+          if (oldChildWrap && newChildWrap) {
+            while (oldChildWrap.firstChild) {
+              newChildWrap.appendChild(oldChildWrap.firstChild);
+            }
+          }
+          current.element.replaceWith(element);
+          stack[depth] = { element, childWrap: newChildWrap };
+          if (depth === 0) {
+            topLevelBoxes.push(box);
+          }
+        }
+      }
+      renderSizeChart(topLevelBoxes);
+      tabs.style.display = "flex";
+    } catch (err) {
+      setStatus(`parse error: ${err?.message ?? err}`);
+      console.error("parse error", err);
+    } finally {
+      setStatus("File parsed with success!");
+      endProgress();
+    }
+  }
   if (window.File && window.FileReader && window.Uint8Array) {
-    let onFileSelection = function(evt) {
+    document.getElementById("file-input").addEventListener("change", (evt) => {
       const fileInputElt = (
         /** @type {HTMLInputElement | null} */
         evt.target
       );
-      if (fileInputElt === null) {
-        return;
-      }
       const files = fileInputElt.files;
-      if (files !== null && !files.length) {
+      if (!files?.length) {
         return;
       }
-      (0, import_isobmff_inspector.default)(files[0]).then(
-        /** @param {*} data */
-        (data) => {
-          renderer_default(data);
-        }
-      ).catch(
-        /** @param {unknown} err */
-        (err) => {
-          console.error(
-            "An error happened which prevented parsing the segment",
-            err
-          );
-        }
-      );
-      return false;
-    };
-    document.getElementById("file-input").addEventListener("change", onFileSelection, false);
+      parseAndRender(files[0]);
+    });
   } else {
-    const localSegmentInput = document.getElementById("choices-local-segment");
-    localSegmentInput.style.display = "none";
-    const choiceSeparator = document.getElementById("choices-separator");
-    choiceSeparator.style.display = "none";
+    document.getElementById("choices-local-segment").style.display = "none";
+    document.getElementById("choices-separator").style.display = "none";
   }
   if (window.fetch && window.Uint8Array) {
-    let onUrlValidation = function(url) {
-      fetch(url).then((response) => (0, import_isobmff_inspector.default)(response)).then(
-        (parsed) => {
-          renderer_default(parsed);
-        },
-        (error) => {
-          console.error("Parsing error:", error);
-        }
-      );
-    }, onButtonClicking = function() {
-      const urlInput = (
+    let fetchAndParse = function() {
+      const url = (
         /** @type {HTMLInputElement} */
-        document.getElementById("url-input")
+        document.getElementById("url-input").value.trim()
       );
-      const url = urlInput.value;
-      if (url) {
-        onUrlValidation(url);
-        return false;
+      if (!url) {
+        return;
       }
-    }, onInputKeyPress = function(evt) {
-      const keyCode = evt.keyCode || evt.which;
-      if (keyCode === 13) {
-        const urlInput = (
-          /** @type {HTMLInputElement | null} */
-          evt.target
-        );
-        const url = urlInput?.value;
-        if (url) {
-          onUrlValidation(url);
-        }
-        return false;
-      }
+      fetch(url).then((r) => parseAndRender(r)).catch((err) => setStatus(`fetch error: ${err?.message ?? err}`));
     };
-    document.getElementById("url-input").addEventListener("keypress", onInputKeyPress, false);
-    document.getElementById("url-button").addEventListener("click", onButtonClicking, false);
+    document.getElementById("url-button").addEventListener("click", fetchAndParse);
+    document.getElementById("url-input").addEventListener("keypress", (evt) => {
+      if ((evt.keyCode || evt.which) === 13) {
+        fetchAndParse();
+      }
+    });
   } else {
-    const choiceSeparator = document.getElementById("choices-separator");
-    choiceSeparator.style.display = "none";
-    const urlSegmentInput = document.getElementById("choices-url-segment");
-    urlSegmentInput.style.display = "none";
+    document.getElementById("choices-separator").style.display = "none";
+    document.getElementById("choices-url-segment").style.display = "none";
   }
+  document.querySelectorAll(".tab").forEach((tab) => {
+    const tabEl = (
+      /** @type {HTMLElement} */
+      tab
+    );
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach((t) => {
+        t.classList.remove("active");
+      });
+      document.querySelectorAll(".tab-panel").forEach((p) => {
+        p.classList.remove("active");
+      });
+      tabEl.classList.add("active");
+      document.getElementById(`tab-${tabEl.dataset.tab}`).classList.add("active");
+    });
+  });
 })();
