@@ -1,76 +1,34 @@
 import { parseEvents } from "isobmff-inspector";
 import { buildBoxEl, renderSizeChart } from "./renderer.js";
+import ProgressBar from "./ProgressBar.js";
 
-const wrapper = document.getElementById("file-description");
-const progressBar = document.getElementById("progress-bar");
-const statusLine = document.getElementById("status-line");
-const tabs = document.getElementById("tabs");
-
-/**
- * @param {string} msg
- */
-function setStatus(msg) {
-  statusLine.textContent = msg;
-  statusLine.style.visibility = msg ? "visible" : "hidden";
-}
-
-let fadeTimeout = null;
-let resetTimeout = null;
-
-function clearPending() {
-  clearTimeout(fadeTimeout);
-  clearTimeout(resetTimeout);
-  progressBar.style.transition = "none";
-  progressBar.style.opacity = "1";
-}
-
-function startProgress() {
-  clearPending();
-  progressBar.style.width = "5%";
-  // Re-enable width transition only
-  progressBar.style.transition = "width 0.3s ease";
-}
-
-function endProgress() {
-  clearPending();
-  progressBar.style.width = "100%";
-  progressBar.style.backgroundColor = "#65bf77";
-
-  // Wait for fill, then fade
-  fadeTimeout = setTimeout(() => {
-    progressBar.style.transition = "opacity 0.5s ease";
-    progressBar.style.opacity = "0";
-
-    resetTimeout = setTimeout(() => {
-      progressBar.style.backgroundColor = "transparent";
-      progressBar.style.opacity = "1";
-    }, 500);
-  }, 1000);
-}
-
-// Walk an already-built DOM tree of <details>/<div> nodes and collect the
-// top-level box sizes for the size chart. We re-use the full parsed array
-// that accumulates during streaming.
-const topLevelBoxes = [];
+const statusLineElt = document.getElementById("status-line");
 
 /**
  * @param {import("isobmff-inspector").ISOBMFFInput} input
  */
 async function parseAndRender(input) {
+  // Walk an already-built DOM tree of <details>/<div> nodes and collect the
+  // top-level box sizes for the size chart. We re-use the full parsed array
+  // that accumulates during streaming.
+  const topLevelBoxes = [];
+  let boxCount = 0;
+  const tabs = document.getElementById("tabs");
+  const wrapper = document.getElementById("file-description");
   wrapper.innerHTML = "";
   topLevelBoxes.length = 0;
   tabs.style.display = "none";
-  startProgress();
-  setStatus("parsing…");
 
-  let boxCount = 0;
+  const progressBar = new ProgressBar();
+  progressBar.start("parsing…");
+  progressBar.startEasing();
+
   /** @type {Array<{ element: HTMLElement, childWrap: HTMLElement | null }>} */
   const stack = [];
 
   try {
     for await (const event of parseEvents(input)) {
       if (event.event === "box-start") {
-        boxCount++;
         const depth = event.path.length - 1;
         stack.length = depth;
 
@@ -98,14 +56,17 @@ async function parseAndRender(input) {
             element.querySelector(":scope > .box-children")
           ),
         };
-
-        if (boxCount % 5 === 0) {
-          setStatus(`parsed ${boxCount} boxes…`);
-        }
         continue;
       }
 
       if (event.event === "box-complete") {
+        boxCount++;
+        let msg;
+        if (boxCount !== undefined && boxCount % 5 === 0) {
+          msg = `parsed ${boxCount} boxes…`;
+          progressBar.updateStatus(msg);
+        }
+
         const box = event.box;
         const depth = event.path.length - 1; // path includes this box's type
         const current = stack[depth];
@@ -135,11 +96,11 @@ async function parseAndRender(input) {
     renderSizeChart(topLevelBoxes);
     tabs.style.display = "flex";
   } catch (err) {
+    // XXX TODO: integrate to progress bar (e.g. to a red progressbar)
     setStatus(`parse error: ${err?.message ?? err}`);
     console.error("parse error", err);
   } finally {
-    setStatus("File parsed with success!");
-    endProgress();
+    progressBar.end("File parsed with success!");
   }
 }
 
@@ -167,7 +128,10 @@ if (window.fetch && window.Uint8Array) {
     }
     fetch(url)
       .then((r) => parseAndRender(r))
-      .catch((err) => setStatus(`fetch error: ${err?.message ?? err}`));
+      .catch((err) => {
+        // XXX TODO: How to make that part of the progress bar experience?
+        setStatus(`fetch error: ${err?.message ?? err}`);
+      });
   }
 
   document
@@ -183,16 +147,35 @@ if (window.fetch && window.Uint8Array) {
   document.getElementById("choices-url-segment").style.display = "none";
 }
 
-document.querySelectorAll(".tab").forEach((tab) => {
-  const tabEl = /** @type {HTMLElement} */ (tab);
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((t) => {
-      t.classList.remove("active");
-    });
-    document.querySelectorAll(".tab-panel").forEach((p) => {
-      p.classList.remove("active");
-    });
+const tabElts = document.getElementsByClassName("tab");
+for (let tabIdx = 0; tabIdx < tabElts.length; tabIdx++) {
+  const tabEl = /** @type {HTMLElement} */ (tabElts[tabIdx]);
+  tabEl.addEventListener("click", () => {
+    for (let innerTabIdx = 0; innerTabIdx < tabElts.length; innerTabIdx++) {
+      const innerTab = tabElts[innerTabIdx];
+      if (innerTab !== tabEl) {
+        innerTab.classList.remove("active");
+      }
+    }
+    const tabPanelElts = document.getElementsByClassName("tab-panel");
+    for (
+      let tabPanelIdx = 0;
+      tabPanelIdx < tabPanelElts.length;
+      tabPanelIdx++
+    ) {
+      const tabPanel = tabPanelElts[tabPanelIdx];
+      tabPanel.classList.remove("active");
+    }
     tabEl.classList.add("active");
     document.getElementById(`tab-${tabEl.dataset.tab}`).classList.add("active");
   });
-});
+}
+
+/**
+ * TODO: Move to ProgressBar?
+ * @param {string} msg
+ */
+function setStatus(msg) {
+  statusLineElt.textContent = msg;
+  statusLineElt.style.visibility = msg ? "visible" : "hidden";
+}

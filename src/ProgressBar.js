@@ -1,0 +1,115 @@
+const progressBarWrapperElt = document.getElementById("progress-bar-wrap");
+const progressBarElt = document.getElementById("progress-bar");
+const statusLineElt = document.getElementById("status-line");
+
+export default class ProgressBar {
+  #restarfRaf = null;
+  #fadeTimeout = null;
+  #resetTimeout = null;
+  #easingRaf = null;
+  #percent = 0;
+
+  /**
+   * @param {string} msg
+   */
+  start(msg) {
+    this.#clearPendingAnimation();
+    statusLineElt.textContent = msg;
+    statusLineElt.style.visibility = "visible";
+    progressBarWrapperElt.style.backgroundColor =
+      "var(--color-border-tertiary)";
+    this.#percent = 0;
+    progressBarElt.style.width = "0%";
+    this.#restarfRaf = requestAnimationFrame(() => {
+      this.#restarfRaf = null;
+      this.#percent = 5;
+      progressBarElt.style.transition = "width 0.3s ease";
+      progressBarElt.style.width = "5%";
+    });
+  }
+
+  startEasing() {
+    const tick = () => {
+      this.#percent += (90 - this.#percent) * 0.02;
+      progressBarElt.style.width = `${this.#percent}%`;
+      this.#easingRaf = requestAnimationFrame(tick);
+    };
+    this.#easingRaf = requestAnimationFrame(tick);
+  }
+
+  /**
+   * @param {number | undefined} ratio
+   * @param {string | undefined} msg
+   */
+  setProgress(ratio, msg) {
+    if (ratio !== undefined) {
+      this.#stopEasing();
+      progressBarElt.style.width = `${Math.min(ratio, 0.99) * 100}%`;
+    }
+    if (msg !== undefined) {
+      statusLineElt.textContent = msg;
+      statusLineElt.style.visibility = msg ? "visible" : "hidden";
+    }
+  }
+
+  /**
+   * @param {string} msg
+   */
+  updateStatus(msg) {
+    statusLineElt.textContent = msg;
+    statusLineElt.style.visibility = msg ? "visible" : "hidden";
+  }
+
+  /**
+   * @param {string} msg
+   */
+  end(msg) {
+    this.#clearPendingAnimation();
+    this.#percent = 100;
+    progressBarElt.style.width = "100%";
+    progressBarElt.style.backgroundColor = "#65bf77";
+    statusLineElt.textContent = msg;
+    statusLineElt.style.visibility = "visible";
+
+    this.#fadeTimeout = setTimeout(() => {
+      statusLineElt.style.transition = "opacity 0.9s ease";
+      statusLineElt.style.opacity = "0";
+      progressBarWrapperElt.style.transition = "opacity 0.9s ease";
+      progressBarWrapperElt.style.opacity = "0";
+      progressBarElt.style.transition = "opacity 0.9s ease";
+      progressBarElt.style.opacity = "0";
+
+      this.#resetTimeout = setTimeout(() => {
+        progressBarWrapperElt.style.backgroundColor = "transparent";
+        progressBarWrapperElt.style.opacity = "1";
+        progressBarElt.style.backgroundColor = "transparent";
+        progressBarElt.style.opacity = "1";
+        statusLineElt.style.visibility = "hidden";
+        statusLineElt.style.opacity = "1";
+      }, 1200);
+    }, 2000);
+  }
+
+  #stopEasing() {
+    if (this.#easingRaf !== null) {
+      cancelAnimationFrame(this.#easingRaf);
+      this.#easingRaf = null;
+    }
+  }
+
+  #clearPendingAnimation() {
+    this.#stopEasing();
+    if (this.#restarfRaf !== null) {
+      cancelAnimationFrame(this.#restarfRaf);
+      this.#restarfRaf = null;
+    }
+    clearTimeout(this.#fadeTimeout);
+    clearTimeout(this.#resetTimeout);
+    progressBarWrapperElt.style.transition = "none";
+    progressBarWrapperElt.style.opacity = "1";
+    progressBarElt.style.transition = "none";
+    progressBarElt.style.opacity = "1";
+    statusLineElt.style.transition = "none";
+    statusLineElt.style.opacity = "1";
+  }
+}
