@@ -1,29 +1,132 @@
-<html lang="en"><head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="style.css" media="screen">
-<title>AISOBMFFWVDFBUTFAII</title>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta
+    name="description"
+    content="Inspect MP4 and ISOBMFF files directly in your browser. View box trees, parsed metadata fields, byte offsets, box sizes, and fragmented MP4 segment structure without uploading files."
+  >
+  <link rel="canonical" href="https://peaberberian.github.io/AISOBMFFWVDFBUTFAII/">
+	<link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <meta property="og:title" content="MP4 Box Inspector - ISOBMFF Analyzer">
+  <meta
+    property="og:description"
+    content="Inspect MP4 and ISOBMFF files locally in your browser. View box trees, parsed metadata, offsets, sizes, and fragmented MP4 segment structure."
+  >
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://peaberberian.github.io/AISOBMFFWVDFBUTFAII/">
+  <link rel="stylesheet" href="style.css" media="screen">
+  <title>MP4 Box Inspector - ISOBMFF / Fragmented MP4 Analyzer</title>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "MP4 Box Inspector",
+      "alternateName": "ISOBMFF Inspector",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Any",
+      "description": "Browser-based MP4 and ISOBMFF inspector for viewing box trees, parsed metadata fields, offsets, sizes, and fragmented MP4 segment structure.",
+      "url": "https://peaberberian.github.io/AISOBMFFWVDFBUTFAII/",
+      "codeRepository": "https://github.com/peaBerberian/AISOBMFFWVDFBUTFAII",
+      "isAccessibleForFree": true
+    }
+  </script>
 </head>
-  <body>
-    <h1 id="title">
-      ISOBMFF Parser
-    </h1>
-    <div id="selection">
-      <h2 id="selection-title">
-        File selection
-      </h2>
-      <div id="choices-local-segment" class="choices-element choices-input">
-        <i>Choose a file locally:</i><input type="file" id="file-input" name="file" />
+<body>
+  <header class="project-header">
+    <h1 id="title">MP4 Box Inspector</h1>
+    <nav class="project-links" aria-label="Project links">
+      <a
+        class="github-link"
+        href="https://github.com/peaBerberian/AISOBMFFWVDFBUTFAII"
+        target="_blank"
+        rel="noreferrer"
+        aria-label="View AISOBMFFWVDFBUTFAII on GitHub"
+        title="View on GitHub"
+      >
+        <span>GitHub</span>
+        <span aria-hidden="true">★</span>
+        <span id="github-stars" class="github-stars-count" hidden></span>
+      </a>
+    </nav>
+  </header>
+  <p class="app-intro">
+  This page lets you inspect MP4, fragmented MP4, and ISOBMFF boxes locally in your browser.<br>
+  Neither files nor metadata are sent to a server, everything stays on your computer.
+  </p>
+  <div id="selection" role="group" aria-label="Choose an MP4 source">
+    <div id="choices-local-segment" class="choices-element choices-input">
+      <label class="choice-label" for="file-input">
+        Local mp4 file <span class="drop-hint">(or drag-and-drop it )</span>
+      </label>
+      <input type="file" id="file-input" name="file">
+    </div>
+    <div id="choices-separator" class="choices-element choices-separator">or</div>
+    <div id="choices-url-segment" class="choices-element choices-input">
+      <label class="choice-label" for="url-input">Remote mp4 URL</label>
+      <div class="url-entry">
+        <input id="url-input" type="url" name="url" placeholder="https://example.com/video.mp4">
+        <button type="button" id="url-button">Inspect</button>
       </div>
-      <div id="choices-separator" class="choices-element">
-        <b><i>or</i></b>
-      </div>
-      <div id="choices-url-segment" class="choices-element choices-input">
-        <input id="url-input" style="width: 350px;" name="url" placeholder="URL to the file" />
-        <button type="button" id="url-button">OK</button>
+      <div class="example-sources" aria-label="Example files">
+        <span class="example-sources-label">Try</span>
+        <button
+          type="button"
+          class="example-source-button"
+          data-example-url="https://dash.akamaized.net/dash264/TestCases/1c/envivio/seg_b1000k_v_init.m4s"
+          title="Inspect a DASH video initialization segment, 687 bytes"
+        >DASH init</button>
+        <button
+          type="button"
+          class="example-source-button"
+          data-example-url="https://dash.akamaized.net/dash264/TestCases/1c/envivio/seg_b1000k_v_t12012.m4s"
+          title="Inspect a DASH video media segment, 51 KB"
+        >DASH media</button>
+        <button
+          type="button"
+          class="example-source-button"
+          data-example-url="./examples/example-av.mp4"
+          title="Inspect a small complete H.264/AAC MP4 file with mixed P/B-frame sections, 95 KB"
+        >MP4 file</button>
       </div>
     </div>
-    <div id="file-description"></div>
-    <script type="text/javascript" src="./aisobmffwvdfbutfaii.js" charset="utf-8"></script>
-  </body>
+  </div>
+  <div
+    id="progress-bar-wrap"
+    role="progressbar"
+    aria-label="Inspection progress"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    aria-valuenow="0"
+    aria-hidden="true"
+  >
+    <div id="progress-bar"></div>
+  </div>
+  <div id="status-row">
+    <div id="status-line" role="status" aria-live="polite" aria-atomic="true"></div>
+    <button type="button" id="progress-cancel-button" aria-hidden="true" tabindex="-1">cancel</button>
+  </div>
+  <div id="results">
+    <div id="result-notices" aria-live="polite"></div>
+    <div id="tabs" role="tablist" aria-label="Inspection views" hidden>
+      <button type="button" class="tab active" id="tab-button-boxes" role="tab" data-tab="boxes" aria-controls="tab-boxes" aria-selected="true">box tree</button>
+      <button type="button" class="tab" id="tab-button-info" role="tab" data-tab="info" aria-controls="tab-info" aria-selected="false">info</button>
+      <button type="button" class="tab" id="tab-button-sizes" role="tab" data-tab="sizes" aria-controls="tab-sizes" aria-selected="false">box sizes</button>
+    </div>
+    <div id="tab-boxes" class="tab-panel active" role="tabpanel" aria-labelledby="tab-button-boxes">
+      <div id="file-description"></div>
+    </div>
+    <div id="tab-info" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-info" hidden>
+      <div id="media-info"></div>
+    </div>
+    <div id="tab-sizes" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-sizes" hidden>
+      <div id="size-chart"></div>
+    </div>
+  </div>
+  <div id="drop-overlay" class="drop-overlay" hidden>
+    <div class="drop-overlay-message">Drop anywhere to inspect</div>
+  </div>
+  <script type="module" src="./aisobmffwvdfbutfaii.js" charset="utf-8"></script>
+</body>
 </html>
