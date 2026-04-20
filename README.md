@@ -25,45 +25,75 @@ The ISOBMFF parser has been isolated to another repository, the
 ## Parsed boxes ################################################################
 
 The parser only parses the following ISOBMFF boxes for now:
+  - avc1
+  - avc3
+  - avcC
+  - btrt
+  - co64
+  - colr
+  - ctts
   - dinf
   - dref
   - edts
+  - elst
+  - encv
+  - esds
   - free
+  - frma
   - ftyp
   - hdlr
+  - hev1
+  - hvc1
+  - hvcC
+  - ID32
+  - ilst
+  - iods
+  - leva
   - mdat
   - mdhd
   - mdia
   - mehd
+  - meta
   - mfhd
   - minf
   - moof
   - moov
+  - mp4a
   - mvex
   - mvhd
+  - pasp
   - pdin
   - pssh
   - saio
   - saiz
+  - schi
+  - schm
   - sdtp
   - sidx
+  - sinf
   - skip
+  - smhd
   - stbl
   - stco
   - stsc
   - stsd
+  - stss
   - stsz
   - stts
   - styp
+  - tenc
   - tfdt
   - tfhd
   - tkhd
   - traf
   - trak
+  - trep
   - trex
   - trun
-  - url
-  - urn
+  - udta
+  - url 
+  - urn 
+  - uuid
   - vmhd
 
 I plan to support each one of them but UUIDs (I may add support for some of them
