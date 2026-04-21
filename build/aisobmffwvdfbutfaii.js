@@ -2386,7 +2386,7 @@
             }
             return viewToUint8Array(arr);
           }
-          function byteChunkToUint8Array(chunk) {
+          function byteChunkToUint8Array2(chunk) {
             if (chunk instanceof Uint8Array) {
               return chunk;
             }
@@ -2407,7 +2407,7 @@
                   try {
                     for (var iter = __forAwait(iterable), more, temp, error; more = !(temp = yield new __await(iter.next())).done; more = false) {
                       const chunk = temp.value;
-                      yield byteChunkToUint8Array(chunk);
+                      yield byteChunkToUint8Array2(chunk);
                     }
                   } catch (temp2) {
                     error = [temp2];
@@ -2450,7 +2450,7 @@
                         if (done) {
                           break;
                         }
-                        yield byteChunkToUint8Array(value);
+                        yield byteChunkToUint8Array2(value);
                       }
                     } finally {
                       reader.releaseLock();
@@ -3120,15 +3120,138 @@
     }
   });
 
-  // src/index.js
+  // src/ProgressBar.js
+  var progressBarWrapperElt = document.getElementById("progress-bar-wrap");
+  var progressBarElt = document.getElementById("progress-bar");
+  var statusLineElt = document.getElementById("status-line");
+  var ProgressBarClass = class {
+    #restartRaf = null;
+    #fadeTimeout = null;
+    #resetTimeout = null;
+    #easingRaf = null;
+    #percent = 0;
+    /**
+     * @param {string} msg
+     */
+    start(msg) {
+      this.#clearPendingAnimation();
+      statusLineElt.textContent = msg;
+      statusLineElt.style.visibility = "visible";
+      progressBarWrapperElt.style.backgroundColor = "var(--color-border-tertiary)";
+      this.#percent = 0;
+      progressBarElt.style.backgroundColor = "#378add";
+      progressBarElt.style.width = "0%";
+      this.#restartRaf = requestAnimationFrame(() => {
+        this.#restartRaf = null;
+        this.#percent = 5;
+        progressBarElt.style.transition = "width 0.3s ease";
+        progressBarElt.style.width = "5%";
+      });
+    }
+    startEasing() {
+      const tick = () => {
+        this.#percent += (90 - this.#percent) * 0.02;
+        progressBarElt.style.width = `${this.#percent}%`;
+        this.#easingRaf = requestAnimationFrame(tick);
+      };
+      this.#easingRaf = requestAnimationFrame(tick);
+    }
+    /**
+     * @param {number | undefined} ratio
+     * @param {string | undefined} msg
+     */
+    setProgress(ratio, msg) {
+      if (ratio !== void 0) {
+        this.#stopEasing();
+        this.#percent = Math.min(ratio, 0.99) * 100;
+        progressBarElt.style.width = `${this.#percent}%`;
+      }
+      if (msg !== void 0) {
+        statusLineElt.textContent = msg;
+        statusLineElt.style.visibility = msg ? "visible" : "hidden";
+      }
+    }
+    /**
+     * @param {string} msg
+     */
+    updateStatus(msg) {
+      statusLineElt.textContent = msg;
+      statusLineElt.style.visibility = msg ? "visible" : "hidden";
+    }
+    /**
+     * @param {string} msg
+     */
+    end(msg) {
+      this.#finish(msg, "#65bf77");
+    }
+    /**
+     * @param {string} msg
+     */
+    fail(msg) {
+      this.#finish(msg, "#d85a30");
+    }
+    /**
+     * @param {string} msg
+     * @param {string} color
+     */
+    #finish(msg, color) {
+      this.#clearPendingAnimation();
+      this.#percent = 100;
+      progressBarElt.style.width = "100%";
+      progressBarElt.style.backgroundColor = color;
+      statusLineElt.textContent = msg;
+      statusLineElt.style.visibility = "visible";
+      this.#fadeTimeout = setTimeout(() => {
+        statusLineElt.style.transition = "opacity 0.9s ease";
+        statusLineElt.style.opacity = "0";
+        progressBarWrapperElt.style.transition = "opacity 0.9s ease";
+        progressBarWrapperElt.style.opacity = "0";
+        progressBarElt.style.transition = "opacity 0.9s ease";
+        progressBarElt.style.opacity = "0";
+        this.#resetTimeout = setTimeout(() => {
+          progressBarWrapperElt.style.backgroundColor = "transparent";
+          progressBarWrapperElt.style.opacity = "1";
+          progressBarElt.style.backgroundColor = "transparent";
+          progressBarElt.style.opacity = "1";
+          statusLineElt.style.visibility = "hidden";
+          statusLineElt.style.opacity = "1";
+        }, 1200);
+      }, 2e3);
+    }
+    #stopEasing() {
+      if (this.#easingRaf !== null) {
+        cancelAnimationFrame(this.#easingRaf);
+        this.#easingRaf = null;
+      }
+    }
+    #clearPendingAnimation() {
+      this.#stopEasing();
+      if (this.#restartRaf !== null) {
+        cancelAnimationFrame(this.#restartRaf);
+        this.#restartRaf = null;
+      }
+      clearTimeout(this.#fadeTimeout);
+      clearTimeout(this.#resetTimeout);
+      progressBarWrapperElt.style.transition = "none";
+      progressBarWrapperElt.style.opacity = "1";
+      progressBarElt.style.transition = "none";
+      progressBarElt.style.opacity = "1";
+      statusLineElt.style.transition = "none";
+      statusLineElt.style.opacity = "1";
+    }
+  };
+  var ProgressBar = new ProgressBarClass();
+  var ProgressBar_default = ProgressBar;
+
+  // src/parse.js
   var import_isobmff_inspector = __toESM(require_bundle());
 
-  // src/renderer.js
-  var esc = (s) => {
+  // src/tabs/utils.js
+  function esc(s) {
     const d = document.createElement("div");
     d.appendChild(document.createTextNode(String(s)));
     return d.innerHTML;
-  };
+  }
   function fmtBytes(n) {
     const b = Number(n);
     if (b < 1024) {
@@ -3148,6 +3271,232 @@
       e.innerHTML = html;
     }
     return e;
+  }
+
+  // src/tabs/sizes.js
+  var CHART_COLORS = [
+    "#378ADD",
+    "#1D9E75",
+    "#D85A30",
+    "#BA7517",
+    "#8B5CF6",
+    "#D4537E",
+    "#639922",
+    "#E24B4A",
+    "#888780"
+  ];
+  function flattenBoxes(boxes, depth, colors, out) {
+    boxes.forEach((box, index) => {
+      const color = colors.get(box) ?? CHART_COLORS[(depth + index) % CHART_COLORS.length];
+      out.push({ box, depth, color });
+      if (box.children?.length) {
+        flattenBoxes(box.children, depth + 1, colors, out);
+      }
+    });
+  }
+  function renderSizeChart(boxes) {
+    const container = document.getElementById("size-chart");
+    if (!container || !boxes.length) {
+      return;
+    }
+    const total = boxes.reduce((s, b) => s + Number(b.size ?? 0), 0) || 1;
+    const sorted = [...boxes].sort(
+      (a, b) => Number(b.size ?? 0) - Number(a.size ?? 0)
+    );
+    const colors = /* @__PURE__ */ new WeakMap();
+    sorted.forEach((box, index) => {
+      colors.set(box, CHART_COLORS[index % CHART_COLORS.length]);
+    });
+    const rows = [];
+    flattenBoxes(boxes, 0, colors, rows);
+    container.innerHTML = "";
+    const bar = el("div", "size-bar");
+    sorted.forEach((b, i) => {
+      const pct = Number(b.size ?? 0) / total * 100;
+      const seg = el("div", "size-bar-seg");
+      seg.style.width = `${pct}%`;
+      seg.style.background = CHART_COLORS[i % CHART_COLORS.length];
+      seg.title = `${b.type}: ${fmtBytes(b.size)} (${pct.toFixed(1)}%)`;
+      bar.appendChild(seg);
+    });
+    container.appendChild(bar);
+    const legend = el("div", "size-legend");
+    rows.forEach(({ box: b, depth, color }) => {
+      const pct = Number(b.size ?? 0) / total * 100;
+      const row = el("div", "size-row");
+      row.style.setProperty("--box-depth", String(depth));
+      row.innerHTML = `
+      <span class="size-pct">${pct.toFixed(1)}%</span>
+      <div class="size-track"><div class="size-fill" style="width:${pct}%;background:${color}"></div></div>
+      <span class="size-type">${esc(b.type)}</span>
+      <span class="size-depth">${depth === 0 ? "top-level" : `child level ${depth}`}</span>
+      <span class="size-bytes">${esc(fmtBytes(b.size))}</span>
+    `;
+      legend.appendChild(row);
+    });
+    container.appendChild(legend);
+  }
+
+  // src/tabs/tree.js
+  var BoxTreeNodeView = class _BoxTreeNodeView {
+    /** @type {HTMLElement} */
+    #element;
+    /** @type {HTMLElement | null} */
+    #childContainer;
+    /**
+     * @param {import("isobmff-inspector").ParsedBox} box
+     * @param {{ shallow?: boolean }} options
+     */
+    constructor(box, options = {}) {
+      const { element, childContainer } = renderBoxTreeNode(
+        box,
+        options.shallow ?? false
+      );
+      this.#element = element;
+      this.#childContainer = childContainer;
+    }
+    /**
+     * @returns {HTMLElement}
+     */
+    get element() {
+      return this.#element;
+    }
+    /**
+     * Creates, attaches, and returns a child box view.
+     * @param {import("isobmff-inspector").ParsedBox} box
+     * @returns {BoxTreeNodeView}
+     */
+    appendChildBox(box) {
+      if (!this.#childContainer) {
+        throw new Error(
+          `box ${box.type} cannot be appended without a child container`
+        );
+      }
+      const view = new _BoxTreeNodeView(box, { shallow: true });
+      this.#childContainer.appendChild(view.element);
+      return view;
+    }
+    /**
+     * Updates this node from newer box data while preserving attached child views.
+     * @param {import("isobmff-inspector").ParsedBox} box
+     */
+    updateBox(box) {
+      const { element, childContainer } = renderBoxTreeNode(box, true);
+      if (this.#childContainer?.firstChild && !childContainer) {
+        throw new Error(
+          `box ${box.type} cannot preserve children without a child container`
+        );
+      }
+      if (this.#childContainer && childContainer) {
+        while (this.#childContainer.firstChild) {
+          childContainer.appendChild(this.#childContainer.firstChild);
+        }
+      }
+      this.#element.replaceWith(element);
+      this.#element = element;
+      this.#childContainer = childContainer;
+    }
+  };
+  function renderBoxTreeNode(box, shallow = false) {
+    const hasValues = box.values?.length > 0;
+    const hasChildren = !shallow && box.children?.length > 0;
+    const hasContent = hasValues || hasChildren || box.description || box.issues?.length;
+    const makeDot = () => {
+      if (!box.issues?.length) {
+        return null;
+      }
+      const dot = el("span");
+      const isWarnOnly = box.issues.every((i) => i.severity === "warning");
+      dot.className = `box-issue-dot${isWarnOnly ? " warn" : ""}`;
+      return dot;
+    };
+    const makeHeader = () => {
+      const header = el("span", "box-header");
+      const typeSpan = el("span", "box-type");
+      typeSpan.textContent = box.type;
+      header.appendChild(typeSpan);
+      if (box.name) {
+        const nameSpan = el("span", "box-name");
+        nameSpan.textContent = box.name;
+        header.appendChild(nameSpan);
+      }
+      const sizeSpan = el("span", "box-size");
+      sizeSpan.textContent = fmtBytes(box.size);
+      header.appendChild(sizeSpan);
+      const dot = makeDot();
+      if (dot) {
+        header.appendChild(dot);
+      }
+      return header;
+    };
+    const makeBody = () => {
+      const body = el("div", "box-body");
+      if (box.description) {
+        const desc = el("div", "box-desc");
+        desc.textContent = box.description;
+        body.appendChild(desc);
+      }
+      if (hasValues) {
+        const tbl = (
+          /** @type {HTMLTableElement} */
+          el("table", "values-table")
+        );
+        for (const v of box.values) {
+          const row = tbl.insertRow();
+          row.className = "box-value-line";
+          const keyCell = row.insertCell();
+          keyCell.className = "vk";
+          keyCell.textContent = v.key;
+          if (v.description) {
+            keyCell.title = v.description;
+          }
+          const valCell = row.insertCell();
+          valCell.appendChild(renderValue(v));
+        }
+        body.appendChild(tbl);
+      }
+      if (box.issues?.length) {
+        const isWarnOnly = box.issues.every((i) => i.severity === "warning");
+        const issueEl = el("div", `issue-list${isWarnOnly ? " warn" : ""}`);
+        for (const issue of box.issues) {
+          const item = el("div", "issue-item");
+          item.textContent = issue.message;
+          issueEl.appendChild(item);
+        }
+        body.appendChild(issueEl);
+      }
+      return body;
+    };
+    if (!hasContent && !box.children) {
+      const div = el("div", "leaf-box");
+      const caret2 = el("span", "box-caret");
+      caret2.textContent = "";
+      caret2.style.opacity = "0";
+      div.appendChild(caret2);
+      div.appendChild(makeHeader());
+      return { element: div, childContainer: null };
+    }
+    const det = document.createElement("details");
+    det.open = true;
+    const summary = document.createElement("summary");
+    const caret = el("span", "box-caret");
+    caret.setAttribute("aria-hidden", "true");
+    summary.appendChild(caret);
+    summary.appendChild(makeHeader());
+    det.appendChild(summary);
+    if (hasContent) {
+      det.appendChild(makeBody());
+    }
+    const childContainer = el("div", "box-children");
+    det.appendChild(childContainer);
+    if (hasChildren) {
+      for (const child of box.children) {
+        childContainer.appendChild(
+          new BoxTreeNodeView(child, { shallow: false }).element
+        );
+      }
+    }
+    return { element: det, childContainer };
   }
   function renderValue(f) {
     if (f == null) {
@@ -3284,222 +3633,28 @@
       }
     }
   }
-  function buildBoxEl(box, shallow = false) {
-    const hasValues = box.values?.length > 0;
-    const hasChildren = !shallow && box.children?.length > 0;
-    const hasContent = hasValues || hasChildren || box.description || box.issues?.length;
-    const makeDot = () => {
-      if (!box.issues?.length) {
-        return null;
-      }
-      const dot = el("span");
-      const isWarnOnly = box.issues.every((i) => i.severity === "warning");
-      dot.className = `box-issue-dot${isWarnOnly ? " warn" : ""}`;
-      return dot;
-    };
-    const makeHeader = () => {
-      const header = el("span", "box-header");
-      const typeSpan = el("span", "box-type");
-      typeSpan.textContent = box.type;
-      header.appendChild(typeSpan);
-      if (box.name) {
-        const nameSpan = el("span", "box-name");
-        nameSpan.textContent = box.name;
-        header.appendChild(nameSpan);
-      }
-      const sizeSpan = el("span", "box-size");
-      sizeSpan.textContent = fmtBytes(box.size);
-      header.appendChild(sizeSpan);
-      const dot = makeDot();
-      if (dot) {
-        header.appendChild(dot);
-      }
-      return header;
-    };
-    const makeBody = () => {
-      const body = el("div", "box-body");
-      if (box.description) {
-        const desc = el("div", "box-desc");
-        desc.textContent = box.description;
-        body.appendChild(desc);
-      }
-      if (hasValues) {
-        const tbl = (
-          /** @type {HTMLTableElement} */
-          el("table", "values-table")
-        );
-        for (const v of box.values) {
-          const row = tbl.insertRow();
-          row.className = "box-value-line";
-          const keyCell = row.insertCell();
-          keyCell.className = "vk";
-          keyCell.textContent = v.key;
-          if (v.description) {
-            keyCell.title = v.description;
-          }
-          const valCell = row.insertCell();
-          valCell.appendChild(renderValue(v));
-        }
-        body.appendChild(tbl);
-      }
-      if (box.issues?.length) {
-        const isWarnOnly = box.issues.every((i) => i.severity === "warning");
-        const issueEl = el("div", `issue-list${isWarnOnly ? " warn" : ""}`);
-        for (const issue of box.issues) {
-          const item = el("div", "issue-item");
-          item.textContent = issue.message;
-          issueEl.appendChild(item);
-        }
-        body.appendChild(issueEl);
-      }
-      return body;
-    };
-    if (!hasContent && !box.children) {
-      const div = el("div", "leaf-box");
-      const caret2 = el("span", "box-caret");
-      caret2.textContent = "";
-      caret2.style.opacity = "0";
-      div.appendChild(caret2);
-      div.appendChild(makeHeader());
-      return div;
-    }
-    const det = document.createElement("details");
-    det.open = true;
-    const summary = document.createElement("summary");
-    const caret = el("span", "box-caret");
-    caret.setAttribute("aria-hidden", "true");
-    summary.appendChild(caret);
-    summary.appendChild(makeHeader());
-    det.appendChild(summary);
-    if (hasContent) {
-      det.appendChild(makeBody());
-    }
-    const childWrap = el("div", "box-children");
-    det.appendChild(childWrap);
-    if (hasChildren) {
-      for (const child of box.children) {
-        childWrap.appendChild(buildBoxEl(child, false));
-      }
-    }
-    return det;
-  }
-  var CHART_COLORS = [
-    "#378ADD",
-    "#1D9E75",
-    "#D85A30",
-    "#BA7517",
-    "#8B5CF6",
-    "#D4537E",
-    "#639922",
-    "#E24B4A",
-    "#888780"
-  ];
-  function flattenBoxes(boxes, depth, colors, out) {
-    boxes.forEach((box, index) => {
-      const color = colors.get(box) ?? CHART_COLORS[(depth + index) % CHART_COLORS.length];
-      out.push({ box, depth, color });
-      if (box.children?.length) {
-        flattenBoxes(box.children, depth + 1, colors, out);
-      }
-    });
-  }
-  function renderSizeChart(boxes) {
-    const container = document.getElementById("size-chart");
-    if (!container || !boxes.length) {
-      return;
-    }
-    const total = boxes.reduce((s, b) => s + Number(b.size ?? 0), 0) || 1;
-    const sorted = [...boxes].sort(
-      (a, b) => Number(b.size ?? 0) - Number(a.size ?? 0)
-    );
-    const colors = /* @__PURE__ */ new WeakMap();
-    sorted.forEach((box, index) => {
-      colors.set(box, CHART_COLORS[index % CHART_COLORS.length]);
-    });
-    const rows = [];
-    flattenBoxes(boxes, 0, colors, rows);
-    container.innerHTML = "";
-    const bar = el("div", "size-bar");
-    sorted.forEach((b, i) => {
-      const pct = Number(b.size ?? 0) / total * 100;
-      const seg = el("div", "size-bar-seg");
-      seg.style.width = `${pct}%`;
-      seg.style.background = CHART_COLORS[i % CHART_COLORS.length];
-      seg.title = `${b.type}: ${fmtBytes(b.size)} (${pct.toFixed(1)}%)`;
-      bar.appendChild(seg);
-    });
-    container.appendChild(bar);
-    const legend = el("div", "size-legend");
-    rows.forEach(({ box: b, depth, color }) => {
-      const pct = Number(b.size ?? 0) / total * 100;
-      const row = el("div", "size-row");
-      row.style.setProperty("--box-depth", String(depth));
-      row.innerHTML = `
-      <span class="size-pct">${pct.toFixed(1)}%</span>
-      <div class="size-track"><div class="size-fill" style="width:${pct}%;background:${color}"></div></div>
-      <span class="size-type">${esc(b.type)}</span>
-      <span class="size-depth">${depth === 0 ? "top-level" : `child level ${depth}`}</span>
-      <span class="size-bytes">${esc(fmtBytes(b.size))}</span>
-    `;
-      legend.appendChild(row);
-    });
-    container.appendChild(legend);
-  }
 
-  // src/index.js
-  var wrapper = document.getElementById("file-description");
-  var progressBar = document.getElementById("progress-bar");
-  var statusLine = document.getElementById("status-line");
-  var tabs = document.getElementById("tabs");
-  function setStatus(msg) {
-    statusLine.textContent = msg;
-    statusLine.style.visibility = msg ? "visible" : "hidden";
-  }
-  var fadeTimeout = null;
-  var resetTimeout = null;
-  function clearPending() {
-    clearTimeout(fadeTimeout);
-    clearTimeout(resetTimeout);
-    progressBar.style.transition = "none";
-    progressBar.style.opacity = "1";
-  }
-  function startProgress() {
-    clearPending();
-    progressBar.style.width = "5%";
-    progressBar.style.transition = "width 0.3s ease";
-  }
-  function endProgress() {
-    clearPending();
-    progressBar.style.width = "100%";
-    progressBar.style.backgroundColor = "#65bf77";
-    fadeTimeout = setTimeout(() => {
-      progressBar.style.transition = "opacity 0.5s ease";
-      progressBar.style.opacity = "0";
-      resetTimeout = setTimeout(() => {
-        progressBar.style.backgroundColor = "transparent";
-        progressBar.style.opacity = "1";
-      }, 500);
-    }, 1e3);
-  }
-  var topLevelBoxes = [];
-  async function parseAndRender(input) {
+  // src/parse.js
+  async function parseAndRender(input, abortSignal) {
+    const topLevelBoxes = [];
+    let boxCount = 0;
+    const tabs = document.getElementById("tabs");
+    const wrapper = document.getElementById("file-description");
     wrapper.innerHTML = "";
     topLevelBoxes.length = 0;
     tabs.style.display = "none";
-    startProgress();
-    setStatus("parsing\u2026");
-    let boxCount = 0;
+    ProgressBar_default.start("parsing\u2026");
+    ProgressBar_default.startEasing();
     const stack = [];
+    let completed = false;
     try {
       for await (const event of (0, import_isobmff_inspector.parseEvents)(input)) {
+        if (abortSignal.aborted) {
+          return;
+        }
         if (event.event === "box-start") {
-          boxCount++;
           const depth = event.path.length - 1;
           stack.length = depth;
-          const parent = depth === 0 ? wrapper : stack[depth - 1]?.childWrap;
-          if (!parent) {
-            throw new Error(`missing parent for ${event.path.join("/")}`);
-          }
           const box = {
             type: event.type,
             size: event.size,
@@ -3511,48 +3666,30 @@
             issues: [],
             children: []
           };
-          const element = buildBoxEl(
-            box,
-            /* shallow = */
-            true
-          );
-          parent.appendChild(element);
-          stack[depth] = {
-            element,
-            childWrap: (
-              /** @type {HTMLElement | null} */
-              element.querySelector(":scope > .box-children")
-            )
-          };
-          if (boxCount % 5 === 0) {
-            setStatus(`parsed ${boxCount} boxes\u2026`);
+          const view = depth === 0 ? new BoxTreeNodeView(box, { shallow: true }) : stack[depth - 1]?.appendChildBox(box);
+          if (!view) {
+            throw new Error(`missing parent for ${event.path.join("/")}`);
           }
+          if (depth === 0) {
+            wrapper.appendChild(view.element);
+          }
+          stack[depth] = view;
           continue;
         }
         if (event.event === "box-complete") {
+          boxCount++;
+          let msg;
+          if (boxCount !== void 0 && boxCount % 5 === 0) {
+            msg = `parsed ${boxCount} boxes\u2026`;
+            ProgressBar_default.updateStatus(msg);
+          }
           const box = event.box;
           const depth = event.path.length - 1;
           const current = stack[depth];
           if (!current) {
             throw new Error(`missing started box for ${event.path.join("/")}`);
           }
-          const element = buildBoxEl(
-            box,
-            /* shallow = */
-            true
-          );
-          const oldChildWrap = current.childWrap;
-          const newChildWrap = (
-            /** @type {HTMLElement | null} */
-            element.querySelector(":scope > .box-children")
-          );
-          if (oldChildWrap && newChildWrap) {
-            while (oldChildWrap.firstChild) {
-              newChildWrap.appendChild(oldChildWrap.firstChild);
-            }
-          }
-          current.element.replaceWith(element);
-          stack[depth] = { element, childWrap: newChildWrap };
+          current.updateBox(box);
           if (depth === 0) {
             topLevelBoxes.push(box);
           }
@@ -3560,65 +3697,230 @@
       }
       renderSizeChart(topLevelBoxes);
       tabs.style.display = "flex";
+      completed = true;
     } catch (err) {
-      setStatus(`parse error: ${err?.message ?? err}`);
+      if (abortSignal.aborted) {
+        return;
+      }
+      ProgressBar_default.fail(`parse error: ${err?.message ?? err}`);
       console.error("parse error", err);
     } finally {
-      setStatus("File parsed with success!");
-      endProgress();
+      if (!abortSignal.aborted && completed) {
+        ProgressBar_default.end("File parsed with success!");
+      }
     }
   }
-  if (window.File && window.FileReader && window.Uint8Array) {
-    document.getElementById("file-input").addEventListener("change", (evt) => {
-      const fileInputElt = (
-        /** @type {HTMLInputElement | null} */
-        evt.target
-      );
-      const files = fileInputElt.files;
-      if (!files?.length) {
-        return;
-      }
-      parseAndRender(files[0]);
+
+  // src/utils.js
+  function sleep(timeInMs) {
+    return new Promise((res) => {
+      setTimeout(res, timeInMs);
     });
-  } else {
-    document.getElementById("choices-local-segment").style.display = "none";
-    document.getElementById("choices-separator").style.display = "none";
   }
-  if (window.fetch && window.Uint8Array) {
-    let fetchAndParse = function() {
-      const url = (
-        /** @type {HTMLInputElement} */
-        document.getElementById("url-input").value.trim()
-      );
-      if (!url) {
-        return;
+  function createAbortableAsyncIterable(stream, signal) {
+    return {
+      async *[Symbol.asyncIterator]() {
+        const reader = stream.getReader();
+        try {
+          while (true) {
+            const result = await readWithAbort(reader, signal);
+            if (result.done) {
+              break;
+            }
+            yield byteChunkToUint8Array(result.value);
+            await sleep(0);
+          }
+        } finally {
+          if (signal.aborted) {
+            await reader.cancel(signal.reason).catch(() => {
+            });
+          }
+          reader.releaseLock();
+        }
       }
-      fetch(url).then((r) => parseAndRender(r)).catch((err) => setStatus(`fetch error: ${err?.message ?? err}`));
     };
-    document.getElementById("url-button").addEventListener("click", fetchAndParse);
-    document.getElementById("url-input").addEventListener("keypress", (evt) => {
-      if ((evt.keyCode || evt.which) === 13) {
-        fetchAndParse();
-      }
-    });
-  } else {
-    document.getElementById("choices-separator").style.display = "none";
-    document.getElementById("choices-url-segment").style.display = "none";
   }
-  document.querySelectorAll(".tab").forEach((tab) => {
-    const tabEl = (
-      /** @type {HTMLElement} */
-      tab
-    );
-    tab.addEventListener("click", () => {
-      document.querySelectorAll(".tab").forEach((t) => {
-        t.classList.remove("active");
-      });
-      document.querySelectorAll(".tab-panel").forEach((p) => {
-        p.classList.remove("active");
-      });
-      tabEl.classList.add("active");
-      document.getElementById(`tab-${tabEl.dataset.tab}`).classList.add("active");
+  function byteChunkToUint8Array(chunk) {
+    if (chunk instanceof Uint8Array) {
+      return chunk;
+    }
+    if (chunk instanceof ArrayBuffer) {
+      return new Uint8Array(chunk);
+    }
+    return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+  }
+  function readWithAbort(reader, signal) {
+    throwIfAborted(signal);
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        signal.removeEventListener("abort", onAbort);
+      };
+      const onAbort = () => {
+        cleanup();
+        reject(
+          signal.reason ?? new DOMException("The operation was aborted.", "AbortError")
+        );
+      };
+      signal.addEventListener("abort", onAbort, { once: true });
+      reader.read().then(
+        (result) => {
+          cleanup();
+          resolve(result);
+        },
+        (err) => {
+          cleanup();
+          reject(err);
+        }
+      );
     });
-  });
+  }
+  function throwIfAborted(signal) {
+    if (signal.aborted) {
+      throw signal.reason ?? new DOMException("The operation was aborted.", "AbortError");
+    }
+  }
+
+  // src/index.js
+  var currentSegmentParsingAbortController = null;
+  initializeFileReaderInput();
+  initializeUrlInput();
+  initializeTabNavigation();
+  initializeGithubStars();
+  async function fetchSegmentAndParse(url, signal) {
+    ProgressBar_default.start("fetching\u2026");
+    ProgressBar_default.startEasing();
+    try {
+      const r = await fetch(url, { signal });
+      if (signal.aborted) {
+        return;
+      }
+      if (!r.ok) {
+        const errMsg = `HTTP ${r.status}${r.statusText ? ` ${r.statusText}` : ""}`;
+        ProgressBar_default.fail(`fetch error: ${errMsg}`);
+        return;
+      }
+      return parseAndRender(
+        r.body ? createAbortableAsyncIterable(r.body, signal) : r,
+        signal
+      );
+    } catch (err) {
+      if (!signal.aborted) {
+        ProgressBar_default.fail(`fetch error: ${err?.message ?? err}`);
+        throw err;
+      }
+    }
+  }
+  function formatFileInput(file, signal) {
+    if (typeof file.stream === "function") {
+      return createAbortableAsyncIterable(file.stream(), signal);
+    }
+    return file;
+  }
+  function initializeFileReaderInput() {
+    if (window.File && window.FileReader && window.Uint8Array) {
+      document.getElementById("file-input").addEventListener("change", (evt) => {
+        const fileInputElt = (
+          /** @type {HTMLInputElement | null} */
+          evt.target
+        );
+        const files = fileInputElt.files;
+        if (!files?.length) {
+          return;
+        }
+        currentSegmentParsingAbortController?.abort();
+        currentSegmentParsingAbortController = new AbortController();
+        const signal = currentSegmentParsingAbortController.signal;
+        parseAndRender(formatFileInput(files[0], signal), signal);
+      });
+    } else {
+      document.getElementById("choices-local-segment").style.display = "none";
+      document.getElementById("choices-separator").style.display = "none";
+    }
+  }
+  function initializeUrlInput() {
+    if (window.fetch && window.Uint8Array) {
+      let onUrlClick = function() {
+        const url = (
+          /** @type {HTMLInputElement} */
+          document.getElementById("url-input").value.trim()
+        );
+        if (!url) {
+          return;
+        }
+        currentSegmentParsingAbortController?.abort();
+        currentSegmentParsingAbortController = new AbortController();
+        const signal = currentSegmentParsingAbortController.signal;
+        fetchSegmentAndParse(url, signal);
+      };
+      document.getElementById("url-button").addEventListener("click", onUrlClick);
+      document.getElementById("url-input").addEventListener("keypress", (evt) => {
+        if ((evt.keyCode || evt.which) === 13) {
+          onUrlClick();
+        }
+      });
+    } else {
+      document.getElementById("choices-separator").style.display = "none";
+      document.getElementById("choices-url-segment").style.display = "none";
+    }
+  }
+  function initializeTabNavigation() {
+    const tabElts = document.getElementsByClassName("tab");
+    for (let tabIdx = 0; tabIdx < tabElts.length; tabIdx++) {
+      const tabEl = (
+        /** @type {HTMLElement} */
+        tabElts[tabIdx]
+      );
+      tabEl.addEventListener("click", () => {
+        for (let innerTabIdx = 0; innerTabIdx < tabElts.length; innerTabIdx++) {
+          const innerTab = tabElts[innerTabIdx];
+          if (innerTab !== tabEl) {
+            innerTab.classList.remove("active");
+          }
+        }
+        const tabPanelElts = document.getElementsByClassName("tab-panel");
+        for (let tabPanelIdx = 0; tabPanelIdx < tabPanelElts.length; tabPanelIdx++) {
+          const tabPanel = tabPanelElts[tabPanelIdx];
+          tabPanel.classList.remove("active");
+        }
+        tabEl.classList.add("active");
+        document.getElementById(`tab-${tabEl.dataset.tab}`).classList.add("active");
+      });
+    }
+  }
+  function initializeGithubStars() {
+    const starsElt = document.getElementById("github-stars");
+    if (!starsElt || !window.fetch) {
+      return;
+    }
+    const fetchStars = async () => {
+      try {
+        const response = await fetch(
+          "https://api.github.com/repos/peaBerberian/AISOBMFFWVDFBUTFAII",
+          {
+            headers: {
+              Accept: "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2026-03-10"
+            }
+          }
+        );
+        if (!response.ok) {
+          return;
+        }
+        const repository = await response.json();
+        if (typeof repository.stargazers_count !== "number") {
+          return;
+        }
+        starsElt.textContent = new Intl.NumberFormat(void 0, {
+          notation: repository.stargazers_count >= 1e3 ? "compact" : "standard"
+        }).format(repository.stargazers_count);
+        starsElt.hidden = false;
+      } catch {
+      }
+    };
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(fetchStars);
+    } else {
+      globalThis.setTimeout(fetchStars, 1e3);
+    }
+  }
 })();

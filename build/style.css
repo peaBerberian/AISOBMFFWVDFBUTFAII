@@ -31,13 +31,54 @@ body {
   padding: 0 1rem 2rem;
 }
 
+.project-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 1.25rem 0 1rem;
+}
+
 h1 {
   font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 500;
-  padding: 1.25rem 0 1rem;
+  padding: 0;
   letter-spacing: -0.01em;
   color: var(--color-text-primary);
+}
+
+.project-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 3px 8px;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+  background: var(--color-background-primary);
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 18px;
+  text-decoration: none;
+}
+
+.github-link:hover {
+  color: var(--color-text-primary);
+  background: var(--color-background-secondary);
+  border-color: var(--color-border-secondary);
+}
+
+.github-stars-count {
+  color: var(--color-text-tertiary);
 }
 
 #selection {
@@ -468,6 +509,12 @@ summary:hover .box-type {
 }
 
 @media (max-width: 600px) {
+  .project-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
   .size-row {
     grid-template-columns: 52px minmax(0, 1fr) auto;
   }
