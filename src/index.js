@@ -2,15 +2,14 @@ import { parseEvents } from "isobmff-inspector";
 import ProgressBar from "./ProgressBar.js";
 import { buildBoxEl, renderSizeChart } from "./renderer.js";
 
-const statusLineElt = document.getElementById("status-line");
 const progressBar = new ProgressBar();
 let activeParseId = 0;
 
 /**
  * @param {import("isobmff-inspector").ISOBMFFInput} input
+ * @param {number} [parseId]
  */
-async function parseAndRender(input) {
-  const parseId = ++activeParseId;
+async function parseAndRender(input, parseId = ++activeParseId) {
   // Walk an already-built DOM tree of <details>/<div> nodes and collect the
   // top-level box sizes for the size chart. We re-use the full parsed array
   // that accumulates during streaming.
@@ -138,11 +137,20 @@ if (window.fetch && window.Uint8Array) {
     if (!url) {
       return;
     }
+    const parseId = ++activeParseId;
+    progressBar.start("fetching…");
+    progressBar.startEasing();
     fetch(url)
-      .then((r) => parseAndRender(r))
+      .then((r) => {
+        if (parseId !== activeParseId) {
+          return;
+        }
+        return parseAndRender(r, parseId);
+      })
       .catch((err) => {
-        // XXX TODO: How to make that part of the progress bar experience?
-        setStatus(`fetch error: ${err?.message ?? err}`);
+        if (parseId === activeParseId) {
+          progressBar.fail(`fetch error: ${err?.message ?? err}`);
+        }
       });
   }
 
@@ -181,13 +189,4 @@ for (let tabIdx = 0; tabIdx < tabElts.length; tabIdx++) {
     tabEl.classList.add("active");
     document.getElementById(`tab-${tabEl.dataset.tab}`).classList.add("active");
   });
-}
-
-/**
- * TODO: Move to ProgressBar?
- * @param {string} msg
- */
-function setStatus(msg) {
-  statusLineElt.textContent = msg;
-  statusLineElt.style.visibility = msg ? "visible" : "hidden";
 }
