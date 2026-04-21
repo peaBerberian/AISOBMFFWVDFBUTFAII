@@ -1,6 +1,6 @@
 import ProgressBar from "./ProgressBar.js";
 import { parseAndRender } from "./parse.js";
-import { updateTabIndicator } from "./tabs";
+import { initializeTabNavigation } from "./tabs";
 import { createAbortableAsyncIterable } from "./utils.js";
 
 /**
@@ -135,39 +135,6 @@ function initializeUrlInput() {
     document.getElementById("choices-separator").style.display = "none";
     document.getElementById("choices-url-segment").style.display = "none";
   }
-}
-
-function initializeTabNavigation() {
-  const tabElts = document.getElementsByClassName("tab");
-
-  for (let tabIdx = 0; tabIdx < tabElts.length; tabIdx++) {
-    const tabEl = /** @type {HTMLElement} */ (tabElts[tabIdx]);
-    tabEl.addEventListener("click", () => {
-      for (let innerTabIdx = 0; innerTabIdx < tabElts.length; innerTabIdx++) {
-        const innerTab = tabElts[innerTabIdx];
-        if (innerTab !== tabEl) {
-          innerTab.classList.remove("active");
-        }
-      }
-      const tabPanelElts = document.getElementsByClassName("tab-panel");
-      for (
-        let tabPanelIdx = 0;
-        tabPanelIdx < tabPanelElts.length;
-        tabPanelIdx++
-      ) {
-        const tabPanel = tabPanelElts[tabPanelIdx];
-        tabPanel.classList.remove("active");
-      }
-      tabEl.classList.add("active");
-      document
-        .getElementById(`tab-${tabEl.dataset.tab}`)
-        .classList.add("active");
-      updateTabIndicator();
-    });
-  }
-
-  updateTabIndicator();
-  window.addEventListener("resize", updateTabIndicator);
 }
 
 function initializeGithubStars() {
