@@ -11,6 +11,7 @@ import { createAbortableAsyncIterable } from "./utils.js";
 let currentSegmentParsingAbortController = null;
 
 initializeFileReaderInput();
+initializeFileDrop();
 initializeUrlInput();
 initializeTabNavigation();
 initializeGithubStars();
@@ -75,6 +76,25 @@ function formatFileInput(file, signal) {
   return file;
 }
 
+/**
+ * Parse a local file while preserving the app's single active parse lifecycle.
+ * @param {Blob} file
+ */
+function parseLocalFile(file) {
+  currentSegmentParsingAbortController?.abort();
+  currentSegmentParsingAbortController = new AbortController();
+  const controller = currentSegmentParsingAbortController;
+  const signal = currentSegmentParsingAbortController.signal;
+  ProgressBar.setCancelAction(() => controller.abort());
+  setResultsLoading(true);
+  parseAndRender(formatFileInput(file, signal), signal).finally(() => {
+    if (currentSegmentParsingAbortController === controller) {
+      setResultsLoading(false);
+      currentSegmentParsingAbortController = null;
+    }
+  });
+}
+
 function initializeFileReaderInput() {
   if (window.File && window.FileReader && window.Uint8Array) {
     document.getElementById("file-input").addEventListener("change", (evt) => {
@@ -83,23 +103,87 @@ function initializeFileReaderInput() {
       if (!files?.length) {
         return;
       }
-      currentSegmentParsingAbortController?.abort();
-      currentSegmentParsingAbortController = new AbortController();
-      const controller = currentSegmentParsingAbortController;
-      const signal = currentSegmentParsingAbortController.signal;
-      ProgressBar.setCancelAction(() => controller.abort());
-      setResultsLoading(true);
-      parseAndRender(formatFileInput(files[0], signal), signal).finally(() => {
-        if (currentSegmentParsingAbortController === controller) {
-          setResultsLoading(false);
-          currentSegmentParsingAbortController = null;
-        }
-      });
+      parseLocalFile(files[0]);
     });
   } else {
     document.getElementById("choices-local-segment").style.display = "none";
     document.getElementById("choices-separator").style.display = "none";
   }
+}
+
+/**
+ * @param {DataTransfer | null} dataTransfer
+ */
+function dataTransferHasFiles(dataTransfer) {
+  if (!dataTransfer) {
+    return false;
+  }
+  if (dataTransfer.types) {
+    return Array.from(dataTransfer.types).includes("Files");
+  }
+  return dataTransfer.files.length > 0;
+}
+
+function initializeFileDrop() {
+  if (!window.File || !window.FileReader || !window.Uint8Array) {
+    return;
+  }
+
+  const dropOverlay = document.getElementById("drop-overlay");
+  if (!dropOverlay) {
+    return;
+  }
+
+  let dragDepth = 0;
+
+  const showDropTarget = () => {
+    dropOverlay.hidden = false;
+  };
+
+  const hideDropTarget = () => {
+    dragDepth = 0;
+    dropOverlay.hidden = true;
+  };
+
+  document.addEventListener("dragenter", (evt) => {
+    if (!dataTransferHasFiles(evt.dataTransfer)) {
+      return;
+    }
+    evt.preventDefault();
+    dragDepth += 1;
+    showDropTarget();
+  });
+
+  document.addEventListener("dragover", (evt) => {
+    if (!dataTransferHasFiles(evt.dataTransfer)) {
+      return;
+    }
+    evt.preventDefault();
+    evt.dataTransfer.dropEffect = "copy";
+    showDropTarget();
+  });
+
+  document.addEventListener("dragleave", (evt) => {
+    if (!dataTransferHasFiles(evt.dataTransfer)) {
+      return;
+    }
+    dragDepth -= 1;
+    if (dragDepth <= 0) {
+      hideDropTarget();
+    }
+  });
+
+  document.addEventListener("drop", (evt) => {
+    if (!dataTransferHasFiles(evt.dataTransfer)) {
+      return;
+    }
+    evt.preventDefault();
+    const [file] = Array.from(evt.dataTransfer.files);
+    hideDropTarget();
+    if (file) {
+      parseLocalFile(file);
+    }
+  });
 }
 
 function initializeUrlInput() {

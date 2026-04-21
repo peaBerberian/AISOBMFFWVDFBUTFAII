@@ -62,7 +62,7 @@
   </p>
   <div id="selection">
     <div id="choices-local-segment" class="choices-element choices-input">
-      <i>Choose a file locally:</i>
+      <i>Choose a file locally <span class="drop-hint">(or drop one)</span>:</i>
       <input type="file" id="file-input" name="file" />
     </div>
     <div id="choices-separator" class="choices-element"><b><i>or</i></b></div>
@@ -89,6 +89,9 @@
     <div id="tab-sizes" class="tab-panel">
       <div id="size-chart"></div>
     </div>
+  </div>
+  <div id="drop-overlay" class="drop-overlay" hidden>
+    <div class="drop-overlay-message">Drop anywhere to inspect</div>
   </div>
   <script type="module" src="./aisobmffwvdfbutfaii.js" charset="utf-8"></script>
 </body>
