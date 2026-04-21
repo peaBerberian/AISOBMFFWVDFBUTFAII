@@ -5,6 +5,7 @@
       "**",
       "!build/aisobmffwvdfbutfaii.min.js",
       "!build/aisobmffwvdfbutfaii.js",
+      "!build/style.css",
       "!package-lock.json"
     ]
   },
