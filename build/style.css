@@ -249,10 +249,23 @@ input[type="text"] {
 }
 
 #tabs {
-  display: none;
+  display: flex;
   border-bottom: 0.5px solid var(--color-border-tertiary);
   margin-bottom: 1rem;
   gap: 0;
+}
+
+#tabs[hidden] {
+  display: none;
+}
+
+#tabs.is-reserved {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+#tabs.is-visible {
+  visibility: visible;
 }
 
 .tab {

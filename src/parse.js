@@ -30,7 +30,9 @@ export async function parseAndRender(input, abortSignal) {
     results.setAttribute("aria-busy", "true");
   }
   topLevelBoxes.length = 0;
-  tabs.style.display = "none";
+  tabs.hidden = false;
+  tabs.classList.add("is-reserved");
+  tabs.classList.remove("is-visible");
 
   ProgressBar.start("parsing…");
   ProgressBar.startEasing();
@@ -107,12 +109,15 @@ export async function parseAndRender(input, abortSignal) {
     }
 
     renderSizeChart(topLevelBoxes);
-    tabs.style.display = "flex";
+    tabs.classList.remove("is-reserved");
+    tabs.classList.add("is-visible");
     completed = true;
   } catch (err) {
     if (abortSignal.aborted) {
       return;
     }
+    tabs.hidden = true;
+    tabs.classList.remove("is-reserved", "is-visible");
     ProgressBar.fail(`parse error: ${err?.message ?? err}`);
     console.error("parse error", err);
   } finally {
