@@ -139,11 +139,7 @@ function renderBoxTreeNode(box, shallow = false) {
         const row = tbl.insertRow();
         row.className = "box-value-line";
         const keyCell = row.insertCell();
-        keyCell.className = "vk";
-        keyCell.textContent = v.key;
-        if (v.description) {
-          keyCell.title = v.description;
-        }
+        renderKeyCell(keyCell, v);
         const valCell = row.insertCell();
         valCell.appendChild(renderValue(v));
       }
@@ -318,8 +314,7 @@ function renderValue(f) {
       const tbl = /** @type {HTMLTableElement} */ (el("table", "values-table"));
       for (const sf of f.fields ?? []) {
         const row = tbl.insertRow();
-        row.insertCell().className = "vk";
-        row.cells[0].textContent = sf.key;
+        renderKeyCell(row.insertCell(), sf);
         row.insertCell().appendChild(renderValue(sf));
       }
       return tbl;
@@ -350,3 +345,128 @@ function renderValue(f) {
     }
   }
 }
+
+/**
+ * @param {HTMLTableCellElement} cell
+ * @param {{ key: string, description?: string }} field
+ */
+function renderKeyCell(cell, field) {
+  cell.className = "vk";
+
+  const key = el("span", "property-key");
+  const keyText = el("span", "property-key-text");
+  keyText.textContent = field.key;
+  key.appendChild(keyText);
+
+  if (field.description) {
+    const help = /** @type {HTMLButtonElement} */ (
+      el("button", "property-help")
+    );
+    help.type = "button";
+    help.textContent = "i";
+    help.setAttribute("aria-label", `${field.key}: ${field.description}`);
+    help.setAttribute("aria-describedby", "property-help-tooltip");
+    help.dataset.description = field.description;
+    help.addEventListener("pointerenter", () => showPropertyTooltip(help));
+    help.addEventListener("pointerleave", hidePropertyTooltip);
+    help.addEventListener("focus", () => showPropertyTooltip(help));
+    help.addEventListener("blur", hidePropertyTooltip);
+    help.addEventListener("keydown", (evt) => {
+      if (evt.key === "Escape") {
+        hidePropertyTooltip();
+        help.blur();
+      }
+    });
+    key.appendChild(help);
+  }
+
+  cell.appendChild(key);
+}
+
+/** @type {HTMLButtonElement | null} */
+let activeTooltipTarget = null;
+
+/**
+ * @returns {HTMLElement}
+ */
+function getPropertyTooltip() {
+  let tooltip = document.getElementById("property-help-tooltip");
+  if (!tooltip) {
+    tooltip = el("div", "property-tooltip");
+    tooltip.id = "property-help-tooltip";
+    tooltip.setAttribute("role", "tooltip");
+    tooltip.setAttribute("aria-hidden", "true");
+    document.body.appendChild(tooltip);
+  }
+  return tooltip;
+}
+
+/**
+ * @param {HTMLButtonElement} target
+ */
+function showPropertyTooltip(target) {
+  const description = target.dataset.description;
+  if (!description) {
+    return;
+  }
+
+  activeTooltipTarget = target;
+  const tooltip = getPropertyTooltip();
+  tooltip.textContent = description;
+  tooltip.setAttribute("aria-hidden", "false");
+  tooltip.classList.add("is-visible");
+  positionPropertyTooltip(target, tooltip);
+}
+
+function hidePropertyTooltip() {
+  activeTooltipTarget = null;
+  const tooltip = document.getElementById("property-help-tooltip");
+  if (!tooltip) {
+    return;
+  }
+  tooltip.classList.remove("is-visible");
+  tooltip.setAttribute("aria-hidden", "true");
+}
+
+/**
+ * @param {HTMLButtonElement} target
+ * @param {HTMLElement} tooltip
+ */
+function positionPropertyTooltip(target, tooltip) {
+  const margin = 8;
+  const gap = 14;
+  const targetRect = target.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+
+  const maxLeft = Math.max(
+    margin,
+    window.innerWidth - tooltipRect.width - margin,
+  );
+  let left = targetRect.left + targetRect.width / 2 - tooltipRect.width / 2;
+  left = Math.min(Math.max(left, margin), maxLeft);
+
+  const aboveTop = targetRect.top - tooltipRect.height - gap;
+  const belowTop = targetRect.bottom + gap;
+  const top =
+    aboveTop >= margin
+      ? aboveTop
+      : Math.min(
+          belowTop,
+          Math.max(margin, window.innerHeight - tooltipRect.height - margin),
+        );
+
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+}
+
+window.addEventListener("scroll", () => {
+  if (activeTooltipTarget) {
+    positionPropertyTooltip(activeTooltipTarget, getPropertyTooltip());
+  }
+});
+
+window.addEventListener("resize", () => {
+  if (activeTooltipTarget) {
+    positionPropertyTooltip(activeTooltipTarget, getPropertyTooltip());
+  }
+});
