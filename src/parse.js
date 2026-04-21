@@ -1,6 +1,11 @@
 import { parseEvents } from "isobmff-inspector";
 import ProgressBar from "./ProgressBar.js";
-import { BoxTreeNodeView, renderSizeChart, switchToTab } from "./tabs";
+import {
+  BoxTreeNodeView,
+  renderMediaInfo,
+  renderSizeChart,
+  switchToTab,
+} from "./tabs";
 
 const AUTO_OPEN_BOX_LIMIT = 400;
 const USUAL_FIRST_BOX_TYPES = new Set([
@@ -37,9 +42,11 @@ export async function parseAndRender(input, abortSignal) {
   const resultNotices = document.getElementById("result-notices");
   const wrapper = document.getElementById("file-description");
   const sizeChart = document.getElementById("size-chart");
+  const mediaInfo = document.getElementById("media-info");
   resultNotices.innerHTML = "";
   wrapper.innerHTML = "";
   sizeChart.innerHTML = "";
+  mediaInfo.innerHTML = "";
   if (results) {
     results.classList.remove("is-stale-loading");
     results.inert = false;
@@ -164,6 +171,7 @@ export async function parseAndRender(input, abortSignal) {
       renderParseNotice(resultNotices, inputHeuristicNotice);
     }
 
+    renderMediaInfo(topLevelBoxes);
     renderSizeChart(topLevelBoxes);
     tabs.classList.remove("is-reserved");
     tabs.classList.add("is-visible");
