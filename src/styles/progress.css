@@ -12,7 +12,7 @@
 #progress-bar {
   height: 2px;
   width: 0%;
-  background: #378add;
+  background: var(--color-accent-blue);
   transition: width 0.2s;
 }
 
@@ -53,22 +53,22 @@
 }
 
 #status-line.is-active {
-  border-color: #5d9fe2;
+  border-color: var(--color-accent-blue);
   background: #f3f9ff;
 }
 
 #status-line.is-success {
-  border-color: #65bf77;
+  border-color: var(--color-accent-green);
   background: #f1fbf3;
 }
 
 #status-line.is-warning {
-  border-color: #d29922;
+  border-color: var(--color-accent-yellow);
   background: #fff8e8;
 }
 
 #status-line.is-error {
-  border-color: #d85a30;
+  border-color: var(--color-accent-orange);
   background: #fff3ef;
 }
 
@@ -107,6 +107,11 @@
 #progress-cancel-button:hover {
   color: var(--color-text-primary);
   background: var(--color-background-secondary);
+}
+
+#progress-cancel-button:focus-visible {
+  outline: 2px solid color-mix(in srgb, #1f6fb8 45%, transparent);
+  outline-offset: 2px;
 }
 
 #progress-cancel-button:disabled {

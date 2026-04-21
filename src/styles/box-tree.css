@@ -23,6 +23,11 @@ summary {
   outline: none;
 }
 
+summary:focus-visible {
+  outline: 2px solid color-mix(in srgb, #1f6fb8 45%, transparent);
+  outline-offset: 2px;
+}
+
 summary::-webkit-details-marker {
   display: none;
 }
@@ -53,7 +58,7 @@ details[open] > summary > .box-caret::before {
 
 .box-type {
   font-weight: 500;
-  color: #378add;
+  color: var(--color-accent-blue);
   letter-spacing: 0.03em;
   font-size: 12px;
 }
@@ -81,14 +86,14 @@ summary:hover .box-type {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #e24b4a;
+  background: var(--color-accent-red);
   flex-shrink: 0;
   margin-left: 2px;
   margin-bottom: 1px;
 }
 
 .box-issue-dot.warn {
-  background: #ef9f27;
+  background: var(--color-accent-yellow);
 }
 
 .box-body {

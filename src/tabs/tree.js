@@ -116,6 +116,11 @@ function renderBoxTreeNode(box, options = {}) {
     const dot = el("span");
     const isWarnOnly = box.issues.every((i) => i.severity === "warning");
     dot.className = `box-issue-dot${isWarnOnly ? " warn" : ""}`;
+    dot.setAttribute("role", "img");
+    dot.setAttribute(
+      "aria-label",
+      isWarnOnly ? "Box has warnings" : "Box has errors",
+    );
     return dot;
   };
 

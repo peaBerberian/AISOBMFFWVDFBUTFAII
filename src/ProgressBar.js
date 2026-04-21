@@ -67,7 +67,8 @@ class ProgressBarClass {
     progressBarWrapperElt.style.backgroundColor =
       "var(--color-border-tertiary)";
     this.#percent = 0;
-    progressBarElt.style.backgroundColor = "#378add";
+    this.#setProgressSemantics(true, null);
+    progressBarElt.style.backgroundColor = "var(--color-accent-blue)";
     progressBarElt.style.width = "0%";
     this.#restartRaf = requestAnimationFrame(() => {
       this.#restartRaf = null;
@@ -95,6 +96,7 @@ class ProgressBarClass {
       this.#stopEasing();
       this.#percent = Math.min(ratio, 0.99) * 100;
       progressBarElt.style.width = `${this.#percent}%`;
+      this.#setProgressSemantics(true, this.#percent);
     }
     if (msg !== undefined) {
       statusLineElt.textContent = msg;
@@ -114,21 +116,21 @@ class ProgressBarClass {
    * @param {string} msg
    */
   end(msg) {
-    this.#finish(msg, "#65bf77");
+    this.#finish(msg, "var(--color-accent-green)");
   }
 
   /**
    * @param {string} msg
    */
   fail(msg) {
-    this.#settle(msg, "#d85a30");
+    this.#settle(msg, "var(--color-accent-orange)");
   }
 
   /**
    * @param {string} msg
    */
   cancel(msg) {
-    this.#settle(msg, "#d29922");
+    this.#settle(msg, "var(--color-accent-yellow)");
   }
 
   /**
@@ -139,7 +141,9 @@ class ProgressBarClass {
     this.#clearPendingAnimation();
     this.#hideCancelButton();
     this.#cancelAction = null;
-    this.#setToastState(color === "#d85a30" ? "is-error" : "is-warning");
+    this.#setToastState(
+      color === "var(--color-accent-orange)" ? "is-error" : "is-warning",
+    );
     progressBarWrapperElt.style.backgroundColor =
       "var(--color-border-tertiary)";
     progressBarElt.style.backgroundColor = color;
@@ -157,6 +161,7 @@ class ProgressBarClass {
     this.#cancelAction = null;
     this.#setToastState("is-success");
     this.#percent = 100;
+    this.#setProgressSemantics(true, this.#percent);
     progressBarElt.style.width = "100%";
     progressBarElt.style.backgroundColor = color;
     statusLineElt.textContent = msg;
@@ -172,6 +177,7 @@ class ProgressBarClass {
 
       this.#resetTimeout = setTimeout(() => {
         progressBarWrapperElt.style.backgroundColor = "transparent";
+        this.#setProgressSemantics(false, null);
         progressBarWrapperElt.style.opacity = "1";
         progressBarElt.style.backgroundColor = "transparent";
         progressBarElt.style.opacity = "1";
@@ -214,6 +220,25 @@ class ProgressBarClass {
     cancelButtonElt.disabled = false;
     cancelButtonElt.setAttribute("aria-hidden", "true");
     cancelButtonElt.setAttribute("tabindex", "-1");
+  }
+
+  /**
+   * @param {boolean} isVisible
+   * @param {number | null} percent
+   */
+  #setProgressSemantics(isVisible, percent) {
+    progressBarWrapperElt.setAttribute(
+      "aria-hidden",
+      isVisible ? "false" : "true",
+    );
+    if (percent === null) {
+      progressBarWrapperElt.removeAttribute("aria-valuenow");
+      return;
+    }
+    progressBarWrapperElt.setAttribute(
+      "aria-valuenow",
+      String(Math.round(percent)),
+    );
   }
 
   /**

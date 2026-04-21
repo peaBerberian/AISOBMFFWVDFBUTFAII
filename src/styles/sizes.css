@@ -134,6 +134,14 @@
   color: var(--color-text-primary);
 }
 
+.size-map-scale:focus-visible,
+.size-map-box:focus-visible,
+.size-head-btn:focus-visible,
+.size-row:focus-visible {
+  outline: 2px solid color-mix(in srgb, #1f6fb8 45%, transparent);
+  outline-offset: 2px;
+}
+
 .size-map-viewport {
   overflow-x: auto;
   overflow-y: hidden;
@@ -358,7 +366,7 @@
 }
 
 .size-type {
-  color: #378add;
+  color: var(--color-accent-blue);
   font-weight: 500;
   letter-spacing: 0.03em;
   overflow: hidden;

@@ -1,15 +1,15 @@
 import { el, esc, fmtBytes } from "./utils";
 
 const CHART_COLORS = [
-  "#378ADD",
-  "#1D9E75",
-  "#D85A30",
-  "#BA7517",
-  "#8B5CF6",
-  "#D4537E",
-  "#639922",
-  "#E24B4A",
-  "#888780",
+  "#1F6FB8",
+  "#147D64",
+  "#B45120",
+  "#9A6700",
+  "#7445D1",
+  "#B83F6A",
+  "#5F7F16",
+  "#B91C1C",
+  "#6F6E69",
 ];
 
 const EXCLUDED_SHARE_BOX_TYPES = new Set(["mdat"]);
@@ -330,6 +330,7 @@ export default function renderSizeChart(boxes) {
 
   // Stacked bar
   const bar = el("div", "size-bar");
+  bar.setAttribute("aria-hidden", "true");
   sorted.forEach((b, i) => {
     const pct = (Number(b.size ?? 0) / total) * 100;
     const seg = el("div", "size-bar-seg");
@@ -357,6 +358,7 @@ export default function renderSizeChart(boxes) {
   fileScaleButton.type = "button";
   fileScaleButton.textContent = "file scale";
   fileScaleButton.dataset.scale = "file";
+  fileScaleButton.setAttribute("aria-label", "Use whole file scale");
   let excludingMdatButton = /** @type {HTMLButtonElement | null} */ (null);
   if (showNonMdatShare) {
     mapControls.appendChild(fileScaleButton);
@@ -366,6 +368,7 @@ export default function renderSizeChart(boxes) {
     excludingMdatButton.type = "button";
     excludingMdatButton.textContent = "excluding mdat";
     excludingMdatButton.dataset.scale = "excluding-mdat";
+    excludingMdatButton.setAttribute("aria-label", "Use scale excluding mdat");
     mapControls.appendChild(excludingMdatButton);
   }
   if (showNonMdatShare) {
@@ -374,9 +377,12 @@ export default function renderSizeChart(boxes) {
   mapWrap.appendChild(mapHeader);
   const mapViewport = el("div", "size-map-viewport");
   const map = el("div", "size-map");
+  map.setAttribute("aria-label", "Ordered box map");
   mapViewport.appendChild(map);
   mapWrap.appendChild(mapViewport);
   const mapDetails = el("div", "size-map-details");
+  mapDetails.setAttribute("aria-live", "polite");
+  mapDetails.setAttribute("aria-atomic", "true");
   mapDetails.textContent =
     "Hover or select a box to inspect its size and path.";
   mapWrap.appendChild(mapDetails);
@@ -386,6 +392,8 @@ export default function renderSizeChart(boxes) {
   const tableSection = createSizeSection("box size table");
   container.appendChild(tableSection.section);
   const legend = el("div", "size-legend");
+  legend.setAttribute("role", "grid");
+  legend.setAttribute("aria-label", "Box sizes");
   tableSection.body.appendChild(legend);
 
   /**
@@ -448,6 +456,14 @@ export default function renderSizeChart(boxes) {
       );
       block.type = "button";
       block.title = getRowDetail(node.row, showNonMdatShare);
+      block.setAttribute(
+        "aria-label",
+        getRowDetail(node.row, showNonMdatShare),
+      );
+      block.setAttribute(
+        "aria-pressed",
+        activeMapRow === node.row ? "true" : "false",
+      );
       block.style.setProperty("--map-color", node.row.color);
       block.style.setProperty("--map-left", `${node.startPct}%`);
       block.style.setProperty("--map-width", `${node.widthPct}%`);
@@ -458,6 +474,14 @@ export default function renderSizeChart(boxes) {
         mapDetails.textContent = getRowDetail(node.row, showNonMdatShare);
       });
       block.addEventListener("mouseleave", () => {
+        mapDetails.textContent = activeMapRow
+          ? getRowDetail(activeMapRow, showNonMdatShare)
+          : "Hover or select a box to inspect its size and path.";
+      });
+      block.addEventListener("focus", () => {
+        mapDetails.textContent = getRowDetail(node.row, showNonMdatShare);
+      });
+      block.addEventListener("blur", () => {
         mapDetails.textContent = activeMapRow
           ? getRowDetail(activeMapRow, showNonMdatShare)
           : "Hover or select a box to inspect its size and path.";
@@ -547,11 +571,13 @@ export default function renderSizeChart(boxes) {
       "div",
       `size-row size-row-head${showNonMdatShare ? "" : " size-row-no-excluded"}`,
     );
+    header.setAttribute("role", "row");
     for (const column of columns) {
       const button = /** @type {HTMLButtonElement} */ (
         el("button", `size-head-btn size-head-${column.key}`)
       );
       button.type = "button";
+      button.setAttribute("role", "columnheader");
       button.title = column.title;
       button.dataset.sort = column.key;
       button.textContent =
@@ -585,6 +611,13 @@ export default function renderSizeChart(boxes) {
           activeMapRow === rowData ? " active" : ""
         }`,
       );
+      row.tabIndex = 0;
+      row.setAttribute("role", "row");
+      row.setAttribute("aria-label", getRowDetail(rowData, showNonMdatShare));
+      row.setAttribute(
+        "aria-selected",
+        activeMapRow === rowData ? "true" : "false",
+      );
       row.title = path;
       row.style.setProperty("--box-color", color);
       row.style.setProperty(
@@ -617,7 +650,17 @@ export default function renderSizeChart(boxes) {
           : ""
       }
     `;
+      for (const cell of Array.from(row.children)) {
+        cell.setAttribute("role", "gridcell");
+      }
       row.addEventListener("click", () => setActiveMapRow(rowData));
+      row.addEventListener("keydown", (evt) => {
+        if (evt.key !== "Enter" && evt.key !== " ") {
+          return;
+        }
+        evt.preventDefault();
+        setActiveMapRow(rowData);
+      });
       legend.appendChild(row);
     }
   }

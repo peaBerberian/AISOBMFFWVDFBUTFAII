@@ -76,22 +76,30 @@
       </div>
     </div>
   </div>
-  <div id="progress-bar-wrap">
+  <div
+    id="progress-bar-wrap"
+    role="progressbar"
+    aria-label="Inspection progress"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    aria-valuenow="0"
+    aria-hidden="true"
+  >
     <div id="progress-bar"></div>
   </div>
   <div id="status-row">
-    <div id="status-line"></div>
+    <div id="status-line" role="status" aria-live="polite" aria-atomic="true"></div>
     <button type="button" id="progress-cancel-button" aria-hidden="true" tabindex="-1">cancel</button>
   </div>
   <div id="results">
-    <div id="tabs" hidden>
-      <button type="button" class="tab active" data-tab="boxes">box tree</button>
-      <button  type="button"class="tab" data-tab="sizes">box sizes</button>
+    <div id="tabs" role="tablist" aria-label="Inspection views" hidden>
+      <button type="button" class="tab active" id="tab-button-boxes" role="tab" data-tab="boxes" aria-controls="tab-boxes" aria-selected="true">box tree</button>
+      <button type="button" class="tab" id="tab-button-sizes" role="tab" data-tab="sizes" aria-controls="tab-sizes" aria-selected="false">box sizes</button>
     </div>
-    <div id="tab-boxes" class="tab-panel active">
+    <div id="tab-boxes" class="tab-panel active" role="tabpanel" aria-labelledby="tab-button-boxes">
       <div id="file-description"></div>
     </div>
-    <div id="tab-sizes" class="tab-panel">
+    <div id="tab-sizes" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-sizes" hidden>
       <div id="size-chart"></div>
     </div>
   </div>

@@ -11,7 +11,13 @@
   --color-border-tertiary: #d8dee6;
   --color-text-primary: #1f2328;
   --color-text-secondary: #59636e;
-  --color-text-tertiary: #818b98;
+  --color-text-tertiary: #66707a;
+  --color-accent-blue: #1f6fb8;
+  --color-accent-green: #147d64;
+  --color-accent-orange: #b45120;
+  --color-accent-purple: #7445d1;
+  --color-accent-red: #b91c1c;
+  --color-accent-yellow: #9a6700;
   --border-radius-lg: 6px;
 }
 

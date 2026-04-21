@@ -53,6 +53,14 @@ h1 {
   border-color: var(--color-border-secondary);
 }
 
+.github-link:focus-visible,
+input[type="file"]:focus-visible,
+#url-button:focus-visible,
+.tab:focus-visible {
+  outline: 2px solid color-mix(in srgb, #1f6fb8 45%, transparent);
+  outline-offset: 2px;
+}
+
 .github-stars-count {
   color: var(--color-text-tertiary);
 }
@@ -153,9 +161,14 @@ input[type="file"]::file-selector-button:hover,
 }
 
 #url-input:focus {
-  outline: 2px solid color-mix(in srgb, #378add 28%, transparent);
+  outline: 2px solid
+    color-mix(in srgb, var(--color-accent-blue) 28%, transparent);
   outline-offset: 1px;
-  border-color: #5d9fe2;
+  border-color: var(--color-accent-blue);
+}
+
+#url-input:focus-visible {
+  outline-color: color-mix(in srgb, #1f6fb8 45%, transparent);
 }
 
 #url-button {
