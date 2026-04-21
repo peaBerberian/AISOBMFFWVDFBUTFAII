@@ -13,9 +13,11 @@ const CHART_COLORS = [
 ];
 
 const EXCLUDED_SHARE_BOX_TYPES = new Set(["mdat"]);
+const MAP_MARKER_WIDTH_PX = 4;
 
 /** @typedef {"order" | "rank" | "type" | "depth" | "container" | "size" | "filePct" | "nonMdatPct"} SizeSortKey */
 /** @typedef {"asc" | "desc"} SortDirection */
+/** @typedef {"file" | "excluding-mdat"} SizeMapScale */
 /**
  * @typedef {{
  *   box: import("isobmff-inspector").ParsedBox,
@@ -31,6 +33,15 @@ const EXCLUDED_SHARE_BOX_TYPES = new Set(["mdat"]);
  *   previousSortIndex: number,
  *   isNonMdatExcluded: boolean,
  * }} SizeRow
+ */
+/**
+ * @typedef {{
+ *   row: SizeRow,
+ *   depth: number,
+ *   startPct: number,
+ *   widthPct: number,
+ *   marker: boolean,
+ * }} SizeMapNode
  */
 
 /**
@@ -103,6 +114,129 @@ function sortSizeRows(sortKey, direction, rows) {
 }
 
 /**
+ * @param {import("isobmff-inspector").ParsedBox} box
+ * @returns {number}
+ */
+function getBoxSize(box) {
+  return Number(box.size ?? 0);
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox} box
+ * @param {SizeMapScale} scale
+ * @returns {number}
+ */
+function getMapBoxSize(box, scale) {
+  const size = getBoxSize(box);
+  if (scale === "file") {
+    return size;
+  }
+  if (EXCLUDED_SHARE_BOX_TYPES.has(box.type)) {
+    return 0;
+  }
+  return Math.max(0, size - sumExcludedShareBoxes(box.children ?? []));
+}
+
+/**
+ * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
+ * @param {SizeMapScale} scale
+ */
+function getMapTotalSize(boxes, scale) {
+  return boxes.reduce((sum, box) => sum + getMapBoxSize(box, scale), 0);
+}
+
+/**
+ * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
+ * @param {SizeMapScale} scale
+ * @param {WeakMap<import("isobmff-inspector").ParsedBox, SizeRow>} rowsByBox
+ * @param {number} depth
+ * @param {number} startPct
+ * @param {number} parentWidthPct
+ * @param {Array<SizeMapNode>} out
+ */
+function layoutSizeMap(
+  boxes,
+  scale,
+  rowsByBox,
+  depth,
+  startPct,
+  parentWidthPct,
+  out,
+) {
+  const total = getMapTotalSize(boxes, scale);
+  let cursor = startPct;
+  for (const box of boxes) {
+    const row = rowsByBox.get(box);
+    const mapSize = getMapBoxSize(box, scale);
+    const widthPct = total > 0 ? (mapSize / total) * parentWidthPct : 0;
+    const marker =
+      scale === "excluding-mdat" && EXCLUDED_SHARE_BOX_TYPES.has(box.type);
+    if (row && (widthPct > 0 || marker)) {
+      out.push({
+        row,
+        depth,
+        startPct: cursor,
+        widthPct,
+        marker,
+      });
+    }
+    if (box.children?.length && widthPct > 0) {
+      layoutSizeMap(
+        box.children,
+        scale,
+        rowsByBox,
+        depth + 1,
+        cursor,
+        widthPct,
+        out,
+      );
+    }
+    cursor += widthPct;
+  }
+}
+
+/**
+ * @param {SizeRow} row
+ * @param {boolean} showNonMdatShare
+ */
+function getRowDetail(row, showNonMdatShare) {
+  const details = [
+    `${row.path}`,
+    `${fmtBytes(row.size)}`,
+    `${fmtPct(row.filePct)} of file`,
+  ];
+  if (showNonMdatShare) {
+    details.push(
+      row.isNonMdatExcluded
+        ? "excluded from excluding mdat scale"
+        : `${fmtPct(row.nonMdatPct)} excluding mdat`,
+    );
+  }
+  return details.join(" - ");
+}
+
+/**
+ * @param {string} title
+ */
+function createSizeSection(title) {
+  const section = /** @type {HTMLDetailsElement} */ (
+    el("details", "size-section")
+  );
+  section.open = true;
+  const summary = el("summary", "size-section-title");
+  const caret = el("span", "box-caret");
+  caret.setAttribute("aria-hidden", "true");
+  const label = el("span", "size-section-label");
+  label.textContent = title;
+  summary.appendChild(caret);
+  summary.appendChild(label);
+  const body = el("div", "size-section-body");
+  section.appendChild(summary);
+  section.appendChild(body);
+  return { section, body };
+}
+
+/**
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
  */
 export default function renderSizeChart(boxes) {
@@ -153,9 +287,19 @@ export default function renderSizeChart(boxes) {
       isNonMdatExcluded,
     };
   });
+  const rowsByBox = new WeakMap();
+  rows.forEach((row) => {
+    rowsByBox.set(row.box, row);
+  });
+  /** @type {SizeMapScale} */
+  let mapScale = "file";
+  /** @type {SizeRow | null} */
+  let activeMapRow = null;
 
   container.innerHTML = "";
 
+  const overviewSection = createSizeSection("overview");
+  container.appendChild(overviewSection.section);
   const summary = el(
     "div",
     `size-summary${showNonMdatShare ? "" : " size-summary-no-excluded"}`,
@@ -182,7 +326,7 @@ export default function renderSizeChart(boxes) {
         : ""
     }
   `;
-  container.appendChild(summary);
+  overviewSection.body.appendChild(summary);
 
   // Stacked bar
   const bar = el("div", "size-bar");
@@ -194,17 +338,137 @@ export default function renderSizeChart(boxes) {
     seg.title = `${b.type}: ${fmtBytes(b.size)} (${pct.toFixed(1)}%)`;
     bar.appendChild(seg);
   });
-  container.appendChild(bar);
+  overviewSection.body.appendChild(bar);
 
   const scaleNote = el("div", "size-scale-note");
   scaleNote.textContent = showNonMdatShare
     ? "file share is percent of the whole file; excluding mdat is percent of the file after subtracting mdat boxes."
     : "file share is percent of the whole file.";
-  container.appendChild(scaleNote);
+  overviewSection.body.appendChild(scaleNote);
+
+  const mapSection = createSizeSection("ordered box map");
+  container.appendChild(mapSection.section);
+  const mapWrap = el("div", "size-map-wrap");
+  const mapHeader = el("div", "size-map-header");
+  const mapControls = el("div", "size-map-controls");
+  const fileScaleButton = /** @type {HTMLButtonElement} */ (
+    el("button", "size-map-scale")
+  );
+  fileScaleButton.type = "button";
+  fileScaleButton.textContent = "file scale";
+  fileScaleButton.dataset.scale = "file";
+  let excludingMdatButton = /** @type {HTMLButtonElement | null} */ (null);
+  if (showNonMdatShare) {
+    mapControls.appendChild(fileScaleButton);
+    excludingMdatButton = /** @type {HTMLButtonElement} */ (
+      el("button", "size-map-scale")
+    );
+    excludingMdatButton.type = "button";
+    excludingMdatButton.textContent = "excluding mdat";
+    excludingMdatButton.dataset.scale = "excluding-mdat";
+    mapControls.appendChild(excludingMdatButton);
+  }
+  if (showNonMdatShare) {
+    mapHeader.appendChild(mapControls);
+  }
+  mapWrap.appendChild(mapHeader);
+  const mapViewport = el("div", "size-map-viewport");
+  const map = el("div", "size-map");
+  mapViewport.appendChild(map);
+  mapWrap.appendChild(mapViewport);
+  const mapDetails = el("div", "size-map-details");
+  mapDetails.textContent =
+    "Hover or select a box to inspect its size and path.";
+  mapWrap.appendChild(mapDetails);
+  mapSection.body.appendChild(mapWrap);
 
   // Legend rows
+  const tableSection = createSizeSection("box size table");
+  container.appendChild(tableSection.section);
   const legend = el("div", "size-legend");
-  container.appendChild(legend);
+  tableSection.body.appendChild(legend);
+
+  /**
+   * @param {SizeRow | null} row
+   */
+  function setActiveMapRow(row) {
+    activeMapRow = activeMapRow === row ? null : row;
+    renderSizeMap();
+    renderLegend();
+  }
+
+  function updateMapScaleButtons() {
+    fileScaleButton.setAttribute(
+      "aria-pressed",
+      mapScale === "file" ? "true" : "false",
+    );
+    if (excludingMdatButton) {
+      excludingMdatButton.setAttribute(
+        "aria-pressed",
+        mapScale === "excluding-mdat" ? "true" : "false",
+      );
+    }
+  }
+
+  /**
+   * @param {SizeMapScale} scale
+   */
+  function setMapScale(scale) {
+    mapScale = scale;
+    activeMapRow = null;
+    renderSizeMap();
+    renderLegend();
+  }
+
+  fileScaleButton.addEventListener("click", () => setMapScale("file"));
+  excludingMdatButton?.addEventListener("click", () =>
+    setMapScale("excluding-mdat"),
+  );
+
+  function renderSizeMap() {
+    updateMapScaleButtons();
+    map.innerHTML = "";
+    /** @type {Array<SizeMapNode>} */
+    const nodes = [];
+    layoutSizeMap(boxes, mapScale, rowsByBox, 0, 0, 100, nodes);
+    const maxDepth = nodes.reduce(
+      (depth, node) => Math.max(depth, node.depth),
+      0,
+    );
+    map.style.setProperty("--size-map-rows", String(maxDepth + 1));
+    map.classList.toggle("size-map-with-selection", activeMapRow !== null);
+    for (const node of nodes) {
+      const block = /** @type {HTMLButtonElement} */ (
+        el(
+          "button",
+          `size-map-box${node.marker ? " size-map-marker" : ""}${
+            activeMapRow === node.row ? " active" : ""
+          }`,
+        )
+      );
+      block.type = "button";
+      block.title = getRowDetail(node.row, showNonMdatShare);
+      block.style.setProperty("--map-color", node.row.color);
+      block.style.setProperty("--map-left", `${node.startPct}%`);
+      block.style.setProperty("--map-width", `${node.widthPct}%`);
+      block.style.setProperty("--map-top", String(node.depth));
+      block.style.setProperty("--map-marker-width", `${MAP_MARKER_WIDTH_PX}px`);
+      block.innerHTML = `<span>${esc(node.row.box.type)}</span>`;
+      block.addEventListener("mouseenter", () => {
+        mapDetails.textContent = getRowDetail(node.row, showNonMdatShare);
+      });
+      block.addEventListener("mouseleave", () => {
+        mapDetails.textContent = activeMapRow
+          ? getRowDetail(activeMapRow, showNonMdatShare)
+          : "Hover or select a box to inspect its size and path.";
+      });
+      block.addEventListener("click", () => setActiveMapRow(node.row));
+      map.appendChild(block);
+    }
+    mapDetails.textContent = activeMapRow
+      ? getRowDetail(activeMapRow, showNonMdatShare)
+      : "Hover or select a box to inspect its size and path.";
+  }
 
   /** @type {{ key: SizeSortKey, label: string, title: string, defaultDirection: SortDirection }[]} */
   const columns = [
@@ -317,7 +581,9 @@ export default function renderSizeChart(boxes) {
       const { box: b, depth, color, path } = rowData;
       const row = el(
         "div",
-        `size-row${showNonMdatShare ? "" : " size-row-no-excluded"}`,
+        `size-row${showNonMdatShare ? "" : " size-row-no-excluded"}${
+          activeMapRow === rowData ? " active" : ""
+        }`,
       );
       row.title = path;
       row.style.setProperty("--box-color", color);
@@ -351,9 +617,11 @@ export default function renderSizeChart(boxes) {
           : ""
       }
     `;
+      row.addEventListener("click", () => setActiveMapRow(rowData));
       legend.appendChild(row);
     }
   }
 
+  renderSizeMap();
   renderLegend();
 }
