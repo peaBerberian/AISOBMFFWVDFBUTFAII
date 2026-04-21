@@ -61,10 +61,6 @@ input[type="file"]:focus-visible,
   outline-offset: 2px;
 }
 
-.github-stars-count {
-  color: var(--color-text-tertiary);
-}
-
 #selection {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(260px, 1.2fr);

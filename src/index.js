@@ -14,7 +14,6 @@ initializeFileReaderInput();
 initializeFileDrop();
 initializeUrlInput();
 initializeTabNavigation();
-initializeGithubStars();
 
 /**
  * Dim existing results while a newly requested file is being loaded. Once the
@@ -218,47 +217,5 @@ function initializeUrlInput() {
   } else {
     document.getElementById("choices-separator").style.display = "none";
     document.getElementById("choices-url-segment").style.display = "none";
-  }
-}
-
-function initializeGithubStars() {
-  const starsElt = document.getElementById("github-stars");
-  if (!starsElt || !window.fetch) {
-    return;
-  }
-
-  const fetchStars = async () => {
-    try {
-      const response = await fetch(
-        "https://api.github.com/repos/peaBerberian/AISOBMFFWVDFBUTFAII",
-        {
-          headers: {
-            Accept: "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2026-03-10",
-          },
-        },
-      );
-      if (!response.ok) {
-        return;
-      }
-
-      const repository = await response.json();
-      if (typeof repository.stargazers_count !== "number") {
-        return;
-      }
-
-      starsElt.textContent = new Intl.NumberFormat(undefined, {
-        notation: repository.stargazers_count >= 1000 ? "compact" : "standard",
-      }).format(repository.stargazers_count);
-      starsElt.hidden = false;
-    } catch {
-      // Keep the project links unobtrusive if GitHub is unavailable.
-    }
-  };
-
-  if ("requestIdleCallback" in window) {
-    window.requestIdleCallback(fetchStars);
-  } else {
-    globalThis.setTimeout(fetchStars, 1000);
   }
 }
