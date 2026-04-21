@@ -15,8 +15,20 @@ export async function parseAndRender(input, abortSignal) {
   const topLevelBoxes = [];
   let boxCount = 0;
   const tabs = document.getElementById("tabs");
+  const results = document.getElementById("results");
   const wrapper = document.getElementById("file-description");
+  const sizeChart = document.getElementById("size-chart");
   wrapper.innerHTML = "";
+  sizeChart.innerHTML = "";
+  document.querySelector(".tab.active")?.classList.remove("active");
+  document.querySelector('.tab[data-tab="boxes"]')?.classList.add("active");
+  document.querySelector(".tab-panel.active")?.classList.remove("active");
+  document.getElementById("tab-boxes")?.classList.add("active");
+  if (results) {
+    results.classList.remove("is-stale-loading");
+    results.inert = false;
+    results.setAttribute("aria-busy", "true");
+  }
   topLevelBoxes.length = 0;
   tabs.style.display = "none";
 
@@ -104,6 +116,9 @@ export async function parseAndRender(input, abortSignal) {
     ProgressBar.fail(`parse error: ${err?.message ?? err}`);
     console.error("parse error", err);
   } finally {
+    if (!abortSignal.aborted) {
+      results?.setAttribute("aria-busy", "false");
+    }
     if (!abortSignal.aborted && completed) {
       ProgressBar.end("File parsed with success!");
     }

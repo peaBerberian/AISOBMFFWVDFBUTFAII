@@ -5,6 +5,13 @@ const cancelButtonElt = /** @type {HTMLButtonElement} */ (
   document.getElementById("progress-cancel-button")
 );
 
+const TOAST_STATE_CLASSES = [
+  "is-active",
+  "is-success",
+  "is-warning",
+  "is-error",
+];
+
 /**
  * Behavior for the progress bar on the top of the page.
  * Will be constructed as a Pascal-Cased singleton from this file, explaining
@@ -43,6 +50,7 @@ class ProgressBarClass {
   start(msg) {
     this.#clearPendingAnimation();
     this.#hideCancelButton();
+    this.#setToastState("is-active");
     if (this.#cancelAction) {
       this.#cancelButtonTimeout = setTimeout(() => {
         if (!this.#cancelAction) {
@@ -131,6 +139,7 @@ class ProgressBarClass {
     this.#clearPendingAnimation();
     this.#hideCancelButton();
     this.#cancelAction = null;
+    this.#setToastState(color === "#d85a30" ? "is-error" : "is-warning");
     progressBarWrapperElt.style.backgroundColor =
       "var(--color-border-tertiary)";
     progressBarElt.style.backgroundColor = color;
@@ -146,6 +155,7 @@ class ProgressBarClass {
     this.#clearPendingAnimation();
     this.#hideCancelButton();
     this.#cancelAction = null;
+    this.#setToastState("is-success");
     this.#percent = 100;
     progressBarElt.style.width = "100%";
     progressBarElt.style.backgroundColor = color;
@@ -167,6 +177,7 @@ class ProgressBarClass {
         progressBarElt.style.opacity = "1";
         statusLineElt.style.visibility = "hidden";
         statusLineElt.style.opacity = "1";
+        this.#setToastState(null);
       }, 1200);
     }, 2000);
   }
@@ -203,6 +214,16 @@ class ProgressBarClass {
     cancelButtonElt.disabled = false;
     cancelButtonElt.setAttribute("aria-hidden", "true");
     cancelButtonElt.setAttribute("tabindex", "-1");
+  }
+
+  /**
+   * @param {string | null} stateClass
+   */
+  #setToastState(stateClass) {
+    statusLineElt.classList.remove(...TOAST_STATE_CLASSES);
+    if (stateClass) {
+      statusLineElt.classList.add(stateClass);
+    }
   }
 }
 

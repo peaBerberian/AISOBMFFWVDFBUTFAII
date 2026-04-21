@@ -15,6 +15,21 @@ initializeTabNavigation();
 initializeGithubStars();
 
 /**
+ * Dim existing results while a newly requested file is being loaded. Once the
+ * parser starts rendering the new file, parseAndRender clears this state.
+ * @param {boolean} isLoading
+ */
+function setResultsLoading(isLoading) {
+  const results = document.getElementById("results");
+  if (!results) {
+    return;
+  }
+  results.classList.toggle("is-stale-loading", isLoading);
+  results.inert = isLoading;
+  results.setAttribute("aria-busy", isLoading ? "true" : "false");
+}
+
+/**
  * Fetch the mp4 file's URL and run our parser on it.
  * Can be aborted at any time with the given `AbortSignal`.
  * @param {string} url
@@ -72,8 +87,10 @@ function initializeFileReaderInput() {
       const controller = currentSegmentParsingAbortController;
       const signal = currentSegmentParsingAbortController.signal;
       ProgressBar.setCancelAction(() => controller.abort());
+      setResultsLoading(true);
       parseAndRender(formatFileInput(files[0], signal), signal).finally(() => {
         if (currentSegmentParsingAbortController === controller) {
+          setResultsLoading(false);
           currentSegmentParsingAbortController = null;
         }
       });
@@ -98,8 +115,10 @@ function initializeUrlInput() {
       const controller = currentSegmentParsingAbortController;
       const signal = controller.signal;
       ProgressBar.setCancelAction(() => controller.abort());
+      setResultsLoading(true);
       fetchSegmentAndParse(url, signal).finally(() => {
         if (currentSegmentParsingAbortController === controller) {
+          setResultsLoading(false);
           currentSegmentParsingAbortController = null;
         }
       });
