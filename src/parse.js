@@ -1,6 +1,6 @@
 import { parseEvents } from "isobmff-inspector";
 import ProgressBar from "./ProgressBar.js";
-import { renderBoxTree, renderSizeChart } from "./tabs";
+import { BoxTreeNodeView, renderSizeChart } from "./tabs";
 
 /**
  * @param {import("isobmff-inspector").ISOBMFFInput} input
@@ -21,7 +21,7 @@ export async function parseAndRender(input, abortSignal) {
   ProgressBar.start("parsing…");
   ProgressBar.startEasing();
 
-  /** @type {Array<{ element: HTMLElement, childWrap: HTMLElement | null }>} */
+  /** @type {Array<import("./tabs").BoxTreeNodeView>} */
   const stack = [];
   let completed = false;
 
@@ -35,11 +35,6 @@ export async function parseAndRender(input, abortSignal) {
         const depth = event.path.length - 1;
         stack.length = depth;
 
-        const parent = depth === 0 ? wrapper : stack[depth - 1]?.childWrap;
-        if (!parent) {
-          throw new Error(`missing parent for ${event.path.join("/")}`);
-        }
-
         const box = {
           type: event.type,
           size: event.size,
@@ -51,14 +46,18 @@ export async function parseAndRender(input, abortSignal) {
           issues: [],
           children: [],
         };
-        const element = renderBoxTree(box, /* shallow = */ true);
-        parent.appendChild(element);
-        stack[depth] = {
-          element,
-          childWrap: /** @type {HTMLElement | null} */ (
-            element.querySelector(":scope > .box-children")
-          ),
-        };
+        const view =
+          depth === 0
+            ? new BoxTreeNodeView(box, { shallow: true })
+            : stack[depth - 1]?.appendChildBox(box);
+        if (!view) {
+          throw new Error(`missing parent for ${event.path.join("/")}`);
+        }
+
+        if (depth === 0) {
+          wrapper.appendChild(view.element);
+        }
+        stack[depth] = view;
         continue;
       }
 
@@ -77,18 +76,7 @@ export async function parseAndRender(input, abortSignal) {
           throw new Error(`missing started box for ${event.path.join("/")}`);
         }
 
-        const element = renderBoxTree(box, /* shallow = */ true);
-        const oldChildWrap = current.childWrap;
-        const newChildWrap = /** @type {HTMLElement | null} */ (
-          element.querySelector(":scope > .box-children")
-        );
-        if (oldChildWrap && newChildWrap) {
-          while (oldChildWrap.firstChild) {
-            newChildWrap.appendChild(oldChildWrap.firstChild);
-          }
-        }
-        current.element.replaceWith(element);
-        stack[depth] = { element, childWrap: newChildWrap };
+        current.updateBox(box);
 
         if (depth === 0) {
           topLevelBoxes.push(box);

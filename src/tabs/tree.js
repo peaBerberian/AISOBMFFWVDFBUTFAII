@@ -1,6 +1,210 @@
 import { el, esc, fmtBytes } from "./utils";
 
 /**
+ * View abstraction for one rendered box-tree node.
+ */
+export default class BoxTreeNodeView {
+  /** @type {HTMLElement} */
+  #element;
+  /** @type {HTMLElement | null} */
+  #childContainer;
+
+  /**
+   * @param {import("isobmff-inspector").ParsedBox} box
+   * @param {{ shallow?: boolean }} options
+   */
+  constructor(box, options = {}) {
+    const { element, childContainer } = renderBoxTreeNode(
+      box,
+      options.shallow ?? false,
+    );
+    this.#element = element;
+    this.#childContainer = childContainer;
+  }
+
+  /**
+   * @returns {HTMLElement}
+   */
+  get element() {
+    return this.#element;
+  }
+
+  /**
+   * Creates, attaches, and returns a child box view.
+   * @param {import("isobmff-inspector").ParsedBox} box
+   * @returns {BoxTreeNodeView}
+   */
+  appendChildBox(box) {
+    if (!this.#childContainer) {
+      throw new Error(
+        `box ${box.type} cannot be appended without a child container`,
+      );
+    }
+
+    const view = new BoxTreeNodeView(box, { shallow: true });
+    this.#childContainer.appendChild(view.element);
+    return view;
+  }
+
+  /**
+   * Updates this node from newer box data while preserving attached child views.
+   * @param {import("isobmff-inspector").ParsedBox} box
+   */
+  updateBox(box) {
+    const { element, childContainer } = renderBoxTreeNode(box, true);
+
+    if (this.#childContainer?.firstChild && !childContainer) {
+      throw new Error(
+        `box ${box.type} cannot preserve children without a child container`,
+      );
+    }
+
+    if (this.#childContainer && childContainer) {
+      while (this.#childContainer.firstChild) {
+        childContainer.appendChild(this.#childContainer.firstChild);
+      }
+    }
+
+    this.#element.replaceWith(element);
+    this.#element = element;
+    this.#childContainer = childContainer;
+  }
+}
+
+/**
+ * Builds a DOM element for one box and returns the child container created for
+ * it, when one exists.
+ *
+ * Container boxes (with `children`) get a `<details>` so they can be
+ * collapsed. Leaf boxes get a flat `<div>`.
+ *
+ * When `shallow` is true (streaming mode) the children array on the box
+ * object is ignored — the caller appends child elements directly into the
+ * returned element's child container.
+ * @param {import("isobmff-inspector").ParsedBox} box
+ * @param {boolean} shallow
+ * @returns {{ element: HTMLElement, childContainer: HTMLElement | null }}
+ */
+function renderBoxTreeNode(box, shallow = false) {
+  const hasValues = box.values?.length > 0;
+  const hasChildren = !shallow && box.children?.length > 0;
+  const hasContent =
+    hasValues || hasChildren || box.description || box.issues?.length;
+
+  // Issue indicator dot
+  const makeDot = () => {
+    if (!box.issues?.length) {
+      return null;
+    }
+    const dot = el("span");
+    const isWarnOnly = box.issues.every((i) => i.severity === "warning");
+    dot.className = `box-issue-dot${isWarnOnly ? " warn" : ""}`;
+    return dot;
+  };
+
+  // Header content (shared between <summary> and flat <div>)
+  const makeHeader = () => {
+    const header = el("span", "box-header");
+    const typeSpan = el("span", "box-type");
+    typeSpan.textContent = box.type;
+    header.appendChild(typeSpan);
+    if (box.name) {
+      const nameSpan = el("span", "box-name");
+      nameSpan.textContent = box.name;
+      header.appendChild(nameSpan);
+    }
+    const sizeSpan = el("span", "box-size");
+    sizeSpan.textContent = fmtBytes(box.size);
+    header.appendChild(sizeSpan);
+    const dot = makeDot();
+    if (dot) {
+      header.appendChild(dot);
+    }
+    return header;
+  };
+
+  // Body: description + values table + issues
+  const makeBody = () => {
+    const body = el("div", "box-body");
+
+    if (box.description) {
+      const desc = el("div", "box-desc");
+      desc.textContent = box.description;
+      body.appendChild(desc);
+    }
+
+    if (hasValues) {
+      const tbl = /** @type {HTMLTableElement} */ (el("table", "values-table"));
+      for (const v of box.values) {
+        const row = tbl.insertRow();
+        row.className = "box-value-line";
+        const keyCell = row.insertCell();
+        keyCell.className = "vk";
+        keyCell.textContent = v.key;
+        if (v.description) {
+          keyCell.title = v.description;
+        }
+        const valCell = row.insertCell();
+        valCell.appendChild(renderValue(v));
+      }
+      body.appendChild(tbl);
+    }
+
+    if (box.issues?.length) {
+      const isWarnOnly = box.issues.every((i) => i.severity === "warning");
+      const issueEl = el("div", `issue-list${isWarnOnly ? " warn" : ""}`);
+      for (const issue of box.issues) {
+        const item = el("div", "issue-item");
+        item.textContent = issue.message;
+        issueEl.appendChild(item);
+      }
+      body.appendChild(issueEl);
+    }
+
+    return body;
+  };
+
+  if (!hasContent && !box.children) {
+    const div = el("div", "leaf-box");
+    const caret = el("span", "box-caret");
+    caret.textContent = "";
+    caret.style.opacity = "0";
+    div.appendChild(caret);
+    div.appendChild(makeHeader());
+    return { element: div, childContainer: null };
+  }
+
+  const det = document.createElement("details");
+  det.open = true;
+
+  const summary = document.createElement("summary");
+  const caret = el("span", "box-caret");
+  caret.setAttribute("aria-hidden", "true");
+  summary.appendChild(caret);
+  summary.appendChild(makeHeader());
+  det.appendChild(summary);
+
+  if (hasContent) {
+    det.appendChild(makeBody());
+  }
+
+  // Child container — in streaming mode the caller appends into this div
+  const childContainer = el("div", "box-children");
+  det.appendChild(childContainer);
+
+  // Non-streaming: populate children immediately
+  if (hasChildren) {
+    for (const child of box.children) {
+      childContainer.appendChild(
+        new BoxTreeNodeView(child, { shallow: false }).element,
+      );
+    }
+  }
+
+  return { element: det, childContainer };
+}
+
+/**
  * @param {import("isobmff-inspector").ParsedField | null} f
  * @returns {HTMLElement}
  */
@@ -145,131 +349,4 @@ function renderValue(f) {
       return wrap;
     }
   }
-}
-
-/**
- * Builds a DOM element for one box.
- * Container boxes (with `children`) get a `<details>` so they can be
- * collapsed. Leaf boxes get a flat `<div>`.
- *
- * When `shallow` is true (streaming mode) the children array on the box
- * object is ignored — the caller appends child elements directly into the
- * returned element's child container.
- * @param {import("isobmff-inspector").ParsedBox} box
- */
-export default function renderBoxTree(box, shallow = false) {
-  const hasValues = box.values?.length > 0;
-  const hasChildren = !shallow && box.children?.length > 0;
-  const hasContent =
-    hasValues || hasChildren || box.description || box.issues?.length;
-
-  // Issue indicator dot
-  const makeDot = () => {
-    if (!box.issues?.length) {
-      return null;
-    }
-    const dot = el("span");
-    const isWarnOnly = box.issues.every((i) => i.severity === "warning");
-    dot.className = `box-issue-dot${isWarnOnly ? " warn" : ""}`;
-    return dot;
-  };
-
-  // Header content (shared between <summary> and flat <div>)
-  const makeHeader = () => {
-    const header = el("span", "box-header");
-    const typeSpan = el("span", "box-type");
-    typeSpan.textContent = box.type;
-    header.appendChild(typeSpan);
-    if (box.name) {
-      const nameSpan = el("span", "box-name");
-      nameSpan.textContent = box.name;
-      header.appendChild(nameSpan);
-    }
-    const sizeSpan = el("span", "box-size");
-    sizeSpan.textContent = fmtBytes(box.size);
-    header.appendChild(sizeSpan);
-    const dot = makeDot();
-    if (dot) {
-      header.appendChild(dot);
-    }
-    return header;
-  };
-
-  // Body: description + values table + issues
-  const makeBody = () => {
-    const body = el("div", "box-body");
-
-    if (box.description) {
-      const desc = el("div", "box-desc");
-      desc.textContent = box.description;
-      body.appendChild(desc);
-    }
-
-    if (hasValues) {
-      const tbl = /** @type {HTMLTableElement} */ (el("table", "values-table"));
-      for (const v of box.values) {
-        const row = tbl.insertRow();
-        row.className = "box-value-line";
-        const keyCell = row.insertCell();
-        keyCell.className = "vk";
-        keyCell.textContent = v.key;
-        if (v.description) {
-          keyCell.title = v.description;
-        }
-        const valCell = row.insertCell();
-        valCell.appendChild(renderValue(v));
-      }
-      body.appendChild(tbl);
-    }
-
-    if (box.issues?.length) {
-      const isWarnOnly = box.issues.every((i) => i.severity === "warning");
-      const issueEl = el("div", `issue-list${isWarnOnly ? " warn" : ""}`);
-      for (const issue of box.issues) {
-        const item = el("div", "issue-item");
-        item.textContent = issue.message;
-        issueEl.appendChild(item);
-      }
-      body.appendChild(issueEl);
-    }
-
-    return body;
-  };
-
-  if (!hasContent && !box.children) {
-    const div = el("div", "leaf-box");
-    const caret = el("span", "box-caret");
-    caret.textContent = "";
-    caret.style.opacity = "0";
-    div.appendChild(caret);
-    div.appendChild(makeHeader());
-    return div;
-  }
-
-  const det = document.createElement("details");
-  det.open = true;
-
-  const summary = document.createElement("summary");
-  const caret = el("span", "box-caret");
-  caret.setAttribute("aria-hidden", "true");
-  summary.appendChild(caret);
-  summary.appendChild(makeHeader());
-  det.appendChild(summary);
-
-  if (hasContent) {
-    det.appendChild(makeBody());
-  }
-
-  // Child container — in streaming mode the caller appends into this div
-  const childWrap = el("div", "box-children");
-  det.appendChild(childWrap);
-
-  // Non-streaming: populate children immediately
-  if (hasChildren) {
-    for (const child of box.children) {
-      childWrap.appendChild(renderBoxTree(child, false));
-    }
-  }
-
-  return det;
 }

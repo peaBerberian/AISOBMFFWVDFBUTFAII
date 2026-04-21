@@ -1,4 +1,4 @@
 import renderSizeChart from "./sizes";
-import renderBoxTree from "./tree";
+import BoxTreeNodeView from "./tree";
 
-export { renderBoxTree, renderSizeChart };
+export { BoxTreeNodeView, renderSizeChart };
