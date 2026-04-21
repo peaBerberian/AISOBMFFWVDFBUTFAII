@@ -2,7 +2,8 @@
 
 **A**n **ISOBMFF** **W**eb **V**isualizer **D**one **F**or **B**etter
 **U**nderstanding **T**he **F**ormat **A**nd **I**ts **I**ntricacies is a pretty
-simple web-based ISOBMFF visualizer.
+simple web-based ISOBMFF visualizer, also usable as an MP4 box inspector and
+fragmented MP4 analyzer.
 
 You can test it [here](https://peaberberian.github.io/AISOBMFFWVDFBUTFAII/).
 
@@ -14,9 +15,11 @@ any file to be sent to a web server.
 
 This repo was created mainly because I wanted to have a good overview of
 MP4/fragmented MP4 files metadata, mainly DASH and Smooth Streaming
-segments/fragments.
+segments/fragments. The app shows MP4 box trees, parsed metadata fields, byte
+offsets, box sizes, and common boxes such as `ftyp`, `moov`, `moof`, `traf`,
+`trun`, `mdat`, and `sidx`.
 
-This repository contains just a (rough) web interface.
+This repository contains just the web interface.
 The ISOBMFF parser has been isolated to another repository, the
 [isobmff-inspector](https://github.com/peaBerberian/isobmff-inspector).
 

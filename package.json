@@ -1,7 +1,7 @@
 {
   "name": "aisobmffwvdfbutfaii",
   "version": "2.0.0",
-  "description": "An ISOBMFF web visualizer done for better understanding the format and its intricacies.",
+  "description": "A browser-based MP4 box inspector and ISOBMFF visualizer for fragmented MP4, DASH, and Smooth Streaming metadata.",
   "main": "build/aisobmffwvdfbutfaii.js",
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -28,12 +28,18 @@
   },
   "keywords": [
     "isobmff",
+    "mp4",
+    "mp4-inspector",
+    "mp4-parser",
+    "mp4-boxes",
     "parser",
     "visualizer",
-    "mp4"
+    "fragmented-mp4",
+    "dash",
+    "video-streaming"
   ],
   "bugs": {
     "url": "https://github.com/peaBerberian/AISOBMFFWVDFBUTFAII/issues"
   },
-  "homepage": "https://github.com/peaBerberian/AISOBMFFWVDFBUTFAII#readme"
+  "homepage": "https://peaberberian.github.io/AISOBMFFWVDFBUTFAII/"
 }

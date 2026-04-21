@@ -22,6 +22,15 @@ h1 {
   flex-shrink: 0;
 }
 
+.app-intro {
+  max-width: 720px;
+  margin: -0.35rem 0 1rem;
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .github-link {
   display: inline-flex;
   align-items: center;

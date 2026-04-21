@@ -3,12 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta
+    name="description"
+    content="Inspect MP4 and ISOBMFF files directly in your browser. View box trees, parsed metadata fields, byte offsets, box sizes, and fragmented MP4 segment structure without uploading files."
+  >
+  <link rel="canonical" href="https://peaberberian.github.io/AISOBMFFWVDFBUTFAII/">
+  <meta property="og:title" content="MP4 Box Inspector - ISOBMFF Analyzer">
+  <meta
+    property="og:description"
+    content="Inspect MP4 and ISOBMFF files locally in your browser. View box trees, parsed metadata, offsets, sizes, and fragmented MP4 segment structure."
+  >
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://peaberberian.github.io/AISOBMFFWVDFBUTFAII/">
   <link rel="stylesheet" href="style.css" media="screen">
-  <title>AISOBMFFWVDFBUTFAII</title>
+  <title>MP4 Box Inspector - ISOBMFF / Fragmented MP4 Analyzer</title>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "MP4 Box Inspector",
+      "alternateName": "ISOBMFF Inspector",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Any",
+      "description": "Browser-based MP4 and ISOBMFF inspector for viewing box trees, parsed metadata fields, offsets, sizes, and fragmented MP4 segment structure.",
+      "url": "https://peaberberian.github.io/AISOBMFFWVDFBUTFAII/",
+      "codeRepository": "https://github.com/peaBerberian/AISOBMFFWVDFBUTFAII",
+      "isAccessibleForFree": true
+    }
+  </script>
 </head>
 <body>
   <header class="project-header">
-    <h1 id="title">ISOBMFF Inspector</h1>
+    <h1 id="title">MP4 Box Inspector</h1>
     <nav class="project-links" aria-label="Project links">
       <a
         class="github-link"
@@ -29,6 +55,10 @@
       </a>
     </nav>
   </header>
+  <p class="app-intro">
+  This page lets you inspect MP4, fragmented MP4, and ISOBMFF boxes locally in your browser.<br>
+  Neither files nor metadata are sent to a server, everything stays on your computer.
+  </p>
   <div id="selection">
     <div id="choices-local-segment" class="choices-element choices-input">
       <i>Choose a file locally:</i>
