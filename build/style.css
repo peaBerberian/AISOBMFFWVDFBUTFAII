@@ -136,14 +136,58 @@ input[type="text"] {
   border-radius: 1px;
 }
 
-#status-line {
+#status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-height: 18px;
   margin-bottom: 8px;
+}
+
+#status-line {
+  flex: 1;
+  min-width: 0;
   font-family: var(--font-sans);
   font-size: 12px;
   color: var(--color-text-secondary);
   line-height: 18px;
   visibility: hidden;
+}
+
+#progress-cancel-button {
+  flex: 0 0 46px;
+  height: 18px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 18px;
+  opacity: 0;
+  visibility: hidden;
+  cursor: pointer;
+  pointer-events: none;
+  transition:
+    opacity 0.16s ease,
+    color 0.16s ease,
+    background-color 0.16s ease;
+}
+
+#progress-cancel-button.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+#progress-cancel-button:hover {
+  color: var(--color-text-primary);
+  background: var(--color-background-secondary);
+}
+
+#progress-cancel-button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 #tabs {

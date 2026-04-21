@@ -69,8 +69,14 @@ function initializeFileReaderInput() {
       }
       currentSegmentParsingAbortController?.abort();
       currentSegmentParsingAbortController = new AbortController();
+      const controller = currentSegmentParsingAbortController;
       const signal = currentSegmentParsingAbortController.signal;
-      parseAndRender(formatFileInput(files[0], signal), signal);
+      ProgressBar.setCancelAction(() => controller.abort());
+      parseAndRender(formatFileInput(files[0], signal), signal).finally(() => {
+        if (currentSegmentParsingAbortController === controller) {
+          currentSegmentParsingAbortController = null;
+        }
+      });
     });
   } else {
     document.getElementById("choices-local-segment").style.display = "none";
@@ -89,8 +95,14 @@ function initializeUrlInput() {
       }
       currentSegmentParsingAbortController?.abort();
       currentSegmentParsingAbortController = new AbortController();
-      const signal = currentSegmentParsingAbortController.signal;
-      fetchSegmentAndParse(url, signal);
+      const controller = currentSegmentParsingAbortController;
+      const signal = controller.signal;
+      ProgressBar.setCancelAction(() => controller.abort());
+      fetchSegmentAndParse(url, signal).finally(() => {
+        if (currentSegmentParsingAbortController === controller) {
+          currentSegmentParsingAbortController = null;
+        }
+      });
     }
 
     document.getElementById("url-button").addEventListener("click", onUrlClick);

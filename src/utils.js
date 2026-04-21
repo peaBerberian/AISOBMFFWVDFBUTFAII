@@ -26,9 +26,18 @@ export function sleep(timeInMs) {
  * @returns {AsyncIterable<Uint8Array>}
  */
 export function createAbortableAsyncIterable(stream, signal) {
+  // Adaptive thresholds (ms)
+  const NO_WORK_THRESHOLD = 16; // ~1 frame
+  const HEAVY_WORK_THRESHOLD = 100; // CPU monopolized
+
+  const MODERATE_SLEEP = 16;
+  const HEAVY_SLEEP = 70;
+
   return {
     async *[Symbol.asyncIterator]() {
       const reader = stream.getReader();
+      let lastSleepTime = performance.now();
+
       try {
         while (true) {
           const result = await readWithAbort(reader, signal);
@@ -36,8 +45,26 @@ export function createAbortableAsyncIterable(stream, signal) {
             break;
           }
           yield byteChunkToUint8Array(result.value);
-          // Wait an event loop turn to ensure a smooth UI
-          await sleep(0);
+
+          // Adaptive sleep based on work intensity
+          const now = performance.now();
+          const workTime = now - lastSleepTime;
+
+          let sleepMs;
+          if (workTime > NO_WORK_THRESHOLD) {
+            if (workTime < HEAVY_WORK_THRESHOLD) {
+              sleepMs = MODERATE_SLEEP; // Moderate work: brief pause
+            } else {
+              sleepMs = HEAVY_SLEEP; // Heavy work: full frame to recover
+            }
+
+            if (sleepMs > 0) {
+              await sleep(sleepMs);
+            }
+            lastSleepTime = performance.now();
+          }
+
+          throwIfAborted(signal);
         }
       } finally {
         if (signal.aborted) {

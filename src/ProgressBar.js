@@ -1,6 +1,9 @@
 const progressBarWrapperElt = document.getElementById("progress-bar-wrap");
 const progressBarElt = document.getElementById("progress-bar");
 const statusLineElt = document.getElementById("status-line");
+const cancelButtonElt = /** @type {HTMLButtonElement} */ (
+  document.getElementById("progress-cancel-button")
+);
 
 /**
  * Behavior for the progress bar on the top of the page.
@@ -11,14 +14,46 @@ class ProgressBarClass {
   #restartRaf = null;
   #fadeTimeout = null;
   #resetTimeout = null;
+  #cancelButtonTimeout = null;
+  #cancelAction = null;
   #easingRaf = null;
   #percent = 0;
+
+  constructor() {
+    cancelButtonElt.addEventListener("click", () => {
+      if (!this.#cancelAction) {
+        return;
+      }
+      cancelButtonElt.disabled = true;
+      this.#cancelAction();
+      this.cancel("Operation canceled.");
+    });
+  }
+
+  /**
+   * @param {(() => void) | null} cancelAction
+   */
+  setCancelAction(cancelAction) {
+    this.#cancelAction = cancelAction;
+  }
 
   /**
    * @param {string} msg
    */
   start(msg) {
     this.#clearPendingAnimation();
+    this.#hideCancelButton();
+    if (this.#cancelAction) {
+      this.#cancelButtonTimeout = setTimeout(() => {
+        if (!this.#cancelAction) {
+          return;
+        }
+        cancelButtonElt.disabled = false;
+        cancelButtonElt.removeAttribute("aria-hidden");
+        cancelButtonElt.removeAttribute("tabindex");
+        cancelButtonElt.classList.add("is-visible");
+      }, 300);
+    }
     statusLineElt.textContent = msg;
     statusLineElt.style.visibility = "visible";
     progressBarWrapperElt.style.backgroundColor =
@@ -83,10 +118,24 @@ class ProgressBarClass {
 
   /**
    * @param {string} msg
+   */
+  cancel(msg) {
+    this.#clearPendingAnimation();
+    this.#hideCancelButton();
+    this.#cancelAction = null;
+    progressBarElt.style.backgroundColor = "#d29922";
+    statusLineElt.textContent = msg;
+    statusLineElt.style.visibility = "visible";
+  }
+
+  /**
+   * @param {string} msg
    * @param {string} color
    */
   #finish(msg, color) {
     this.#clearPendingAnimation();
+    this.#hideCancelButton();
+    this.#cancelAction = null;
     this.#percent = 100;
     progressBarElt.style.width = "100%";
     progressBarElt.style.backgroundColor = color;
@@ -127,12 +176,23 @@ class ProgressBarClass {
     }
     clearTimeout(this.#fadeTimeout);
     clearTimeout(this.#resetTimeout);
+    clearTimeout(this.#cancelButtonTimeout);
+    this.#cancelButtonTimeout = null;
     progressBarWrapperElt.style.transition = "none";
     progressBarWrapperElt.style.opacity = "1";
     progressBarElt.style.transition = "none";
     progressBarElt.style.opacity = "1";
     statusLineElt.style.transition = "none";
     statusLineElt.style.opacity = "1";
+  }
+
+  #hideCancelButton() {
+    clearTimeout(this.#cancelButtonTimeout);
+    this.#cancelButtonTimeout = null;
+    cancelButtonElt.classList.remove("is-visible");
+    cancelButtonElt.disabled = false;
+    cancelButtonElt.setAttribute("aria-hidden", "true");
+    cancelButtonElt.setAttribute("tabindex", "-1");
   }
 }
 
