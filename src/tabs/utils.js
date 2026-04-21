@@ -12,13 +12,20 @@ export function esc(s) {
  */
 export function fmtBytes(n) {
   const b = Number(n);
-  if (b < 1024) {
+  if (!Number.isFinite(b)) {
+    return "0 B";
+  }
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let unitIndex = 0;
+  let value = b;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex++;
+  }
+  if (unitIndex === 0) {
     return `${b} B`;
   }
-  if (b < 1_048_576) {
-    return `${(b / 1024).toFixed(1)} KB`;
-  }
-  return `${(b / 1_048_576).toFixed(2)} MB`;
+  return `${value.toFixed(unitIndex === 1 ? 1 : 2)} ${units[unitIndex]}`;
 }
 
 /**
