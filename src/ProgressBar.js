@@ -113,17 +113,27 @@ class ProgressBarClass {
    * @param {string} msg
    */
   fail(msg) {
-    this.#finish(msg, "#d85a30");
+    this.#settle(msg, "#d85a30");
   }
 
   /**
    * @param {string} msg
    */
   cancel(msg) {
+    this.#settle(msg, "#d29922");
+  }
+
+  /**
+   * @param {string} msg
+   * @param {string} color
+   */
+  #settle(msg, color) {
     this.#clearPendingAnimation();
     this.#hideCancelButton();
     this.#cancelAction = null;
-    progressBarElt.style.backgroundColor = "#d29922";
+    progressBarWrapperElt.style.backgroundColor =
+      "var(--color-border-tertiary)";
+    progressBarElt.style.backgroundColor = color;
     statusLineElt.textContent = msg;
     statusLineElt.style.visibility = "visible";
   }
