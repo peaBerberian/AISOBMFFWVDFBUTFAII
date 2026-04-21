@@ -110,9 +110,27 @@ input[type="text"] {
 
 #tabs {
   display: flex;
+  position: relative;
+  --active-tab-left: 0px;
+  --active-tab-width: 0px;
   border-bottom: 0.5px solid var(--color-border-tertiary);
   margin-bottom: 1rem;
   gap: 0;
+}
+
+#tabs::after {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: var(--active-tab-width);
+  height: 2px;
+  background: var(--color-text-primary);
+  content: "";
+  pointer-events: none;
+  transform: translateX(var(--active-tab-left));
+  transition:
+    transform 0.22s ease,
+    width 0.22s ease;
 }
 
 #tabs[hidden] {
@@ -139,11 +157,11 @@ input[type="text"] {
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
+  transition: color 0.16s ease;
 }
 
 .tab.active {
   color: var(--color-text-primary);
-  border-bottom-color: var(--color-text-primary);
   font-weight: 500;
 }
 
@@ -157,4 +175,11 @@ input[type="text"] {
 
 .tab-panel.active {
   display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #tabs::after,
+  .tab {
+    transition: none;
+  }
 }

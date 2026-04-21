@@ -1,6 +1,6 @@
 import { parseEvents } from "isobmff-inspector";
 import ProgressBar from "./ProgressBar.js";
-import { BoxTreeNodeView, renderSizeChart } from "./tabs";
+import { BoxTreeNodeView, renderSizeChart, updateTabIndicator } from "./tabs";
 
 const AUTO_OPEN_BOX_LIMIT = 400;
 
@@ -31,6 +31,7 @@ export async function parseAndRender(input, abortSignal) {
   }
   topLevelBoxes.length = 0;
   tabs.hidden = false;
+  updateTabIndicator();
   tabs.classList.add("is-reserved");
   tabs.classList.remove("is-visible");
 

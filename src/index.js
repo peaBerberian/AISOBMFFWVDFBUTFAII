@@ -1,5 +1,6 @@
 import ProgressBar from "./ProgressBar.js";
 import { parseAndRender } from "./parse.js";
+import { updateTabIndicator } from "./tabs";
 import { createAbortableAsyncIterable } from "./utils.js";
 
 /**
@@ -138,6 +139,7 @@ function initializeUrlInput() {
 
 function initializeTabNavigation() {
   const tabElts = document.getElementsByClassName("tab");
+
   for (let tabIdx = 0; tabIdx < tabElts.length; tabIdx++) {
     const tabEl = /** @type {HTMLElement} */ (tabElts[tabIdx]);
     tabEl.addEventListener("click", () => {
@@ -160,8 +162,12 @@ function initializeTabNavigation() {
       document
         .getElementById(`tab-${tabEl.dataset.tab}`)
         .classList.add("active");
+      updateTabIndicator();
     });
   }
+
+  updateTabIndicator();
+  window.addEventListener("resize", updateTabIndicator);
 }
 
 function initializeGithubStars() {
