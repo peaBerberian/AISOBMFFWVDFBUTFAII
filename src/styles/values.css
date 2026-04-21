@@ -204,6 +204,10 @@
   line-height: 1.5;
 }
 
+.parse-notice {
+  margin: 0;
+}
+
 .arr-item {
   padding: 2px 0;
   border-top: 0.5px solid var(--color-border-tertiary);
