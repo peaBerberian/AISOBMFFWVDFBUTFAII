@@ -1,5 +1,7 @@
 import { el, esc, fmtBytes } from "./utils";
 
+const AUTO_OPEN_FIELD_LIMIT = 80;
+
 /**
  * View abstraction for one rendered box-tree node.
  */
@@ -11,13 +13,10 @@ export default class BoxTreeNodeView {
 
   /**
    * @param {import("isobmff-inspector").ParsedBox} box
-   * @param {{ shallow?: boolean }} options
+   * @param {{ autoOpen?: boolean, shallow?: boolean }} options
    */
   constructor(box, options = {}) {
-    const { element, childContainer } = renderBoxTreeNode(
-      box,
-      options.shallow ?? false,
-    );
+    const { element, childContainer } = renderBoxTreeNode(box, options);
     this.#element = element;
     this.#childContainer = childContainer;
   }
@@ -32,16 +31,20 @@ export default class BoxTreeNodeView {
   /**
    * Creates, attaches, and returns a child box view.
    * @param {import("isobmff-inspector").ParsedBox} box
+   * @param {{ autoOpen?: boolean }} options
    * @returns {BoxTreeNodeView}
    */
-  appendChildBox(box) {
+  appendChildBox(box, options = {}) {
     if (!this.#childContainer) {
       throw new Error(
         `box ${box.type} cannot be appended without a child container`,
       );
     }
 
-    const view = new BoxTreeNodeView(box, { shallow: true });
+    const view = new BoxTreeNodeView(box, {
+      autoOpen: this.#isOpen() && (options.autoOpen ?? true),
+      shallow: true,
+    });
     this.#childContainer.appendChild(view.element);
     return view;
   }
@@ -51,7 +54,10 @@ export default class BoxTreeNodeView {
    * @param {import("isobmff-inspector").ParsedBox} box
    */
   updateBox(box) {
-    const { element, childContainer } = renderBoxTreeNode(box, true);
+    const { element, childContainer } = renderBoxTreeNode(box, {
+      autoOpen: this.#isOpen() && shouldAutoOpenBox(box),
+      shallow: true,
+    });
 
     if (this.#childContainer?.firstChild && !childContainer) {
       throw new Error(
@@ -69,6 +75,15 @@ export default class BoxTreeNodeView {
     this.#element = element;
     this.#childContainer = childContainer;
   }
+
+  /**
+   * @returns {boolean}
+   */
+  #isOpen() {
+    return this.#element instanceof HTMLDetailsElement
+      ? this.#element.open
+      : false;
+  }
 }
 
 /**
@@ -82,14 +97,16 @@ export default class BoxTreeNodeView {
  * object is ignored — the caller appends child elements directly into the
  * returned element's child container.
  * @param {import("isobmff-inspector").ParsedBox} box
- * @param {boolean} shallow
+ * @param {{ autoOpen?: boolean, shallow?: boolean }} options
  * @returns {{ element: HTMLElement, childContainer: HTMLElement | null }}
  */
-function renderBoxTreeNode(box, shallow = false) {
+function renderBoxTreeNode(box, options = {}) {
+  const shallow = options.shallow ?? false;
   const hasValues = box.values?.length > 0;
   const hasChildren = !shallow && box.children?.length > 0;
   const hasContent =
     hasValues || hasChildren || box.description || box.issues?.length;
+  const autoOpen = options.autoOpen ?? shouldAutoOpen(box);
 
   // Issue indicator dot
   const makeDot = () => {
@@ -171,7 +188,7 @@ function renderBoxTreeNode(box, shallow = false) {
   }
 
   const det = document.createElement("details");
-  det.open = true;
+  det.open = autoOpen;
 
   const summary = document.createElement("summary");
   const caret = el("span", "box-caret");
@@ -180,13 +197,29 @@ function renderBoxTreeNode(box, shallow = false) {
   summary.appendChild(makeHeader());
   det.appendChild(summary);
 
-  if (hasContent) {
-    det.appendChild(makeBody());
-  }
-
   // Child container — in streaming mode the caller appends into this div
   const childContainer = el("div", "box-children");
   det.appendChild(childContainer);
+
+  if (hasContent) {
+    const insertBody = () => {
+      det.insertBefore(makeBody(), childContainer);
+    };
+
+    if (det.open) {
+      insertBody();
+    } else {
+      det.addEventListener(
+        "toggle",
+        () => {
+          if (det.open && !det.querySelector(":scope > .box-body")) {
+            insertBody();
+          }
+        },
+        { once: true },
+      );
+    }
+  }
 
   // Non-streaming: populate children immediately
   if (hasChildren) {
@@ -344,6 +377,48 @@ function renderValue(f) {
       return wrap;
     }
   }
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox} box
+ * @returns {boolean}
+ */
+function shouldAutoOpenBox(box) {
+  return shouldAutoOpen(box);
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox} box
+ * @returns {boolean}
+ */
+function shouldAutoOpen(box) {
+  if (countFields(box.values ?? []) > AUTO_OPEN_FIELD_LIMIT) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * @param {Array<import("isobmff-inspector").ParsedField>} fields
+ * @returns {number}
+ */
+function countFields(fields) {
+  let count = 0;
+  for (const field of fields) {
+    count++;
+    switch (field.kind) {
+      case "array":
+        count += countFields(field.items ?? []);
+        break;
+      case "bits":
+        count += field.fields?.length ?? 0;
+        break;
+      case "struct":
+        count += countFields(field.fields ?? []);
+        break;
+    }
+  }
+  return count;
 }
 
 /**

@@ -2,6 +2,8 @@ import { parseEvents } from "isobmff-inspector";
 import ProgressBar from "./ProgressBar.js";
 import { BoxTreeNodeView, renderSizeChart } from "./tabs";
 
+const AUTO_OPEN_BOX_LIMIT = 400;
+
 /**
  * @param {import("isobmff-inspector").ISOBMFFInput} input
  * @param {AbortSignal} abortSignal
@@ -24,6 +26,7 @@ export async function parseAndRender(input, abortSignal) {
   /** @type {Array<import("./tabs").BoxTreeNodeView>} */
   const stack = [];
   let completed = false;
+  let renderedBoxCount = 0;
 
   try {
     for await (const event of parseEvents(input)) {
@@ -46,10 +49,17 @@ export async function parseAndRender(input, abortSignal) {
           issues: [],
           children: [],
         };
+        const shouldAutoOpen = renderedBoxCount < AUTO_OPEN_BOX_LIMIT;
+        renderedBoxCount++;
         const view =
           depth === 0
-            ? new BoxTreeNodeView(box, { shallow: true })
-            : stack[depth - 1]?.appendChildBox(box);
+            ? new BoxTreeNodeView(box, {
+                autoOpen: shouldAutoOpen,
+                shallow: true,
+              })
+            : stack[depth - 1]?.appendChildBox(box, {
+                autoOpen: shouldAutoOpen,
+              });
         if (!view) {
           throw new Error(`missing parent for ${event.path.join("/")}`);
         }
