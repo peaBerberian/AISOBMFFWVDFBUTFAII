@@ -1,13 +1,16 @@
 import { parseEvents } from "isobmff-inspector";
-import { buildBoxEl, renderSizeChart } from "./renderer.js";
 import ProgressBar from "./ProgressBar.js";
+import { buildBoxEl, renderSizeChart } from "./renderer.js";
 
 const statusLineElt = document.getElementById("status-line");
+const progressBar = new ProgressBar();
+let activeParseId = 0;
 
 /**
  * @param {import("isobmff-inspector").ISOBMFFInput} input
  */
 async function parseAndRender(input) {
+  const parseId = ++activeParseId;
   // Walk an already-built DOM tree of <details>/<div> nodes and collect the
   // top-level box sizes for the size chart. We re-use the full parsed array
   // that accumulates during streaming.
@@ -19,15 +22,19 @@ async function parseAndRender(input) {
   topLevelBoxes.length = 0;
   tabs.style.display = "none";
 
-  const progressBar = new ProgressBar();
   progressBar.start("parsing…");
   progressBar.startEasing();
 
   /** @type {Array<{ element: HTMLElement, childWrap: HTMLElement | null }>} */
   const stack = [];
+  let completed = false;
 
   try {
     for await (const event of parseEvents(input)) {
+      if (parseId !== activeParseId) {
+        return;
+      }
+
       if (event.event === "box-start") {
         const depth = event.path.length - 1;
         stack.length = depth;
@@ -95,12 +102,17 @@ async function parseAndRender(input) {
 
     renderSizeChart(topLevelBoxes);
     tabs.style.display = "flex";
+    completed = true;
   } catch (err) {
-    // XXX TODO: integrate to progress bar (e.g. to a red progressbar)
-    setStatus(`parse error: ${err?.message ?? err}`);
+    if (parseId !== activeParseId) {
+      return;
+    }
+    progressBar.fail(`parse error: ${err?.message ?? err}`);
     console.error("parse error", err);
   } finally {
-    progressBar.end("File parsed with success!");
+    if (parseId === activeParseId && completed) {
+      progressBar.end("File parsed with success!");
+    }
   }
 }
 

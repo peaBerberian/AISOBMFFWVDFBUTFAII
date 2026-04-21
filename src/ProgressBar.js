@@ -3,7 +3,7 @@ const progressBarElt = document.getElementById("progress-bar");
 const statusLineElt = document.getElementById("status-line");
 
 export default class ProgressBar {
-  #restarfRaf = null;
+  #restartRaf = null;
   #fadeTimeout = null;
   #resetTimeout = null;
   #easingRaf = null;
@@ -19,9 +19,10 @@ export default class ProgressBar {
     progressBarWrapperElt.style.backgroundColor =
       "var(--color-border-tertiary)";
     this.#percent = 0;
+    progressBarElt.style.backgroundColor = "#378add";
     progressBarElt.style.width = "0%";
-    this.#restarfRaf = requestAnimationFrame(() => {
-      this.#restarfRaf = null;
+    this.#restartRaf = requestAnimationFrame(() => {
+      this.#restartRaf = null;
       this.#percent = 5;
       progressBarElt.style.transition = "width 0.3s ease";
       progressBarElt.style.width = "5%";
@@ -44,7 +45,8 @@ export default class ProgressBar {
   setProgress(ratio, msg) {
     if (ratio !== undefined) {
       this.#stopEasing();
-      progressBarElt.style.width = `${Math.min(ratio, 0.99) * 100}%`;
+      this.#percent = Math.min(ratio, 0.99) * 100;
+      progressBarElt.style.width = `${this.#percent}%`;
     }
     if (msg !== undefined) {
       statusLineElt.textContent = msg;
@@ -64,10 +66,25 @@ export default class ProgressBar {
    * @param {string} msg
    */
   end(msg) {
+    this.#finish(msg, "#65bf77");
+  }
+
+  /**
+   * @param {string} msg
+   */
+  fail(msg) {
+    this.#finish(msg, "#d85a30");
+  }
+
+  /**
+   * @param {string} msg
+   * @param {string} color
+   */
+  #finish(msg, color) {
     this.#clearPendingAnimation();
     this.#percent = 100;
     progressBarElt.style.width = "100%";
-    progressBarElt.style.backgroundColor = "#65bf77";
+    progressBarElt.style.backgroundColor = color;
     statusLineElt.textContent = msg;
     statusLineElt.style.visibility = "visible";
 
@@ -99,9 +116,9 @@ export default class ProgressBar {
 
   #clearPendingAnimation() {
     this.#stopEasing();
-    if (this.#restarfRaf !== null) {
-      cancelAnimationFrame(this.#restarfRaf);
-      this.#restarfRaf = null;
+    if (this.#restartRaf !== null) {
+      cancelAnimationFrame(this.#restartRaf);
+      this.#restartRaf = null;
     }
     clearTimeout(this.#fadeTimeout);
     clearTimeout(this.#resetTimeout);
