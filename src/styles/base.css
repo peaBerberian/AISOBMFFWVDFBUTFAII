@@ -1,0 +1,32 @@
+:root {
+  --font-sans:
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo,
+    monospace;
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f6f8fa;
+  --color-background-hover: #fcfcfe;
+  --color-border-secondary: #b7c0cb;
+  --color-border-tertiary: #d8dee6;
+  --color-text-primary: #1f2328;
+  --color-text-secondary: #59636e;
+  --color-text-tertiary: #818b98;
+  --border-radius-lg: 6px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  color: var(--color-text-primary);
+  background: transparent;
+  padding: 0 1rem 2rem;
+}
