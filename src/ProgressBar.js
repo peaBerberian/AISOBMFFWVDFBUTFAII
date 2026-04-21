@@ -2,7 +2,12 @@ const progressBarWrapperElt = document.getElementById("progress-bar-wrap");
 const progressBarElt = document.getElementById("progress-bar");
 const statusLineElt = document.getElementById("status-line");
 
-export default class ProgressBar {
+/**
+ * Behavior for the progress bar on the top of the page.
+ * Will be constructed as a Pascal-Cased singleton from this file, explaining
+ * the weird naming.
+ */
+class ProgressBarClass {
   #restartRaf = null;
   #fadeTimeout = null;
   #resetTimeout = null;
@@ -130,3 +135,6 @@ export default class ProgressBar {
     statusLineElt.style.opacity = "1";
   }
 }
+
+const ProgressBar = new ProgressBarClass();
+export default ProgressBar;

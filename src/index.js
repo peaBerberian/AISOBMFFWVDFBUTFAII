@@ -1,192 +1,133 @@
-import { parseEvents } from "isobmff-inspector";
 import ProgressBar from "./ProgressBar.js";
-import { buildBoxEl, renderSizeChart } from "./renderer.js";
-
-const progressBar = new ProgressBar();
-let activeParseId = 0;
+import { parseAndRender } from "./parse.js";
+import { createAbortableAsyncIterable } from "./utils.js";
 
 /**
- * @param {import("isobmff-inspector").ISOBMFFInput} input
- * @param {number} [parseId]
+ * AbortController linked to the current segment/file parsing process.
+ * Only one parsing process maximum can take place at a time.
+ * @type AbortController | null
  */
-async function parseAndRender(input, parseId = ++activeParseId) {
-  // Walk an already-built DOM tree of <details>/<div> nodes and collect the
-  // top-level box sizes for the size chart. We re-use the full parsed array
-  // that accumulates during streaming.
-  const topLevelBoxes = [];
-  let boxCount = 0;
-  const tabs = document.getElementById("tabs");
-  const wrapper = document.getElementById("file-description");
-  wrapper.innerHTML = "";
-  topLevelBoxes.length = 0;
-  tabs.style.display = "none";
+let currentSegmentParsingAbortController = null;
 
-  progressBar.start("parsing…");
-  progressBar.startEasing();
+initializeFileReaderInput();
+initializeUrlInput();
+initializeTabNavigation();
 
-  /** @type {Array<{ element: HTMLElement, childWrap: HTMLElement | null }>} */
-  const stack = [];
-  let completed = false;
-
+/**
+ * Fetch the mp4 file's URL and run our parser on it.
+ * Can be aborted at any time with the given `AbortSignal`.
+ * @param {string} url
+ * @param {AbortSignal} signal
+ * @returns {Promise}
+ */
+async function fetchSegmentAndParse(url, signal) {
+  ProgressBar.start("fetching…");
+  ProgressBar.startEasing();
   try {
-    for await (const event of parseEvents(input)) {
-      if (parseId !== activeParseId) {
+    const r = await fetch(url, { signal });
+    if (signal.aborted) {
+      return;
+    }
+    if (!r.ok) {
+      const errMsg = `HTTP ${r.status}${r.statusText ? ` ${r.statusText}` : ""}`;
+      ProgressBar.fail(`fetch error: ${errMsg}`);
+      return;
+    }
+    return parseAndRender(
+      r.body ? createAbortableAsyncIterable(r.body, signal) : r,
+      signal,
+    );
+  } catch (err) {
+    if (!signal.aborted) {
+      ProgressBar.fail(`fetch error: ${err?.message ?? err}`);
+      throw err;
+    }
+  }
+}
+
+/**
+ * Try to format the given file to the best abstraction for the job.
+ * @param {Blob} file
+ * @param {AbortSignal} signal
+ * @returns {import("isobmff-inspector").ISOBMFFInput}
+ */
+function formatFileInput(file, signal) {
+  if (typeof file.stream === "function") {
+    return createAbortableAsyncIterable(file.stream(), signal);
+  }
+  return file;
+}
+
+function initializeFileReaderInput() {
+  if (window.File && window.FileReader && window.Uint8Array) {
+    document.getElementById("file-input").addEventListener("change", (evt) => {
+      const fileInputElt = /** @type {HTMLInputElement | null} */ (evt.target);
+      const files = fileInputElt.files;
+      if (!files?.length) {
         return;
       }
-
-      if (event.event === "box-start") {
-        const depth = event.path.length - 1;
-        stack.length = depth;
-
-        const parent = depth === 0 ? wrapper : stack[depth - 1]?.childWrap;
-        if (!parent) {
-          throw new Error(`missing parent for ${event.path.join("/")}`);
-        }
-
-        const box = {
-          type: event.type,
-          size: event.size,
-          offset: event.offset,
-          headerSize: event.headerSize,
-          sizeField: event.sizeField,
-          uuid: event.uuid,
-          values: [],
-          issues: [],
-          children: [],
-        };
-        const element = buildBoxEl(box, /* shallow = */ true);
-        parent.appendChild(element);
-        stack[depth] = {
-          element,
-          childWrap: /** @type {HTMLElement | null} */ (
-            element.querySelector(":scope > .box-children")
-          ),
-        };
-        continue;
-      }
-
-      if (event.event === "box-complete") {
-        boxCount++;
-        let msg;
-        if (boxCount !== undefined && boxCount % 5 === 0) {
-          msg = `parsed ${boxCount} boxes…`;
-          progressBar.updateStatus(msg);
-        }
-
-        const box = event.box;
-        const depth = event.path.length - 1; // path includes this box's type
-        const current = stack[depth];
-        if (!current) {
-          throw new Error(`missing started box for ${event.path.join("/")}`);
-        }
-
-        const element = buildBoxEl(box, /* shallow = */ true);
-        const oldChildWrap = current.childWrap;
-        const newChildWrap = /** @type {HTMLElement | null} */ (
-          element.querySelector(":scope > .box-children")
-        );
-        if (oldChildWrap && newChildWrap) {
-          while (oldChildWrap.firstChild) {
-            newChildWrap.appendChild(oldChildWrap.firstChild);
-          }
-        }
-        current.element.replaceWith(element);
-        stack[depth] = { element, childWrap: newChildWrap };
-
-        if (depth === 0) {
-          topLevelBoxes.push(box);
-        }
-      }
-    }
-
-    renderSizeChart(topLevelBoxes);
-    tabs.style.display = "flex";
-    completed = true;
-  } catch (err) {
-    if (parseId !== activeParseId) {
-      return;
-    }
-    progressBar.fail(`parse error: ${err?.message ?? err}`);
-    console.error("parse error", err);
-  } finally {
-    if (parseId === activeParseId && completed) {
-      progressBar.end("File parsed with success!");
-    }
+      currentSegmentParsingAbortController?.abort();
+      currentSegmentParsingAbortController = new AbortController();
+      const signal = currentSegmentParsingAbortController.signal;
+      parseAndRender(formatFileInput(files[0], signal), signal);
+    });
+  } else {
+    document.getElementById("choices-local-segment").style.display = "none";
+    document.getElementById("choices-separator").style.display = "none";
   }
 }
 
-if (window.File && window.FileReader && window.Uint8Array) {
-  document.getElementById("file-input").addEventListener("change", (evt) => {
-    const fileInputElt = /** @type {HTMLInputElement | null} */ (evt.target);
-    const files = fileInputElt.files;
-    if (!files?.length) {
-      return;
-    }
-    parseAndRender(files[0]);
-  });
-} else {
-  document.getElementById("choices-local-segment").style.display = "none";
-  document.getElementById("choices-separator").style.display = "none";
-}
-
-if (window.fetch && window.Uint8Array) {
-  function fetchAndParse() {
-    const url = /** @type {HTMLInputElement} */ (
-      document.getElementById("url-input")
-    ).value.trim();
-    if (!url) {
-      return;
-    }
-    const parseId = ++activeParseId;
-    progressBar.start("fetching…");
-    progressBar.startEasing();
-    fetch(url)
-      .then((r) => {
-        if (parseId !== activeParseId) {
-          return;
-        }
-        return parseAndRender(r, parseId);
-      })
-      .catch((err) => {
-        if (parseId === activeParseId) {
-          progressBar.fail(`fetch error: ${err?.message ?? err}`);
-        }
-      });
-  }
-
-  document
-    .getElementById("url-button")
-    .addEventListener("click", fetchAndParse);
-  document.getElementById("url-input").addEventListener("keypress", (evt) => {
-    if ((evt.keyCode || evt.which) === 13) {
-      fetchAndParse();
-    }
-  });
-} else {
-  document.getElementById("choices-separator").style.display = "none";
-  document.getElementById("choices-url-segment").style.display = "none";
-}
-
-const tabElts = document.getElementsByClassName("tab");
-for (let tabIdx = 0; tabIdx < tabElts.length; tabIdx++) {
-  const tabEl = /** @type {HTMLElement} */ (tabElts[tabIdx]);
-  tabEl.addEventListener("click", () => {
-    for (let innerTabIdx = 0; innerTabIdx < tabElts.length; innerTabIdx++) {
-      const innerTab = tabElts[innerTabIdx];
-      if (innerTab !== tabEl) {
-        innerTab.classList.remove("active");
+function initializeUrlInput() {
+  if (window.fetch && window.Uint8Array) {
+    function onUrlClick() {
+      const url = /** @type {HTMLInputElement} */ (
+        document.getElementById("url-input")
+      ).value.trim();
+      if (!url) {
+        return;
       }
+      currentSegmentParsingAbortController?.abort();
+      currentSegmentParsingAbortController = new AbortController();
+      const signal = currentSegmentParsingAbortController.signal;
+      fetchSegmentAndParse(url, signal);
     }
-    const tabPanelElts = document.getElementsByClassName("tab-panel");
-    for (
-      let tabPanelIdx = 0;
-      tabPanelIdx < tabPanelElts.length;
-      tabPanelIdx++
-    ) {
-      const tabPanel = tabPanelElts[tabPanelIdx];
-      tabPanel.classList.remove("active");
-    }
-    tabEl.classList.add("active");
-    document.getElementById(`tab-${tabEl.dataset.tab}`).classList.add("active");
-  });
+
+    document.getElementById("url-button").addEventListener("click", onUrlClick);
+    document.getElementById("url-input").addEventListener("keypress", (evt) => {
+      if ((evt.keyCode || evt.which) === 13) {
+        onUrlClick();
+      }
+    });
+  } else {
+    document.getElementById("choices-separator").style.display = "none";
+    document.getElementById("choices-url-segment").style.display = "none";
+  }
+}
+
+function initializeTabNavigation() {
+  const tabElts = document.getElementsByClassName("tab");
+  for (let tabIdx = 0; tabIdx < tabElts.length; tabIdx++) {
+    const tabEl = /** @type {HTMLElement} */ (tabElts[tabIdx]);
+    tabEl.addEventListener("click", () => {
+      for (let innerTabIdx = 0; innerTabIdx < tabElts.length; innerTabIdx++) {
+        const innerTab = tabElts[innerTabIdx];
+        if (innerTab !== tabEl) {
+          innerTab.classList.remove("active");
+        }
+      }
+      const tabPanelElts = document.getElementsByClassName("tab-panel");
+      for (
+        let tabPanelIdx = 0;
+        tabPanelIdx < tabPanelElts.length;
+        tabPanelIdx++
+      ) {
+        const tabPanel = tabPanelElts[tabPanelIdx];
+        tabPanel.classList.remove("active");
+      }
+      tabEl.classList.add("active");
+      document
+        .getElementById(`tab-${tabEl.dataset.tab}`)
+        .classList.add("active");
+    });
+  }
 }
