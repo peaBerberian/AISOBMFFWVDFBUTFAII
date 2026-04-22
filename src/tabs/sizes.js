@@ -43,6 +43,13 @@ const MAP_MARKER_WIDTH_PX = 4;
  *   marker: boolean,
  * }} SizeMapNode
  */
+/**
+ * @typedef {{
+ *   row: SizeRow,
+ *   size: number,
+ *   label: string,
+ * }} SizeOverviewSegment
+ */
 
 /**
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
@@ -123,6 +130,18 @@ function getBoxSize(box) {
 
 /**
  * @param {import("isobmff-inspector").ParsedBox} box
+ * @returns {number}
+ */
+function getOwnBoxSize(box) {
+  const childrenSize = (box.children ?? []).reduce(
+    (sum, child) => sum + getBoxSize(child),
+    0,
+  );
+  return Math.max(0, getBoxSize(box) - childrenSize);
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox} box
  * @param {SizeMapScale} scale
  * @returns {number}
  */
@@ -143,6 +162,31 @@ function getMapBoxSize(box, scale) {
  */
 function getMapTotalSize(boxes, scale) {
   return boxes.reduce((sum, box) => sum + getMapBoxSize(box, scale), 0);
+}
+
+/**
+ * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
+ * @param {WeakMap<import("isobmff-inspector").ParsedBox, SizeRow>} rowsByBox
+ * @param {Array<SizeOverviewSegment>} out
+ */
+function collectOwnSizeSegments(boxes, rowsByBox, out) {
+  for (const box of boxes) {
+    if (EXCLUDED_SHARE_BOX_TYPES.has(box.type)) {
+      continue;
+    }
+    const row = rowsByBox.get(box);
+    const ownSize = getOwnBoxSize(box);
+    if (row && ownSize > 0) {
+      out.push({
+        row,
+        size: ownSize,
+        label: box.children?.length ? `${box.type} own bytes` : box.type,
+      });
+    }
+    if (box.children?.length) {
+      collectOwnSizeSegments(box.children, rowsByBox, out);
+    }
+  }
 }
 
 /**
@@ -237,6 +281,22 @@ function createSizeSection(title) {
 }
 
 /**
+ * @param {string} label
+ * @param {SizeMapScale} scale
+ * @param {string} ariaLabel
+ */
+function createScaleButton(label, scale, ariaLabel) {
+  const button = /** @type {HTMLButtonElement} */ (
+    el("button", "size-scale-button")
+  );
+  button.type = "button";
+  button.textContent = label;
+  button.dataset.scale = scale;
+  button.setAttribute("aria-label", ariaLabel);
+  return button;
+}
+
+/**
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
  */
 export default function renderSizeChart(boxes) {
@@ -295,6 +355,8 @@ export default function renderSizeChart(boxes) {
   let mapScale = "file";
   /** @type {SizeRow | null} */
   let activeMapRow = null;
+  /** @type {HTMLButtonElement[]} */
+  const scaleButtons = [];
 
   container.innerHTML = "";
 
@@ -328,50 +390,53 @@ export default function renderSizeChart(boxes) {
   `;
   overviewSection.body.appendChild(summary);
 
-  // Stacked bar
+  const overviewControls = el("div", "size-scale-controls");
+  if (showNonMdatShare) {
+    const overviewFileScaleButton = createScaleButton(
+      "top-level file",
+      "file",
+      "Show top-level boxes across the whole file",
+    );
+    const overviewExcludingMdatButton = createScaleButton(
+      "metadata breakdown",
+      "excluding-mdat",
+      "Show non-mdat bytes broken down by box",
+    );
+    scaleButtons.push(overviewFileScaleButton, overviewExcludingMdatButton);
+    overviewControls.appendChild(overviewFileScaleButton);
+    overviewControls.appendChild(overviewExcludingMdatButton);
+    overviewSection.body.appendChild(overviewControls);
+  }
+
   const bar = el("div", "size-bar");
   bar.setAttribute("aria-hidden", "true");
-  sorted.forEach((b, i) => {
-    const pct = (Number(b.size ?? 0) / total) * 100;
-    const seg = el("div", "size-bar-seg");
-    seg.style.width = `${pct}%`;
-    seg.style.background = CHART_COLORS[i % CHART_COLORS.length];
-    seg.title = `${b.type}: ${fmtBytes(b.size)} (${pct.toFixed(1)}%)`;
-    bar.appendChild(seg);
-  });
   overviewSection.body.appendChild(bar);
 
   const scaleNote = el("div", "size-scale-note");
   scaleNote.textContent = showNonMdatShare
-    ? "file share is percent of the whole file; excluding mdat is percent of the file after subtracting mdat boxes."
-    : "file share is percent of the whole file.";
+    ? "top-level file shows whole-file composition; metadata breakdown removes mdat and splits the remaining bytes by leaf boxes and container overhead."
+    : "metadata breakdown splits file bytes by leaf boxes and container overhead.";
   overviewSection.body.appendChild(scaleNote);
 
   const mapSection = createSizeSection("ordered box map");
   container.appendChild(mapSection.section);
   const mapWrap = el("div", "size-map-wrap");
   const mapHeader = el("div", "size-map-header");
-  const mapControls = el("div", "size-map-controls");
-  const fileScaleButton = /** @type {HTMLButtonElement} */ (
-    el("button", "size-map-scale")
-  );
-  fileScaleButton.type = "button";
-  fileScaleButton.textContent = "file scale";
-  fileScaleButton.dataset.scale = "file";
-  fileScaleButton.setAttribute("aria-label", "Use whole file scale");
-  let excludingMdatButton = /** @type {HTMLButtonElement | null} */ (null);
+  const mapControls = el("div", "size-scale-controls");
   if (showNonMdatShare) {
-    mapControls.appendChild(fileScaleButton);
-    excludingMdatButton = /** @type {HTMLButtonElement} */ (
-      el("button", "size-map-scale")
+    const mapFileScaleButton = createScaleButton(
+      "whole file scale",
+      "file",
+      "Use whole file scale",
     );
-    excludingMdatButton.type = "button";
-    excludingMdatButton.textContent = "excluding mdat";
-    excludingMdatButton.dataset.scale = "excluding-mdat";
-    excludingMdatButton.setAttribute("aria-label", "Use scale excluding mdat");
-    mapControls.appendChild(excludingMdatButton);
-  }
-  if (showNonMdatShare) {
+    const mapExcludingMdatButton = createScaleButton(
+      "without mdat scale",
+      "excluding-mdat",
+      "Use scale excluding mdat",
+    );
+    scaleButtons.push(mapFileScaleButton, mapExcludingMdatButton);
+    mapControls.appendChild(mapFileScaleButton);
+    mapControls.appendChild(mapExcludingMdatButton);
     mapHeader.appendChild(mapControls);
   }
   mapWrap.appendChild(mapHeader);
@@ -412,15 +477,11 @@ export default function renderSizeChart(boxes) {
     return activeMapRow?.box === row.box;
   }
 
-  function updateMapScaleButtons() {
-    fileScaleButton.setAttribute(
-      "aria-pressed",
-      mapScale === "file" ? "true" : "false",
-    );
-    if (excludingMdatButton) {
-      excludingMdatButton.setAttribute(
+  function updateScaleButtons() {
+    for (const button of scaleButtons) {
+      button.setAttribute(
         "aria-pressed",
-        mapScale === "excluding-mdat" ? "true" : "false",
+        mapScale === button.dataset.scale ? "true" : "false",
       );
     }
   }
@@ -431,17 +492,57 @@ export default function renderSizeChart(boxes) {
   function setMapScale(scale) {
     mapScale = scale;
     activeMapRow = null;
+    renderOverviewBar();
     renderSizeMap();
     renderLegend();
   }
 
-  fileScaleButton.addEventListener("click", () => setMapScale("file"));
-  excludingMdatButton?.addEventListener("click", () =>
-    setMapScale("excluding-mdat"),
-  );
+  for (const button of scaleButtons) {
+    button.addEventListener("click", () => {
+      const scale = button.dataset.scale;
+      if (scale === "file" || scale === "excluding-mdat") {
+        setMapScale(scale);
+      }
+    });
+  }
+
+  function renderOverviewBar() {
+    updateScaleButtons();
+    bar.innerHTML = "";
+    /** @type {Array<SizeOverviewSegment>} */
+    const segments = [];
+    const showOverviewBreakdown =
+      mapScale === "excluding-mdat" || !showNonMdatShare;
+    if (!showOverviewBreakdown) {
+      for (const box of sorted) {
+        const row = rowsByBox.get(box);
+        if (row) {
+          segments.push({ row, size: getBoxSize(box), label: box.type });
+        }
+      }
+    }
+    if (showOverviewBreakdown) {
+      collectOwnSizeSegments(boxes, rowsByBox, segments);
+      segments.sort((a, b) => b.size - a.size || a.row.order - b.row.order);
+    }
+    const scaleTotal =
+      segments.reduce((sum, segment) => sum + segment.size, 0) || 1;
+    segments.forEach((segment, i) => {
+      const { row, size } = segment;
+      if (size <= 0) {
+        return;
+      }
+      const pct = (size / scaleTotal) * 100;
+      const seg = el("div", "size-bar-seg");
+      seg.style.width = `${pct}%`;
+      seg.style.background = row.color ?? CHART_COLORS[i % CHART_COLORS.length];
+      seg.title = `${segment.label}: ${fmtBytes(size)} (${pct.toFixed(1)}%)`;
+      bar.appendChild(seg);
+    });
+  }
 
   function renderSizeMap() {
-    updateMapScaleButtons();
+    updateScaleButtons();
     map.innerHTML = "";
     /** @type {Array<SizeMapNode>} */
     const nodes = [];
@@ -672,6 +773,7 @@ export default function renderSizeChart(boxes) {
     }
   }
 
+  renderOverviewBar();
   renderSizeMap();
   renderLegend();
 }
