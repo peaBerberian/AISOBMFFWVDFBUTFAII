@@ -162,6 +162,7 @@ function deriveTrackInfo(trak) {
 
   const kind = normalizeTrackKind(getHandlerType(hdlr), sampleEntry?.type);
   const codec = getCodecLabel(sampleEntry?.type, originalFormat);
+  const protectedSampleEntry = isProtectedSampleEntry(sampleEntry?.type);
   const trackDuration = durationFromBox(mdhd) ?? durationFromBox(tkhd);
   const sampleCount = getNumberField(stsz, "sample_count");
   const syncSamples = getNumberField(stss, "entry_count");
@@ -176,6 +177,12 @@ function deriveTrackInfo(trak) {
   const dimensions = getDimensions(sampleEntry, tkhd);
   const audio = getAudioDescription(sampleEntry);
   const details = [];
+
+  if (protectedSampleEntry && !originalFormat) {
+    details.push(
+      "protected sample entry found, but original codec metadata (frma) is not available",
+    );
+  }
 
   const chromaFormat = getNumberField(hvcC, "chromaFormat");
   if (chromaFormat != null) {
@@ -440,13 +447,20 @@ function findSampleEntry(trak) {
  * @param {string | null} originalFormat
  */
 function getCodecLabel(sampleEntryType, originalFormat) {
-  if (
-    (sampleEntryType === "encv" || sampleEntryType === "enca") &&
-    originalFormat
-  ) {
+  if (isProtectedSampleEntry(sampleEntryType) && originalFormat) {
     return `${originalFormat} (${sampleEntryType} protected entry)`;
   }
+  if (isProtectedSampleEntry(sampleEntryType)) {
+    return `unknown (${sampleEntryType} protected entry)`;
+  }
   return sampleEntryType ?? "unknown";
+}
+
+/**
+ * @param {string | undefined} sampleEntryType
+ */
+function isProtectedSampleEntry(sampleEntryType) {
+  return sampleEntryType === "encv" || sampleEntryType === "enca";
 }
 
 /**
