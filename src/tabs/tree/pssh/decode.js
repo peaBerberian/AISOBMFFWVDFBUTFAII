@@ -354,24 +354,28 @@ function offsetBeyond(bytes, offset, length) {
  * @returns {string | null}
  */
 function formatWidevineField(field) {
-  if (field.number === 1 && field.bytes) {
+  if (field.number === 1 && field.value != null) {
+    return `algorithm: ${formatWidevineAlgorithm(field.value)}`;
+  }
+
+  if (field.number === 2 && field.bytes) {
+    return `key_id: ${formatWidevineKeyId(field.bytes)}`;
+  }
+
+  if (field.number === 3 && field.bytes) {
     const provider = decodeUtf8(field.bytes);
     return provider
       ? `provider: ${provider}`
       : `provider: ${bytesToHex(field.bytes)}`;
   }
 
-  if (field.number === 2 && field.bytes) {
+  if (field.number === 4 && field.bytes) {
     return `content_id: ${describeBytes(field.bytes)}`;
   }
 
-  if (field.number === 3 && field.bytes) {
+  if (field.number === 6 && field.bytes) {
     const policy = decodeUtf8(field.bytes);
     return policy ? `policy: ${policy}` : `policy: ${bytesToHex(field.bytes)}`;
-  }
-
-  if (field.number === 4 && field.bytes) {
-    return `key_id: ${formatWidevineKeyId(field.bytes)}`;
   }
 
   if (field.number === 7 && field.value != null) {
@@ -442,6 +446,17 @@ function formatWidevineKeyId(bytes) {
     return hex;
   }
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/**
+ * @param {number} value
+ * @returns {string}
+ */
+function formatWidevineAlgorithm(value) {
+  if (value === 1) {
+    return `AESCTR (${value})`;
+  }
+  return String(value);
 }
 
 /**
