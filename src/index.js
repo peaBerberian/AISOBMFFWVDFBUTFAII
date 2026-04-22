@@ -188,20 +188,26 @@ function initializeFileDrop() {
 
 function initializeUrlInput() {
   if (window.fetch && window.Uint8Array) {
-    function onUrlClick() {
-      const url = /** @type {HTMLInputElement} */ (
-        document.getElementById("url-input")
-      ).value.trim();
-      if (!url) {
+    const urlInput = /** @type {HTMLInputElement} */ (
+      document.getElementById("url-input")
+    );
+
+    /**
+     * @param {string} url
+     */
+    function inspectUrl(url) {
+      const trimmedUrl = url.trim();
+      if (!trimmedUrl) {
         return;
       }
+      urlInput.value = trimmedUrl;
       currentSegmentParsingAbortController?.abort();
       currentSegmentParsingAbortController = new AbortController();
       const controller = currentSegmentParsingAbortController;
       const signal = controller.signal;
       ProgressBar.setCancelAction(() => controller.abort());
       setResultsLoading(true);
-      fetchSegmentAndParse(url, signal).finally(() => {
+      fetchSegmentAndParse(trimmedUrl, signal).finally(() => {
         if (currentSegmentParsingAbortController === controller) {
           setResultsLoading(false);
           currentSegmentParsingAbortController = null;
@@ -209,11 +215,23 @@ function initializeUrlInput() {
       });
     }
 
+    function onUrlClick() {
+      inspectUrl(urlInput.value);
+    }
+
     document.getElementById("url-button").addEventListener("click", onUrlClick);
     document.getElementById("url-input").addEventListener("keypress", (evt) => {
       if ((evt.keyCode || evt.which) === 13) {
         onUrlClick();
       }
+    });
+    document.querySelectorAll(".example-source-button").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (!(button instanceof HTMLElement)) {
+          return;
+        }
+        inspectUrl(button.dataset.exampleUrl ?? "");
+      });
     });
   } else {
     document.getElementById("choices-separator").style.display = "none";

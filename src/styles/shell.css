@@ -56,6 +56,7 @@ h1 {
 .github-link:focus-visible,
 input[type="file"]:focus-visible,
 #url-button:focus-visible,
+.example-source-button:focus-visible,
 .tab:focus-visible {
   outline: 2px solid color-mix(in srgb, #1f6fb8 45%, transparent);
   outline-offset: 2px;
@@ -112,7 +113,8 @@ input[type="file"] {
 }
 
 input[type="file"]::file-selector-button,
-#url-button {
+#url-button,
+.example-source-button {
   min-height: 30px;
   border: 0.5px solid var(--color-border-tertiary);
   border-radius: var(--border-radius-lg);
@@ -130,7 +132,8 @@ input[type="file"]::file-selector-button {
 }
 
 input[type="file"]::file-selector-button:hover,
-#url-button:hover {
+#url-button:hover,
+.example-source-button:hover {
   color: var(--color-text-primary);
   background: var(--color-background-secondary);
   border-color: var(--color-border-secondary);
@@ -173,6 +176,28 @@ input[type="file"]::file-selector-button:hover,
 
 #url-button {
   padding: 4px 10px;
+}
+
+.example-sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.example-sources-label {
+  color: var(--color-text-tertiary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.example-source-button {
+  min-height: 24px;
+  padding: 2px 8px;
+  font-size: 11px;
+  line-height: 18px;
 }
 
 .drop-overlay {

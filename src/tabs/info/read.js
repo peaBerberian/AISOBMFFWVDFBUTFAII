@@ -348,7 +348,11 @@ function numberToFourCC(value) {
  * @param {import("isobmff-inspector").ParsedBox | null | undefined} box
  */
 function durationFromBox(box) {
-  const duration = getNumberField(box, "duration");
+  const durationValue = getFieldPrimitive(getField(box, "duration"));
+  if (isIndefiniteDurationValue(durationValue)) {
+    return null;
+  }
+  const duration = toNullableNumber(durationValue);
   const timescale = getNumberField(box, "timescale");
   if (duration == null || !timescale) {
     return null;
@@ -357,6 +361,13 @@ function durationFromBox(box) {
     seconds: duration / timescale,
     label: formatDuration(duration / timescale),
   };
+}
+
+/**
+ * @param {string | number | bigint | boolean | null} value
+ */
+function isIndefiniteDurationValue(value) {
+  return value === 0xffffffff || value === 0xffffffffffffffffn;
 }
 
 /**
