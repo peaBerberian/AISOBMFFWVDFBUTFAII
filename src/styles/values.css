@@ -107,7 +107,66 @@
 }
 
 .vv-str {
+  display: inline-block;
+  max-width: 100%;
   color: var(--color-accent-green);
+  overflow-wrap: anywhere;
+}
+
+.vv-pre {
+  white-space: pre-wrap;
+}
+
+.vv-block {
+  display: block;
+}
+
+.vv-collapsible {
+  width: 100%;
+}
+
+.vv-collapsible-summary {
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.vv-collapsible-summary::-webkit-details-marker {
+  display: none;
+}
+
+.vv-collapsible-body {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.pssh-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.pssh-preview-badge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--color-background-secondary);
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.pssh-preview-decoded .pssh-preview-badge {
+  color: #185fa5;
+}
+
+.pssh-preview-unparseable .pssh-preview-badge,
+.pssh-preview-unsupported .pssh-preview-badge {
+  color: var(--color-text-tertiary);
 }
 
 .vv-num {
