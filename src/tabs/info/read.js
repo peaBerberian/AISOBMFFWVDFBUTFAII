@@ -35,6 +35,61 @@ const ENCRYPTION_BOX_TYPES = new Set([
   "sinf",
   "tenc",
 ]);
+const COLOR_PRIMARIES_NAMES = new Map([
+  [1, "BT.709 / sRGB-ish"],
+  [2, "unspecified"],
+  [4, "BT.470M"],
+  [5, "BT.470BG"],
+  [6, "SMPTE 170M"],
+  [7, "SMPTE 240M"],
+  [8, "film"],
+  [9, "BT.2020"],
+  [11, "SMPTE RP 431-2 (DCI-P3)"],
+  [12, "SMPTE EG 432-1 (Display P3)"],
+  [22, "EBU Tech 3213-E"],
+]);
+const TRANSFER_CHARACTERISTIC_NAMES = new Map([
+  [1, "BT.709"],
+  [2, "unspecified"],
+  [4, "gamma 2.2"],
+  [5, "gamma 2.8"],
+  [6, "SMPTE 170M"],
+  [7, "SMPTE 240M"],
+  [8, "linear"],
+  [9, "log 100"],
+  [10, "log 316"],
+  [11, "xvYCC"],
+  [13, "sRGB"],
+  [14, "BT.2020 10-bit"],
+  [15, "BT.2020 12-bit"],
+  [16, "PQ"],
+  [17, "SMPTE 428-1"],
+  [18, "HLG"],
+]);
+const MATRIX_COEFFICIENT_NAMES = new Map([
+  [0, "identity / RGB"],
+  [1, "BT.709"],
+  [2, "unspecified"],
+  [4, "FCC"],
+  [5, "BT.470BG"],
+  [6, "SMPTE 170M"],
+  [7, "SMPTE 240M"],
+  [8, "YCgCo"],
+  [9, "BT.2020 non-constant"],
+  [10, "BT.2020 constant"],
+  [11, "SMPTE ST 2085"],
+  [12, "chromaticity-derived non-constant"],
+  [13, "chromaticity-derived constant"],
+  [14, "ICtCp"],
+]);
+const HEVC_PROFILE_SPACE_LETTERS = ["", "A", "B", "C"];
+const PROTECTION_SCHEME_NAMES = new Map([
+  ["cenc", "AES-CTR"],
+  ["cbc1", "AES-CBC"],
+  ["cens", "subsample AES-CTR"],
+  ["cbcs", "pattern AES-CBC"],
+  ["piff", "PIFF"],
+]);
 /**
  * @typedef {{
  *   segmentType: string,
@@ -63,6 +118,10 @@ const ENCRYPTION_BOX_TYPES = new Set([
  *   language: string | null,
  *   samples: string | null,
  *   syncSamples: string | null,
+ *   sampleSize: string | null,
+ *   sampleSizeDetails: string[],
+ *   timing: string | null,
+ *   timingDetails: string[],
  *   gop: string | null,
  *   gops: GopRun[],
  *   frameArrangement: string | null,
@@ -74,8 +133,13 @@ const ENCRYPTION_BOX_TYPES = new Set([
  *   sequence: string,
  *   trackId: string,
  *   baseDecodeTime: string,
+ *   decodeWindow: string | null,
  *   sampleCount: number,
  *   duration: string | null,
+ *   sampleSize: string | null,
+ *   sampleSizeDetails: string[],
+ *   timing: string | null,
+ *   timingDetails: string[],
  *   gops: GopRun[],
  *   frameArrangement: string | null,
  *   sampleTimeline: SampleTimeline | null,
@@ -84,8 +148,22 @@ const ENCRYPTION_BOX_TYPES = new Set([
  * @typedef {{
  *   startSample: number,
  *   sampleCount: number,
+ *   totalBytes: number | null,
  *   known: boolean,
  * }} GopRun
+
+ * @typedef {{
+ *   sampleCount: number,
+ *   constantSize: number | null,
+ *   entries: number[],
+ * }} SampleSizeSource
+
+ * @typedef {{
+ *   sampleCount: number,
+ *   totalDuration: number | null,
+ *   summary: string | null,
+ *   details: string[],
+ * }} TimingAnalysis
  *
  * @typedef {{
  *   index: number,
@@ -120,8 +198,12 @@ export default function deriveMediaInfo(boxes) {
       .filter((track) => track.id && track.timescale != null)
       .map((track) => [track.id, track.timescale]),
   );
+  const trackKinds = new Map(
+    tracks.filter((track) => track.id).map((track) => [track.id, track.kind]),
+  );
+  const fragmentDefaults = getTrackFragmentDefaults(moov ? [moov] : boxes);
   const fragments = moofBoxes.flatMap((moof) =>
-    deriveFragmentInfo(moof, trackTimescales),
+    deriveFragmentInfo(moof, trackTimescales, trackKinds, fragmentDefaults),
   );
   const isFragmented = Boolean(findFirstBox(boxes, "mvex") || moofBoxes.length);
   const duration = durationFromBox(mvhd);
@@ -167,20 +249,40 @@ function deriveTrackInfo(trak) {
   const avcC = findFirstBox([trak], "avcC");
   const colr = findFirstBox([trak], "colr");
   const pasp = findFirstBox([trak], "pasp");
+  const schm = findFirstBox([trak], "schm");
+  const tenc = findFirstBox([trak], "tenc");
+  const elst = findFirstBox([trak], "elst");
 
   const kind = normalizeTrackKind(getHandlerType(hdlr), sampleEntry?.type);
-  const codec = getCodecLabel(sampleEntry?.type, originalFormat);
+  const codec = getCodecLabel(sampleEntry?.type, originalFormat, {
+    avcC,
+    hvcC,
+  });
   const protectedSampleEntry = isProtectedSampleEntry(sampleEntry?.type);
   const trackDuration = durationFromBox(mdhd) ?? durationFromBox(tkhd);
   const sampleCount = getNumberField(stsz, "sample_count");
   const syncSamples = getNumberField(stss, "entry_count");
   const syncSampleNumbers = getNumberArrayField(stss, "sample_numbers");
-  const gops = getGopsFromSyncSamples(syncSampleNumbers, sampleCount);
+  const sampleSizes = getTrackSampleSizeSource(stsz);
+  const gops = getGopsFromSyncSamples(
+    syncSampleNumbers,
+    sampleCount,
+    sampleSizes,
+  );
   const sampleTimeline = getTrackSampleTimeline({
     sampleCount,
     syncSampleNumbers,
     ctts,
     sdtp,
+  });
+  const timing = analyzeTrackTiming(
+    stts,
+    getNumberField(mdhd, "timescale"),
+    kind,
+  );
+  const sampleSize = analyzeSampleSizes(sampleSizes, gops, {
+    totalDuration: timing.totalDuration,
+    timescale: getNumberField(mdhd, "timescale"),
   });
   const dimensions = getDimensions(sampleEntry, tkhd);
   const audio = getAudioDescription(sampleEntry);
@@ -225,7 +327,7 @@ function deriveTrackInfo(trak) {
   const avcLevel = getNumberField(avcC, "AVCLevelIndication");
   if (avcProfile != null || avcLevel != null) {
     details.push(
-      `AVC profile ${avcProfile ?? "?"}, level ${avcLevel != null ? formatAvcLevel(avcLevel) : "?"}`,
+      `AVC profile ${formatAvcProfile(avcProfile)}, level ${avcLevel != null ? formatAvcLevel(avcLevel) : "?"}`,
     );
   }
 
@@ -239,6 +341,9 @@ function deriveTrackInfo(trak) {
     details.push(colorDescription);
   }
 
+  details.push(...getEncryptionDetails(schm, tenc));
+  details.push(...getEditListDetails(elst, getNumberField(mdhd, "timescale")));
+
   return {
     id: String(getNumberField(tkhd, "track_ID") ?? ""),
     kind,
@@ -250,6 +355,10 @@ function deriveTrackInfo(trak) {
     language: getLanguage(mdhd),
     samples: sampleCount != null ? numberFormat(sampleCount) : null,
     syncSamples: syncSamples != null ? numberFormat(syncSamples) : null,
+    sampleSize: sampleSize.summary,
+    sampleSizeDetails: sampleSize.details,
+    timing: timing.summary,
+    timingDetails: timing.details,
     gop: getGopDescription(gops, sampleCount),
     gops,
     frameArrangement: getTrackFrameArrangement(
@@ -267,7 +376,12 @@ function deriveTrackInfo(trak) {
  * @param {Map<string, number | null>} trackTimescales
  * @returns {FragmentInfo[]}
  */
-function deriveFragmentInfo(moof, trackTimescales) {
+function deriveFragmentInfo(
+  moof,
+  trackTimescales,
+  trackKinds,
+  fragmentDefaults,
+) {
   const sequence = getNumberField(
     findFirstBox([moof], "mfhd"),
     "sequence_number",
@@ -278,6 +392,11 @@ function deriveFragmentInfo(moof, trackTimescales) {
     const truns = findBoxes([traf], "trun");
     const trackId = String(getNumberField(tfhd, "track_ID") ?? "?");
     const timescale = trackTimescales.get(trackId) ?? null;
+    const trackKind = trackKinds.get(trackId) ?? "unknown";
+    const defaults = fragmentDefaults.get(trackId) ?? {
+      defaultSampleDuration: null,
+      defaultSampleSize: null,
+    };
     const samples = truns.flatMap((trun) =>
       getStructArrayField(trun, "samples"),
     );
@@ -285,8 +404,24 @@ function deriveFragmentInfo(moof, trackTimescales) {
       (sum, trun) => sum + (getNumberField(trun, "sample_count") ?? 0),
       0,
     );
-    const gops = getGopsFromTruns(truns);
+    const sampleSizes = getFragmentSampleSizeSource(
+      truns,
+      tfhd,
+      defaults.defaultSampleSize,
+    );
+    const gops = getGopsFromTruns(truns, tfhd, defaults.defaultSampleSize);
     const sampleTimeline = getFragmentSampleTimeline(truns, tfhd);
+    const timing = analyzeFragmentTiming(
+      truns,
+      tfhd,
+      defaults.defaultSampleDuration,
+      timescale,
+      trackKind,
+    );
+    const sampleSize = analyzeSampleSizes(sampleSizes, gops, {
+      totalDuration: timing.totalDuration,
+      timescale,
+    });
     return {
       sequence: sequence != null ? numberFormat(sequence) : "",
       trackId,
@@ -294,8 +429,20 @@ function deriveFragmentInfo(moof, trackTimescales) {
         getField(tfdt, "baseMediaDecodeTime"),
         timescale,
       ),
+      decodeWindow: getFragmentDecodeWindow(
+        getField(tfdt, "baseMediaDecodeTime"),
+        timing.totalDuration,
+        timescale,
+      ),
       sampleCount,
-      duration: getFragmentDuration(truns, timescale),
+      duration:
+        timing.totalDuration != null
+          ? formatTicksWithTime(timing.totalDuration, timescale)
+          : getFragmentDuration(truns, timescale),
+      sampleSize: sampleSize.summary,
+      sampleSizeDetails: sampleSize.details,
+      timing: timing.summary,
+      timingDetails: timing.details,
       gops,
       frameArrangement: getFragmentFrameArrangement(samples, timescale),
       sampleTimeline,
@@ -465,7 +612,17 @@ function findSampleEntry(trak) {
  * @param {string | undefined} sampleEntryType
  * @param {string | null} originalFormat
  */
-function getCodecLabel(sampleEntryType, originalFormat) {
+function getCodecLabel(sampleEntryType, originalFormat, configBoxes) {
+  const codecType = isProtectedSampleEntry(sampleEntryType)
+    ? originalFormat
+    : sampleEntryType;
+  const codecString = getCodecString(codecType, configBoxes);
+  if (codecString && isProtectedSampleEntry(sampleEntryType)) {
+    return `${codecString} (${sampleEntryType} protected entry)`;
+  }
+  if (codecString) {
+    return codecString;
+  }
   if (isProtectedSampleEntry(sampleEntryType) && originalFormat) {
     return `${originalFormat} (${sampleEntryType} protected entry)`;
   }
@@ -610,12 +767,505 @@ function getColorDescription(colr) {
   const fullRange = getBooleanField(colr, "full_range_flag");
   const parts = [`color ${colourType}`];
   if (primaries != null || transfer != null || matrix != null) {
-    parts.push(`P/T/M ${primaries ?? "?"}/${transfer ?? "?"}/${matrix ?? "?"}`);
+    parts.push(
+      `P/T/M ${formatNamedId(primaries, COLOR_PRIMARIES_NAMES)}/${formatNamedId(transfer, TRANSFER_CHARACTERISTIC_NAMES)}/${formatNamedId(matrix, MATRIX_COEFFICIENT_NAMES)}`,
+    );
   }
   if (fullRange != null) {
     parts.push(fullRange ? "full range" : "limited range");
   }
   return parts.join(", ");
+}
+
+/**
+ * @param {number | null} value
+ * @param {Map<number, string>} names
+ */
+function formatNamedId(value, names) {
+  if (value == null) {
+    return "?";
+  }
+  return `${names.get(value) ?? "unknown"} (${value})`;
+}
+
+/**
+ * @param {string | undefined} codecType
+ * @param {{
+ *   avcC: import("isobmff-inspector").ParsedBox | null,
+ *   hvcC: import("isobmff-inspector").ParsedBox | null,
+ * }} configBoxes
+ */
+function getCodecString(codecType, { avcC, hvcC }) {
+  if (!codecType) {
+    return null;
+  }
+  if ((codecType === "avc1" || codecType === "avc3") && avcC) {
+    return getAvcCodecString(codecType, avcC);
+  }
+  if ((codecType === "hvc1" || codecType === "hev1") && hvcC) {
+    return getHevcCodecString(codecType, hvcC);
+  }
+  return codecType;
+}
+
+/**
+ * @param {string} codecType
+ * @param {import("isobmff-inspector").ParsedBox} avcC
+ */
+function getAvcCodecString(codecType, avcC) {
+  const profile = getNumberField(avcC, "AVCProfileIndication");
+  const compatibility = getNumberField(avcC, "profile_compatibility");
+  const level = getNumberField(avcC, "AVCLevelIndication");
+  if (profile == null || compatibility == null || level == null) {
+    return codecType;
+  }
+  return `${codecType}.${toTwoDigitHex(profile)}${toTwoDigitHex(compatibility)}${toTwoDigitHex(level)}`;
+}
+
+/**
+ * @param {string} codecType
+ * @param {import("isobmff-inspector").ParsedBox} hvcC
+ */
+function getHevcCodecString(codecType, hvcC) {
+  const profileSpace = getNumberField(hvcC, "general_profile_space") ?? 0;
+  const profileIdc = getNumberField(hvcC, "general_profile_idc");
+  const compatibilityFlags = getNumberField(
+    hvcC,
+    "general_profile_compatibility_flags",
+  );
+  const tierFlag = getBooleanField(hvcC, "general_tier_flag");
+  const levelIdc = getNumberField(hvcC, "general_level_idc");
+  const constraintFlags = getNumberField(
+    hvcC,
+    "general_constraint_indicator_flags",
+  );
+  if (
+    profileIdc == null ||
+    compatibilityFlags == null ||
+    tierFlag == null ||
+    levelIdc == null
+  ) {
+    return codecType;
+  }
+
+  const parts = [
+    codecType,
+    `${HEVC_PROFILE_SPACE_LETTERS[profileSpace] ?? ""}${profileIdc}`,
+    String(compatibilityFlags),
+    `${tierFlag ? "H" : "L"}${levelIdc}`,
+  ];
+  const constraintString = formatHevcConstraintString(constraintFlags);
+  if (constraintString) {
+    parts.push(constraintString);
+  }
+  return parts.join(".");
+}
+
+/**
+ * @param {number | null} value
+ */
+function formatHevcConstraintString(value) {
+  if (value == null) {
+    return null;
+  }
+  const hex = value.toString(16).toUpperCase().padStart(12, "0");
+  const trimmed = hex.replace(/(00)+$/, "");
+  return trimmed || "0";
+}
+
+/**
+ * @param {number} value
+ */
+function toTwoDigitHex(value) {
+  return value.toString(16).toUpperCase().padStart(2, "0");
+}
+
+/**
+ * @param {string} value
+ */
+function formatUuidLikeHex(value) {
+  const normalized = value.replace(/[^0-9A-Fa-f]/g, "").toLowerCase();
+  if (normalized.length !== 32) {
+    return value;
+  }
+  return `${normalized.slice(0, 8)}-${normalized.slice(8, 12)}-${normalized.slice(12, 16)}-${normalized.slice(16, 20)}-${normalized.slice(20)}`;
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox | null | undefined} schm
+ * @param {import("isobmff-inspector").ParsedBox | null | undefined} tenc
+ */
+function getEncryptionDetails(schm, tenc) {
+  const details = [];
+  const schemeType = getStringField(schm, "scheme_type");
+  const schemeVersion = getNumberField(schm, "scheme_version");
+  const schemeName = schemeType
+    ? (PROTECTION_SCHEME_NAMES.get(schemeType) ?? "unknown scheme")
+    : null;
+  if (schemeType) {
+    details.push(
+      `protection scheme ${schemeType}${schemeName ? ` (${schemeName})` : ""}${schemeVersion != null ? `, version 0x${schemeVersion.toString(16).toUpperCase()}` : ""}`,
+    );
+  }
+
+  const isProtected = getNumberField(tenc, "default_IsProtected");
+  const perSampleIvSize = getNumberField(tenc, "default_Per_Sample_IV_Size");
+  const defaultKid = getStringField(tenc, "default_KID");
+  const cryptByteBlock = getNumberField(tenc, "default_crypt_byte_block");
+  const skipByteBlock = getNumberField(tenc, "default_skip_byte_block");
+  if (isProtected != null || perSampleIvSize != null) {
+    details.push(
+      `tenc default protection ${isProtected === 1 ? "enabled" : "disabled"}, IV size ${perSampleIvSize ?? "?"} bytes`,
+    );
+  }
+  if (defaultKid) {
+    details.push(`default KID ${formatUuidLikeHex(defaultKid)}`);
+  }
+  if (cryptByteBlock != null || skipByteBlock != null) {
+    details.push(
+      `pattern encryption crypt/skip ${cryptByteBlock ?? "?"}/${skipByteBlock ?? "?"}`,
+    );
+  }
+  return details;
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox | null | undefined} elst
+ * @param {number | null} timescale
+ */
+function getEditListDetails(elst, timescale) {
+  const entries = getStructArrayField(elst, "entries");
+  if (!entries.length) {
+    return [];
+  }
+
+  const details = [`edit list entries ${numberFormat(entries.length)}`];
+  const firstEntry = entries[0];
+  const mediaTime = getPrimitiveNumberFromStruct(firstEntry, "media_time");
+  const segmentDuration = getPrimitiveNumberFromStruct(
+    firstEntry,
+    "segment_duration",
+  );
+  if (mediaTime === -1 && segmentDuration != null) {
+    details.push(
+      `initial empty edit delay ${formatTicksWithTime(segmentDuration, timescale)}`,
+    );
+  } else if (mediaTime != null && mediaTime > 0) {
+    details.push(
+      `presentation starts after skipping ${formatTicksWithTime(mediaTime, timescale)} of media timeline`,
+    );
+  } else if (mediaTime === 0) {
+    details.push("presentation starts at media time zero");
+  }
+  return details;
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedField | null | undefined} baseDecodeTimeField
+ * @param {number | null} duration
+ * @param {number | null} timescale
+ */
+function getFragmentDecodeWindow(baseDecodeTimeField, duration, timescale) {
+  const start = toNullableNumber(getFieldPrimitive(baseDecodeTimeField));
+  if (start == null) {
+    return null;
+  }
+  if (duration == null) {
+    return `starts at ${formatTicksWithTime(start, timescale)}`;
+  }
+  return `${formatTicksWithTime(start, timescale)} to ${formatTicksWithTime(start + duration, timescale)}`;
+}
+
+/**
+ * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
+ */
+function getTrackFragmentDefaults(boxes) {
+  const defaults = new Map();
+  for (const trex of findBoxes(boxes, "trex")) {
+    const trackId = getNumberField(trex, "track_ID");
+    if (trackId == null) {
+      continue;
+    }
+    defaults.set(String(trackId), {
+      defaultSampleDuration: getNumberField(trex, "default_sample_duration"),
+      defaultSampleSize: getNumberField(trex, "default_sample_size"),
+    });
+  }
+  return defaults;
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox | null | undefined} stsz
+ * @returns {SampleSizeSource | null}
+ */
+function getTrackSampleSizeSource(stsz) {
+  const sampleCount = getNumberField(stsz, "sample_count");
+  if (!sampleCount) {
+    return null;
+  }
+  const constantSize = getNumberField(stsz, "sample_size");
+  if (constantSize != null && constantSize > 0) {
+    return {
+      sampleCount,
+      constantSize,
+      entries: [],
+    };
+  }
+  const entries = getNumberArrayField(stsz, "entries");
+  if (!entries.length) {
+    return null;
+  }
+  return {
+    sampleCount: Math.max(sampleCount, entries.length),
+    constantSize: null,
+    entries,
+  };
+}
+
+/**
+ * @param {Array<import("isobmff-inspector").ParsedBox>} truns
+ * @param {import("isobmff-inspector").ParsedBox | null | undefined} tfhd
+ * @param {number | null} fallbackSize
+ * @returns {SampleSizeSource | null}
+ */
+function getFragmentSampleSizeSource(truns, tfhd, fallbackSize) {
+  const defaultSampleSize =
+    getNumberField(tfhd, "default_sample_size") ?? fallbackSize;
+  const entries = [];
+  for (const trun of truns) {
+    const trunSamples = getStructArrayField(trun, "samples");
+    const trunSampleCount =
+      getNumberField(trun, "sample_count") ?? trunSamples.length;
+    for (let i = 0; i < trunSampleCount; i++) {
+      const sample = trunSamples[i];
+      const sampleSize =
+        getNumberFromStruct(sample, "sample_size") ?? defaultSampleSize;
+      if (sampleSize == null) {
+        return null;
+      }
+      entries.push(sampleSize);
+    }
+  }
+  if (!entries.length) {
+    return null;
+  }
+  const firstSize = entries[0];
+  if (entries.every((entry) => entry === firstSize)) {
+    return {
+      sampleCount: entries.length,
+      constantSize: firstSize,
+      entries: [],
+    };
+  }
+  return {
+    sampleCount: entries.length,
+    constantSize: null,
+    entries,
+  };
+}
+
+/**
+ * @param {SampleSizeSource | null} sampleSizes
+ * @param {GopRun[]} gops
+ * @param {{ totalDuration: number | null, timescale: number | null }} [timing]
+ */
+function analyzeSampleSizes(
+  sampleSizes,
+  gops,
+  timing = { totalDuration: null, timescale: null },
+) {
+  if (!sampleSizes) {
+    return { summary: null, details: [] };
+  }
+
+  const { sampleCount, constantSize, entries } = sampleSizes;
+  if (!sampleCount) {
+    return { summary: null, details: [] };
+  }
+
+  let totalBytes = 0;
+  let maxSize = 0;
+  let spikeCount = 0;
+  let largestSpikeRatio = 1;
+
+  if (constantSize != null) {
+    totalBytes = constantSize * sampleCount;
+    maxSize = constantSize;
+  } else {
+    for (const size of entries) {
+      totalBytes += size;
+      maxSize = Math.max(maxSize, size);
+    }
+    const average = totalBytes / sampleCount;
+    for (const size of entries) {
+      if (size >= average * 2) {
+        spikeCount++;
+        largestSpikeRatio = Math.max(largestSpikeRatio, size / average);
+      }
+    }
+  }
+
+  const averageSize = totalBytes / sampleCount;
+  const summary =
+    constantSize != null
+      ? `fixed ${formatByteSize(constantSize)} samples`
+      : `${formatByteSize(averageSize)} avg, ${formatByteSize(maxSize)} max`;
+  const details = [];
+
+  if (constantSize == null) {
+    if (spikeCount > 0) {
+      details.push(
+        `${numberFormat(spikeCount)} samples are at least 2x the average; largest spike is ${formatNumber(largestSpikeRatio)}x`,
+      );
+    } else {
+      details.push("no major sample-size spikes relative to the average");
+    }
+  }
+
+  if (timing.totalDuration && timing.timescale) {
+    details.push(
+      `average payload rate ${formatBitrate((totalBytes * 8 * timing.timescale) / timing.totalDuration)}`,
+    );
+  }
+
+  const gopBytes = gops
+    .map((gop) => gop.totalBytes)
+    .filter((value) => value != null);
+  if (gopBytes.length === gops.length && gopBytes.length > 1) {
+    const averageGopBytes =
+      gopBytes.reduce((sum, value) => sum + value, 0) / gopBytes.length;
+    const maxGopBytes = Math.max(...gopBytes);
+    details.push(
+      `GOP byte weight avg ${formatByteSize(averageGopBytes)}, max ${formatByteSize(maxGopBytes)}`,
+    );
+  }
+
+  return { summary, details };
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox | null | undefined} stts
+ * @param {number | null} timescale
+ * @param {string} trackKind
+ * @returns {TimingAnalysis}
+ */
+function analyzeTrackTiming(stts, timescale, trackKind) {
+  const entries = getStructArrayField(stts, "entries");
+  if (!entries.length) {
+    return { sampleCount: 0, totalDuration: null, summary: null, details: [] };
+  }
+  const runs = entries.map((entry) => ({
+    count: getNumberFromStruct(entry, "sample_count") ?? 0,
+    duration: getNumberFromStruct(entry, "sample_delta"),
+  }));
+  return analyzeDurationRuns(runs, timescale, trackKind);
+}
+
+/**
+ * @param {Array<import("isobmff-inspector").ParsedBox>} truns
+ * @param {import("isobmff-inspector").ParsedBox | null | undefined} tfhd
+ * @param {number | null} fallbackDuration
+ * @param {number | null} timescale
+ * @param {string} trackKind
+ * @returns {TimingAnalysis}
+ */
+function analyzeFragmentTiming(
+  truns,
+  tfhd,
+  fallbackDuration,
+  timescale,
+  trackKind,
+) {
+  const defaultSampleDuration =
+    getNumberField(tfhd, "default_sample_duration") ?? fallbackDuration;
+  const runs = [];
+  for (const trun of truns) {
+    const trunSamples = getStructArrayField(trun, "samples");
+    const trunSampleCount =
+      getNumberField(trun, "sample_count") ?? trunSamples.length;
+    for (let i = 0; i < trunSampleCount; i++) {
+      const sample = trunSamples[i];
+      runs.push({
+        count: 1,
+        duration:
+          getNumberFromStruct(sample, "sample_duration") ??
+          defaultSampleDuration,
+      });
+    }
+  }
+  return analyzeDurationRuns(runs, timescale, trackKind);
+}
+
+/**
+ * @param {Array<{ count: number, duration: number | null }>} runs
+ * @param {number | null} timescale
+ * @param {string} trackKind
+ * @returns {TimingAnalysis}
+ */
+function analyzeDurationRuns(runs, timescale, trackKind) {
+  let sampleCount = 0;
+  let totalDuration = 0;
+  let hasKnownDuration = false;
+  let minDuration = Number.POSITIVE_INFINITY;
+  let maxDuration = 0;
+  const distinctDurations = new Set();
+  const durationCounts = new Map();
+
+  for (const run of runs) {
+    if (!run.count) {
+      continue;
+    }
+    sampleCount += run.count;
+    if (run.duration == null) {
+      continue;
+    }
+    hasKnownDuration = true;
+    totalDuration += run.duration * run.count;
+    minDuration = Math.min(minDuration, run.duration);
+    maxDuration = Math.max(maxDuration, run.duration);
+    distinctDurations.add(run.duration);
+    durationCounts.set(
+      run.duration,
+      (durationCounts.get(run.duration) ?? 0) + run.count,
+    );
+  }
+
+  if (!sampleCount || !hasKnownDuration) {
+    return { sampleCount, totalDuration: null, summary: null, details: [] };
+  }
+
+  const summary =
+    distinctDurations.size === 1
+      ? getConstantTimingSummary(minDuration, timescale, trackKind)
+      : `variable sample duration: ${numberFormat(distinctDurations.size)} deltas, ${formatTicksWithTime(minDuration, timescale)} to ${formatTicksWithTime(maxDuration, timescale)}`;
+  const details = [];
+
+  if (distinctDurations.size > 1) {
+    const dominantDuration = [...durationCounts.entries()].sort(
+      (left, right) => right[1] - left[1],
+    )[0];
+    if (dominantDuration) {
+      details.push(
+        `most common duration is ${formatTicksWithTime(dominantDuration[0], timescale)} for ${formatPercent(dominantDuration[1] / sampleCount)} of samples`,
+      );
+    }
+  }
+
+  return { sampleCount, totalDuration, summary, details };
+}
+
+/**
+ * @param {number} duration
+ * @param {number | null} timescale
+ * @param {string} trackKind
+ */
+function getConstantTimingSummary(duration, timescale, trackKind) {
+  const cadence = `constant sample duration: ${formatTicksWithTime(duration, timescale)}`;
+  if (!timescale || duration <= 0 || trackKind !== "video") {
+    return cadence;
+  }
+  const frameRate = timescale / duration;
+  return `${cadence}, nominal ${formatFrameRate(frameRate)} fps`;
 }
 
 /**
@@ -916,6 +1566,54 @@ function formatTicksWithTime(ticks, timescale) {
 /**
  * @param {number} value
  */
+function formatByteSize(value) {
+  if (!Number.isFinite(value)) {
+    return "0 B";
+  }
+  if (value < 1024) {
+    return `${Math.round(value)} B`;
+  }
+  const units = ["KB", "MB", "GB", "TB"];
+  let amount = value;
+  let unitIndex = -1;
+  while (amount >= 1024 && unitIndex < units.length - 1) {
+    amount /= 1024;
+    unitIndex++;
+  }
+  return `${amount.toFixed(unitIndex === 0 ? 1 : 2)} ${units[unitIndex]}`;
+}
+
+/**
+ * @param {number} value
+ */
+function formatFrameRate(value) {
+  return value >= 100
+    ? formatNumber(value)
+    : value.toLocaleString(undefined, {
+        minimumFractionDigits: value < 10 ? 3 : value < 30 ? 2 : 0,
+        maximumFractionDigits: value < 10 ? 3 : value < 30 ? 2 : 3,
+      });
+}
+
+/**
+ * @param {number} bitsPerSecond
+ */
+function formatBitrate(bitsPerSecond) {
+  if (!Number.isFinite(bitsPerSecond) || bitsPerSecond <= 0) {
+    return "unknown";
+  }
+  if (bitsPerSecond < 1000) {
+    return `${formatNumber(bitsPerSecond)} bps`;
+  }
+  if (bitsPerSecond < 1_000_000) {
+    return `${formatNumber(bitsPerSecond / 1000)} kbps`;
+  }
+  return `${formatNumber(bitsPerSecond / 1_000_000)} Mbps`;
+}
+
+/**
+ * @param {number} value
+ */
 function formatChromaFormat(value) {
   switch (value) {
     case 0:
@@ -954,6 +1652,35 @@ function formatHevcConstantFrameRate(value) {
       return "constant";
     case 2:
       return "constant, each temporal layer";
+    default:
+      return String(value);
+  }
+}
+
+/**
+ * @param {number | null} value
+ */
+function formatAvcProfile(value) {
+  if (value == null) {
+    return "?";
+  }
+  switch (value) {
+    case 66:
+      return "Baseline (66)";
+    case 77:
+      return "Main (77)";
+    case 88:
+      return "Extended (88)";
+    case 100:
+      return "High (100)";
+    case 110:
+      return "High 10 (110)";
+    case 122:
+      return "High 4:2:2 (122)";
+    case 144:
+      return "High 4:4:4 (144)";
+    case 244:
+      return "High 4:4:4 Predictive (244)";
     default:
       return String(value);
   }
@@ -1175,9 +1902,13 @@ function getSampleDependencyInfo(sdtp) {
  * @param {Array<import("isobmff-inspector").ParsedBox>} truns
  * @returns {GopRun[]}
  */
-function getGopsFromTruns(truns) {
+function getGopsFromTruns(truns, tfhd, fallbackSampleSize) {
   const syncSamples = [];
+  const sampleSizes = [];
+  let sizesKnown = true;
   let sampleIndex = 1;
+  const defaultSampleSize =
+    getNumberField(tfhd, "default_sample_size") ?? fallbackSampleSize;
   for (const trun of truns) {
     const samples = getStructArrayField(trun, "samples");
     const firstSampleFlags = getNumberField(trun, "first_sample_flags");
@@ -1191,10 +1922,30 @@ function getGopsFromTruns(truns) {
       if (sampleFlags != null && isSyncSampleFlags(sampleFlags)) {
         syncSamples.push(sampleIndex);
       }
+      const sampleSize =
+        getNumberFromStruct(sample, "sample_size") ?? defaultSampleSize;
+      if (sampleSize == null) {
+        sizesKnown = false;
+      }
+      sampleSizes.push(sampleSize);
       sampleIndex++;
     }
   }
-  return getGopsFromSyncSamples(syncSamples, sampleIndex - 1);
+  return getGopsFromSyncSamples(syncSamples, sampleIndex - 1, {
+    sampleCount: sampleSizes.length,
+    constantSize:
+      sizesKnown &&
+      sampleSizes.length &&
+      sampleSizes.every((size) => size === sampleSizes[0])
+        ? (sampleSizes[0] ?? null)
+        : null,
+    entries:
+      !sizesKnown ||
+      (sampleSizes.length &&
+        sampleSizes.every((size) => size === sampleSizes[0]))
+        ? []
+        : /** @type {number[]} */ (sampleSizes.filter((size) => size != null)),
+  });
 }
 
 /**
@@ -1207,6 +1958,29 @@ function getNumberFromStruct(struct, key) {
   }
   const field = struct.fields.find((item) => item.key === key);
   return toNullableNumber(getFieldPrimitive(field));
+}
+
+/**
+ * @param {Extract<import("isobmff-inspector").ParsedField, { kind: "struct" }> | undefined} struct
+ * @param {string} key
+ */
+function getPrimitiveNumberFromStruct(struct, key) {
+  if (!struct) {
+    return null;
+  }
+  const field = struct.fields.find((item) => item.key === key);
+  const value = getFieldPrimitive(field);
+  if (value == null) {
+    return null;
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === "bigint") {
+    const converted = Number(value);
+    return Number.isSafeInteger(converted) ? converted : null;
+  }
+  return null;
 }
 
 /**
@@ -1232,19 +2006,53 @@ function toNullableNumber(value) {
 /**
  * @param {number[]} syncSampleNumbers
  * @param {number | null} sampleCount
+ * @param {SampleSizeSource | null} [sampleSizes]
  * @returns {import("./read").GopRun[]}
  */
-function getGopsFromSyncSamples(syncSampleNumbers, sampleCount) {
+function getGopsFromSyncSamples(
+  syncSampleNumbers,
+  sampleCount,
+  sampleSizes = null,
+) {
   if (!syncSampleNumbers.length) {
     return [];
   }
   return syncSampleNumbers.map((sampleNumber, index) => {
     const next =
       syncSampleNumbers[index + 1] ?? (sampleCount ? sampleCount + 1 : null);
+    const gopSampleCount = next ? Math.max(1, next - sampleNumber) : 1;
     return {
       startSample: sampleNumber,
-      sampleCount: next ? Math.max(1, next - sampleNumber) : 1,
+      sampleCount: gopSampleCount,
+      totalBytes: getGopTotalBytes(sampleSizes, sampleNumber, gopSampleCount),
       known: true,
     };
   });
+}
+
+/**
+ * @param {SampleSizeSource | null} sampleSizes
+ * @param {number} startSample
+ * @param {number} sampleCount
+ */
+function getGopTotalBytes(sampleSizes, startSample, sampleCount) {
+  if (!sampleSizes) {
+    return null;
+  }
+  if (sampleSizes.constantSize != null) {
+    return sampleSizes.constantSize * sampleCount;
+  }
+  if (!sampleSizes.entries.length) {
+    return null;
+  }
+  let total = 0;
+  const startIndex = Math.max(0, startSample - 1);
+  const endIndex = Math.min(
+    sampleSizes.entries.length,
+    startIndex + sampleCount,
+  );
+  for (let index = startIndex; index < endIndex; index++) {
+    total += sampleSizes.entries[index] ?? 0;
+  }
+  return total;
 }

@@ -130,8 +130,17 @@ function renderFragments(fragments) {
     const facts = /** @type {HTMLDListElement} */ (el("dl", "info-facts"));
     addFact(facts, "track", fragment.trackId);
     addFact(facts, "tfdt", fragment.baseDecodeTime);
+    addFact(facts, "decode window", fragment.decodeWindow);
     addFact(facts, "samples", numberFormat(fragment.sampleCount));
     addFact(facts, "duration", fragment.duration);
+    addFact(facts, "sample size", fragment.sampleSize);
+    for (const detail of fragment.sampleSizeDetails) {
+      addFact(facts, "size detail", detail);
+    }
+    addFact(facts, "timing", fragment.timing);
+    for (const detail of fragment.timingDetails) {
+      addFact(facts, "timing detail", detail);
+    }
     addFact(
       facts,
       "GOP",
@@ -175,6 +184,14 @@ function renderTracks(tracks) {
     addFact(facts, "language", track.language);
     addFact(facts, "samples", track.samples);
     addFact(facts, "sync", track.syncSamples);
+    addFact(facts, "sample size", track.sampleSize);
+    for (const detail of track.sampleSizeDetails) {
+      addFact(facts, "size detail", detail);
+    }
+    addFact(facts, "timing", track.timing);
+    for (const detail of track.timingDetails) {
+      addFact(facts, "timing detail", detail);
+    }
     addFact(facts, "GOP", track.gop);
     for (const detail of track.details) {
       addFact(facts, "detail", detail);
@@ -284,7 +301,10 @@ function renderGopBar(gops) {
       "--gop-width",
       `${(gop.sampleCount / total) * 100}%`,
     );
-    segment.title = `sample ${gop.startSample}, ${numberFormat(gop.sampleCount)} samples`;
+    segment.title =
+      gop.totalBytes != null
+        ? `sample ${gop.startSample}, ${numberFormat(gop.sampleCount)} samples, ${fmtBytes(gop.totalBytes)}`
+        : `sample ${gop.startSample}, ${numberFormat(gop.sampleCount)} samples`;
     bar.appendChild(segment);
   }
   return bar;
