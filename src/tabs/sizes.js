@@ -400,9 +400,16 @@ export default function renderSizeChart(boxes) {
    * @param {SizeRow | null} row
    */
   function setActiveMapRow(row) {
-    activeMapRow = activeMapRow === row ? null : row;
+    activeMapRow = activeMapRow?.box === row?.box ? null : row;
     renderSizeMap();
     renderLegend();
+  }
+
+  /**
+   * @param {SizeRow} row
+   */
+  function isActiveMapRow(row) {
+    return activeMapRow?.box === row.box;
   }
 
   function updateMapScaleButtons() {
@@ -450,7 +457,7 @@ export default function renderSizeChart(boxes) {
         el(
           "button",
           `size-map-box${node.marker ? " size-map-marker" : ""}${
-            activeMapRow === node.row ? " active" : ""
+            isActiveMapRow(node.row) ? " active" : ""
           }`,
         )
       );
@@ -462,7 +469,7 @@ export default function renderSizeChart(boxes) {
       );
       block.setAttribute(
         "aria-pressed",
-        activeMapRow === node.row ? "true" : "false",
+        isActiveMapRow(node.row) ? "true" : "false",
       );
       block.style.setProperty("--map-color", node.row.color);
       block.style.setProperty("--map-left", `${node.startPct}%`);
@@ -608,7 +615,7 @@ export default function renderSizeChart(boxes) {
       const row = el(
         "div",
         `size-row${showNonMdatShare ? "" : " size-row-no-excluded"}${
-          activeMapRow === rowData ? " active" : ""
+          isActiveMapRow(rowData) ? " active" : ""
         }`,
       );
       row.tabIndex = 0;
@@ -616,7 +623,7 @@ export default function renderSizeChart(boxes) {
       row.setAttribute("aria-label", getRowDetail(rowData, showNonMdatShare));
       row.setAttribute(
         "aria-selected",
-        activeMapRow === rowData ? "true" : "false",
+        isActiveMapRow(rowData) ? "true" : "false",
       );
       row.title = path;
       row.style.setProperty("--box-color", color);
