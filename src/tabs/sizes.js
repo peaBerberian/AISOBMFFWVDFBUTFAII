@@ -355,8 +355,16 @@ export default function renderSizeChart(boxes) {
   let mapScale = "file";
   /** @type {SizeRow | null} */
   let activeMapRow = null;
+  /** @type {SizeRow | null} */
+  let previewMapRow = null;
   /** @type {HTMLButtonElement[]} */
   const scaleButtons = [];
+  /** @type {Array<{ row: SizeRow, element: HTMLElement }>} */
+  const overviewSegmentElements = [];
+  /** @type {Array<{ row: SizeRow, element: HTMLButtonElement }>} */
+  const mapBoxElements = [];
+  /** @type {Array<{ row: SizeRow, element: HTMLElement }>} */
+  const legendRowElements = [];
 
   container.innerHTML = "";
 
@@ -466,8 +474,7 @@ export default function renderSizeChart(boxes) {
    */
   function setActiveMapRow(row) {
     activeMapRow = activeMapRow?.box === row?.box ? null : row;
-    renderSizeMap();
-    renderLegend();
+    syncBoxHighlights();
   }
 
   /**
@@ -475,6 +482,57 @@ export default function renderSizeChart(boxes) {
    */
   function isActiveMapRow(row) {
     return activeMapRow?.box === row.box;
+  }
+
+  /**
+   * @param {SizeRow} row
+   */
+  function isPreviewMapRow(row) {
+    return previewMapRow?.box === row.box;
+  }
+
+  /**
+   * @param {SizeRow | null} row
+   */
+  function setPreviewMapRow(row) {
+    previewMapRow = row;
+    mapDetails.textContent =
+      previewMapRow || activeMapRow
+        ? getRowDetail(previewMapRow ?? activeMapRow, showNonMdatShare)
+        : "Hover or select a box to inspect its size and path.";
+    syncBoxHighlights();
+  }
+
+  function syncBoxHighlights() {
+    const hasActive = activeMapRow !== null;
+    const hasPreview = previewMapRow !== null;
+    bar.classList.toggle("size-bar-with-selection", hasActive);
+    bar.classList.toggle("size-bar-with-preview", hasPreview);
+    map.classList.toggle("size-map-with-selection", hasActive);
+    map.classList.toggle("size-map-with-preview", hasPreview);
+    legend.classList.toggle("size-legend-with-selection", hasActive);
+    legend.classList.toggle("size-legend-with-preview", hasPreview);
+
+    for (const { row, element } of overviewSegmentElements) {
+      const isActive = isActiveMapRow(row);
+      element.classList.toggle("active", isActive);
+      element.classList.toggle("preview", isPreviewMapRow(row));
+      element.setAttribute("aria-pressed", isActive ? "true" : "false");
+    }
+
+    for (const { row, element } of mapBoxElements) {
+      const isActive = isActiveMapRow(row);
+      element.classList.toggle("active", isActive);
+      element.classList.toggle("preview", isPreviewMapRow(row));
+      element.setAttribute("aria-pressed", isActive ? "true" : "false");
+    }
+
+    for (const { row, element } of legendRowElements) {
+      const isActive = isActiveMapRow(row);
+      element.classList.toggle("active", isActive);
+      element.classList.toggle("preview", isPreviewMapRow(row));
+      element.setAttribute("aria-selected", isActive ? "true" : "false");
+    }
   }
 
   function updateScaleButtons() {
@@ -492,9 +550,11 @@ export default function renderSizeChart(boxes) {
   function setMapScale(scale) {
     mapScale = scale;
     activeMapRow = null;
+    previewMapRow = null;
     renderOverviewBar();
     renderSizeMap();
     renderLegend();
+    syncBoxHighlights();
   }
 
   for (const button of scaleButtons) {
@@ -509,6 +569,7 @@ export default function renderSizeChart(boxes) {
   function renderOverviewBar() {
     updateScaleButtons();
     bar.innerHTML = "";
+    overviewSegmentElements.length = 0;
     /** @type {Array<SizeOverviewSegment>} */
     const segments = [];
     const showOverviewBreakdown =
@@ -533,17 +594,34 @@ export default function renderSizeChart(boxes) {
         return;
       }
       const pct = (size / scaleTotal) * 100;
-      const seg = el("div", "size-bar-seg");
+      const seg = /** @type {HTMLButtonElement} */ (
+        el("button", "size-bar-seg")
+      );
+      seg.type = "button";
       seg.style.width = `${pct}%`;
+      seg.style.setProperty("--box-color", row.color);
       seg.style.background = row.color ?? CHART_COLORS[i % CHART_COLORS.length];
       seg.title = `${segment.label}: ${fmtBytes(size)} (${pct.toFixed(1)}%)`;
+      seg.setAttribute(
+        "aria-label",
+        `${segment.label}: ${getRowDetail(row, showNonMdatShare)}`,
+      );
+      seg.setAttribute("aria-pressed", isActiveMapRow(row) ? "true" : "false");
+      seg.addEventListener("mouseenter", () => setPreviewMapRow(row));
+      seg.addEventListener("mouseleave", () => setPreviewMapRow(null));
+      seg.addEventListener("focus", () => setPreviewMapRow(row));
+      seg.addEventListener("blur", () => setPreviewMapRow(null));
+      seg.addEventListener("click", () => setActiveMapRow(row));
       bar.appendChild(seg);
+      overviewSegmentElements.push({ row, element: seg });
     });
+    syncBoxHighlights();
   }
 
   function renderSizeMap() {
     updateScaleButtons();
     map.innerHTML = "";
+    mapBoxElements.length = 0;
     /** @type {Array<SizeMapNode>} */
     const nodes = [];
     layoutSizeMap(boxes, mapScale, rowsByBox, 0, 0, 100, nodes);
@@ -552,7 +630,6 @@ export default function renderSizeChart(boxes) {
       0,
     );
     map.style.setProperty("--size-map-rows", String(maxDepth + 1));
-    map.classList.toggle("size-map-with-selection", activeMapRow !== null);
     for (const node of nodes) {
       const block = /** @type {HTMLButtonElement} */ (
         el(
@@ -579,27 +656,25 @@ export default function renderSizeChart(boxes) {
       block.style.setProperty("--map-marker-width", `${MAP_MARKER_WIDTH_PX}px`);
       block.innerHTML = `<span>${esc(node.row.box.type)}</span>`;
       block.addEventListener("mouseenter", () => {
-        mapDetails.textContent = getRowDetail(node.row, showNonMdatShare);
+        setPreviewMapRow(node.row);
       });
       block.addEventListener("mouseleave", () => {
-        mapDetails.textContent = activeMapRow
-          ? getRowDetail(activeMapRow, showNonMdatShare)
-          : "Hover or select a box to inspect its size and path.";
+        setPreviewMapRow(null);
       });
       block.addEventListener("focus", () => {
-        mapDetails.textContent = getRowDetail(node.row, showNonMdatShare);
+        setPreviewMapRow(node.row);
       });
       block.addEventListener("blur", () => {
-        mapDetails.textContent = activeMapRow
-          ? getRowDetail(activeMapRow, showNonMdatShare)
-          : "Hover or select a box to inspect its size and path.";
+        setPreviewMapRow(null);
       });
       block.addEventListener("click", () => setActiveMapRow(node.row));
       map.appendChild(block);
+      mapBoxElements.push({ row: node.row, element: block });
     }
     mapDetails.textContent = activeMapRow
       ? getRowDetail(activeMapRow, showNonMdatShare)
       : "Hover or select a box to inspect its size and path.";
+    syncBoxHighlights();
   }
 
   /** @type {{ key: SizeSortKey, label: string, title: string, defaultDirection: SortDirection }[]} */
@@ -675,6 +750,7 @@ export default function renderSizeChart(boxes) {
 
   function renderLegend() {
     legend.innerHTML = "";
+    legendRowElements.length = 0;
     const header = el(
       "div",
       `size-row size-row-head${showNonMdatShare ? "" : " size-row-no-excluded"}`,
@@ -762,6 +838,10 @@ export default function renderSizeChart(boxes) {
         cell.setAttribute("role", "gridcell");
       }
       row.addEventListener("click", () => setActiveMapRow(rowData));
+      row.addEventListener("mouseenter", () => setPreviewMapRow(rowData));
+      row.addEventListener("mouseleave", () => setPreviewMapRow(null));
+      row.addEventListener("focus", () => setPreviewMapRow(rowData));
+      row.addEventListener("blur", () => setPreviewMapRow(null));
       row.addEventListener("keydown", (evt) => {
         if (evt.key !== "Enter" && evt.key !== " ") {
           return;
@@ -770,7 +850,9 @@ export default function renderSizeChart(boxes) {
         setActiveMapRow(rowData);
       });
       legend.appendChild(row);
+      legendRowElements.push({ row: rowData, element: row });
     }
+    syncBoxHighlights();
   }
 
   renderOverviewBar();

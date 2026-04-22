@@ -81,6 +81,36 @@
 .size-bar-seg {
   min-width: 1px;
   height: 100%;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  transition:
+    box-shadow 120ms ease,
+    opacity 120ms ease;
+}
+
+.size-bar-seg:focus-visible {
+  z-index: 1;
+  outline: 2px solid color-mix(in srgb, #1f6fb8 45%, transparent);
+  outline-offset: 2px;
+}
+
+.size-bar-seg.preview {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--box-color) 72%, black);
+}
+
+.size-bar-seg.active {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--box-color) 82%, black),
+    inset 0 -3px 0 color-mix(in srgb, var(--box-color) 72%, black);
+}
+
+.size-bar-with-preview .size-bar-seg:not(.preview, .active) {
+  opacity: 0.72;
+}
+
+.size-bar-with-selection .size-bar-seg:not(.active, .preview) {
+  opacity: 0.48;
 }
 
 .size-scale-note {
@@ -185,17 +215,31 @@
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    background 120ms ease,
+    opacity 120ms ease,
+    outline-color 120ms ease;
 }
 
 .size-map-box:hover,
+.size-map-box.preview {
+  outline: 1px solid color-mix(in srgb, var(--map-color) 58%, white);
+  outline-offset: -1px;
+  background: color-mix(in srgb, var(--map-color) 24%, white);
+}
+
 .size-map-box.active {
   outline: 1px solid var(--map-color);
   outline-offset: -1px;
   background: color-mix(in srgb, var(--map-color) 28%, white);
 }
 
-.size-map-with-selection .size-map-box:not(.active) {
+.size-map-with-selection .size-map-box:not(.active, .preview) {
   opacity: 0.55;
+}
+
+.size-map-with-preview .size-map-box:not(.preview, .active) {
+  opacity: 0.72;
 }
 
 .size-map-marker {
@@ -236,6 +280,10 @@
   gap: 12px;
   min-height: 24px;
   padding: 2px 4px;
+  transition:
+    background 120ms ease,
+    opacity 120ms ease,
+    outline-color 120ms ease;
 }
 
 .size-row-no-excluded {
@@ -249,10 +297,22 @@
   background: var(--color-background-secondary);
 }
 
+.size-row.preview {
+  background: color-mix(in srgb, var(--box-color) 8%, transparent);
+}
+
 .size-row.active {
   background: var(--color-background-secondary);
   outline: 1px solid var(--box-color);
   outline-offset: -1px;
+}
+
+.size-legend-with-preview .size-row:not(.size-row-head, .preview, .active) {
+  opacity: 0.78;
+}
+
+.size-legend-with-selection .size-row:not(.size-row-head, .active, .preview) {
+  opacity: 0.62;
 }
 
 .size-row-head {
