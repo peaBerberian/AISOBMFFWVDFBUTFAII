@@ -57,6 +57,7 @@ const ENCRYPTION_BOX_TYPES = new Set([
  *   kind: string,
  *   codec: string,
  *   durationLabel: string,
+ *   timescale: number | null,
  *   dimensions: string | null,
  *   audio: string | null,
  *   language: string | null,
@@ -114,7 +115,14 @@ export default function deriveMediaInfo(boxes) {
   const totalSize = boxes.reduce((sum, box) => sum + toNumber(box.size), 0);
   const metadataSize = Math.max(0, totalSize - mdatSize);
   const tracks = findBoxes(moov ? [moov] : boxes, "trak").map(deriveTrackInfo);
-  const fragments = moofBoxes.flatMap(deriveFragmentInfo);
+  const trackTimescales = new Map(
+    tracks
+      .filter((track) => track.id && track.timescale != null)
+      .map((track) => [track.id, track.timescale]),
+  );
+  const fragments = moofBoxes.flatMap((moof) =>
+    deriveFragmentInfo(moof, trackTimescales),
+  );
   const isFragmented = Boolean(findFirstBox(boxes, "mvex") || moofBoxes.length);
   const duration = durationFromBox(mvhd);
   /** @type {MediaInfo} */
@@ -236,6 +244,7 @@ function deriveTrackInfo(trak) {
     kind,
     codec,
     durationLabel: trackDuration?.label ?? "unknown",
+    timescale: getNumberField(mdhd, "timescale"),
     dimensions,
     audio,
     language: getLanguage(mdhd),
@@ -243,7 +252,11 @@ function deriveTrackInfo(trak) {
     syncSamples: syncSamples != null ? numberFormat(syncSamples) : null,
     gop: getGopDescription(gops, sampleCount),
     gops,
-    frameArrangement: getTrackFrameArrangement(ctts, sampleCount),
+    frameArrangement: getTrackFrameArrangement(
+      ctts,
+      sampleCount,
+      getNumberField(mdhd, "timescale"),
+    ),
     sampleTimeline,
     details: details.length ? details : getSampleTimingDetails(stts),
   };
@@ -251,9 +264,10 @@ function deriveTrackInfo(trak) {
 
 /**
  * @param {import("isobmff-inspector").ParsedBox} moof
+ * @param {Map<string, number | null>} trackTimescales
  * @returns {FragmentInfo[]}
  */
-function deriveFragmentInfo(moof) {
+function deriveFragmentInfo(moof, trackTimescales) {
   const sequence = getNumberField(
     findFirstBox([moof], "mfhd"),
     "sequence_number",
@@ -262,6 +276,8 @@ function deriveFragmentInfo(moof) {
     const tfhd = findFirstBox([traf], "tfhd");
     const tfdt = findFirstBox([traf], "tfdt");
     const truns = findBoxes([traf], "trun");
+    const trackId = String(getNumberField(tfhd, "track_ID") ?? "?");
+    const timescale = trackTimescales.get(trackId) ?? null;
     const samples = truns.flatMap((trun) =>
       getStructArrayField(trun, "samples"),
     );
@@ -273,12 +289,15 @@ function deriveFragmentInfo(moof) {
     const sampleTimeline = getFragmentSampleTimeline(truns, tfhd);
     return {
       sequence: sequence != null ? numberFormat(sequence) : "",
-      trackId: String(getNumberField(tfhd, "track_ID") ?? "?"),
-      baseDecodeTime: formatFieldValue(getField(tfdt, "baseMediaDecodeTime")),
+      trackId,
+      baseDecodeTime: formatTickFieldValue(
+        getField(tfdt, "baseMediaDecodeTime"),
+        timescale,
+      ),
       sampleCount,
-      duration: getFragmentDuration(truns),
+      duration: getFragmentDuration(truns, timescale),
       gops,
-      frameArrangement: getFragmentFrameArrangement(samples),
+      frameArrangement: getFragmentFrameArrangement(samples, timescale),
       sampleTimeline,
     };
   });
@@ -619,8 +638,9 @@ function getGopDescription(gops, sampleCount) {
 /**
  * @param {import("isobmff-inspector").ParsedBox | null | undefined} ctts
  * @param {number | null} sampleCount
+ * @param {number | null} timescale
  */
-function getTrackFrameArrangement(ctts, sampleCount) {
+function getTrackFrameArrangement(ctts, sampleCount, timescale) {
   const entries = getStructArrayField(ctts, "entries");
   if (!entries.length) {
     return null;
@@ -642,13 +662,14 @@ function getTrackFrameArrangement(ctts, sampleCount) {
   }
 
   const total = sampleCount ? ` of ${numberFormat(sampleCount)}` : "";
-  return `presentation reordering detected: ${numberFormat(affectedSamples)}${total} samples have non-zero composition offsets, max ${numberFormat(maxOffset)} ticks`;
+  return `presentation reordering detected: ${numberFormat(affectedSamples)}${total} samples have non-zero composition offsets, max ${formatTicksWithTime(maxOffset, timescale)}`;
 }
 
 /**
  * @param {Array<Extract<import("isobmff-inspector").ParsedField, { kind: "struct" }>>} samples
+ * @param {number | null} timescale
  */
-function getFragmentFrameArrangement(samples) {
+function getFragmentFrameArrangement(samples, timescale) {
   if (!samples.length) {
     return null;
   }
@@ -677,7 +698,7 @@ function getFragmentFrameArrangement(samples) {
   if (affectedSamples === 0) {
     return "decode and presentation order appear aligned from trun composition offsets";
   }
-  return `presentation reordering detected: ${numberFormat(affectedSamples)} of ${numberFormat(samples.length)} samples have non-zero composition offsets, max ${numberFormat(maxOffset)} ticks`;
+  return `presentation reordering detected: ${numberFormat(affectedSamples)} of ${numberFormat(samples.length)} samples have non-zero composition offsets, max ${formatTicksWithTime(maxOffset, timescale)}`;
 }
 
 /**
@@ -816,20 +837,10 @@ function getFieldPrimitive(field) {
 }
 
 /**
- * @param {import("isobmff-inspector").ParsedBoxValue | import("isobmff-inspector").ParsedField | null | undefined} field
- */
-function formatFieldValue(field) {
-  const value = getFieldPrimitive(field);
-  if (value == null) {
-    return "unknown";
-  }
-  return typeof value === "number" ? numberFormat(value) : String(value);
-}
-
-/**
  * @param {Array<import("isobmff-inspector").ParsedBox>} truns
+ * @param {number | null} timescale
  */
-function getFragmentDuration(truns) {
+function getFragmentDuration(truns, timescale) {
   let duration = 0;
   let hasDuration = false;
   for (const trun of truns) {
@@ -841,7 +852,7 @@ function getFragmentDuration(truns) {
       }
     }
   }
-  return hasDuration ? `${numberFormat(duration)} ticks` : null;
+  return hasDuration ? formatTicksWithTime(duration, timescale) : null;
 }
 
 /**
@@ -872,6 +883,34 @@ function formatDuration(value) {
       ? `${hours}:${String(minutes).padStart(2, "0")}:${seconds.toFixed(3).padStart(6, "0")}`
       : `${minutes}:${seconds.toFixed(3).padStart(6, "0")}`;
   return `${time} (${value.toFixed(value < 10 ? 3 : 1)} s)`;
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBoxValue | import("isobmff-inspector").ParsedField | null | undefined} field
+ * @param {number | null} timescale
+ */
+function formatTickFieldValue(field, timescale) {
+  const value = getFieldPrimitive(field);
+  if (value == null) {
+    return "unknown";
+  }
+  const numberValue = toNullableNumber(value);
+  if (numberValue == null) {
+    return String(value);
+  }
+  return formatTicksWithTime(numberValue, timescale);
+}
+
+/**
+ * @param {number} ticks
+ * @param {number | null} timescale
+ */
+function formatTicksWithTime(ticks, timescale) {
+  const tickLabel = `${numberFormat(ticks)} ticks`;
+  if (!timescale) {
+    return tickLabel;
+  }
+  return `${tickLabel} (${formatDuration(ticks / timescale)})`;
 }
 
 /**
