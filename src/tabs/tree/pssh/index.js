@@ -1,4 +1,4 @@
-import { el } from "../../utils";
+import { el } from "../../../dom";
 import { getPsshPreviewField } from "./decode";
 
 export { getPsshPreviewField };

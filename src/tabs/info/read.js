@@ -374,6 +374,8 @@ function deriveTrackInfo(trak) {
 /**
  * @param {import("isobmff-inspector").ParsedBox} moof
  * @param {Map<string, number | null>} trackTimescales
+ * @param {Map<string, string>} trackKinds
+ * @param {Map<string, { defaultSampleDuration: number; defaultSampleSize: number }>} fragmentDefaults
  * @returns {FragmentInfo[]}
  */
 function deriveFragmentInfo(
@@ -611,6 +613,10 @@ function findSampleEntry(trak) {
 /**
  * @param {string | undefined} sampleEntryType
  * @param {string | null} originalFormat
+ * @param {{
+ *   avcC: import("isobmff-inspector").ParsedBox | null,
+ *   hvcC: import("isobmff-inspector").ParsedBox | null,
+ * }} configBoxes
  */
 function getCodecLabel(sampleEntryType, originalFormat, configBoxes) {
   const codecType = isProtectedSampleEntry(sampleEntryType)
@@ -789,7 +795,7 @@ function formatNamedId(value, names) {
 }
 
 /**
- * @param {string | undefined} codecType
+ * @param {string | null | undefined} codecType
  * @param {{
  *   avcC: import("isobmff-inspector").ParsedBox | null,
  *   hvcC: import("isobmff-inspector").ParsedBox | null,
@@ -978,6 +984,7 @@ function getFragmentDecodeWindow(baseDecodeTimeField, duration, timescale) {
 
 /**
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
+ * @returns {Map<string, { defaultSampleDuration: number; defaultSampleSize: number }>}
  */
 function getTrackFragmentDefaults(boxes) {
   const defaults = new Map();
@@ -1388,6 +1395,7 @@ function findBoxes(boxes, type, out = []) {
 /**
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
  * @param {Set<string>} types
+ * @returns {boolean}
  */
 function hasBoxType(boxes, types) {
   return boxes.some(
@@ -1473,6 +1481,7 @@ function getFieldPrimitive(field) {
     case "number":
     case "bigint":
     case "string":
+    case "bytes":
     case "boolean":
     case "fixed-point":
     case "date":
@@ -1767,6 +1776,7 @@ function getTrackSampleTimeline({
  */
 function getFragmentSampleTimeline(truns, tfhd) {
   const defaultSampleFlags = getNumberField(tfhd, "default_sample_flags");
+  /** @type Array<import("./utils").SampleClass> */
   const samples = [];
   for (const trun of truns) {
     const trunSamples = getStructArrayField(trun, "samples");
@@ -1900,10 +1910,13 @@ function getSampleDependencyInfo(sdtp) {
 
 /**
  * @param {Array<import("isobmff-inspector").ParsedBox>} truns
+ * @param {import("isobmff-inspector").ParsedBox|null} tfhd
+ * @param {number|null} fallbackSampleSize
  * @returns {GopRun[]}
  */
 function getGopsFromTruns(truns, tfhd, fallbackSampleSize) {
   const syncSamples = [];
+  /** @type {Array<number|null>} */
   const sampleSizes = [];
   let sizesKnown = true;
   let sampleIndex = 1;

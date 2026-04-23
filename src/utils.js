@@ -5,7 +5,7 @@
  * in some asynchronous tests.
  *
  * @param {number} timeInMs
- * @returns {Promise}
+ * @returns {Promise<void>}
  */
 export function sleep(timeInMs) {
   return new Promise((res) => {

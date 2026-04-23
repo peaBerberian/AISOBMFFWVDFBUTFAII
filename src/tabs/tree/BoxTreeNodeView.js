@@ -1,4 +1,5 @@
-import { el, esc, fmtBytes } from "../utils";
+import { el, esc } from "../../dom";
+import { fmtBytes } from "../utils";
 import { getPsshPreviewField, renderPsshPreviewField } from "./pssh";
 
 const AUTO_OPEN_FIELD_LIMIT = 80;
@@ -106,7 +107,7 @@ function renderBoxTreeNode(box, options = {}) {
   const shallow = options.shallow ?? false;
   const displayFields = getDisplayFields(box);
   const hasValues = displayFields.length > 0;
-  const hasChildren = !shallow && box.children?.length > 0;
+  const hasChildren = !shallow && (box.children?.length ?? 0) > 0;
   const hasContent =
     hasValues || hasChildren || box.description || box.issues?.length;
   const autoOpen = options.autoOpen ?? shouldAutoOpen(box);
@@ -216,7 +217,7 @@ function renderBoxTreeNode(box, options = {}) {
       det.addEventListener(
         "toggle",
         () => {
-          if (det.open && !det.querySelector(":scope > .box-body")) {
+          if (det.open && !hasDirectChildWithClass(det, "box-body")) {
             insertBody();
           }
         },
@@ -226,7 +227,7 @@ function renderBoxTreeNode(box, options = {}) {
   }
 
   if (hasChildren) {
-    for (const child of box.children) {
+    for (const child of box.children ?? []) {
       childContainer.appendChild(
         new BoxTreeNodeView(child, { shallow: false }).element,
       );
@@ -610,3 +611,17 @@ window.addEventListener("resize", () => {
   }
   positionPropertyTooltip(activeTooltipTarget, tooltip);
 });
+
+/**
+ * @param {HTMLElement} element
+ * @param {string} className
+ */
+function hasDirectChildWithClass(element, className) {
+  for (let childIdx = 0; childIdx < element.children.length; childIdx++) {
+    const child = element.children[childIdx];
+    if (child.classList.contains(className)) {
+      return true;
+    }
+  }
+  return false;
+}

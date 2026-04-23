@@ -17,6 +17,8 @@ parser. Avoid adding parser logic here unless it is strictly UI-facing.
 - `src/parse.js`: connects `isobmff-inspector` streaming parse events to the UI.
   It incrementally renders the box tree and then renders the size chart.
 - `src/ProgressBar.js`: progress/status/cancel UI state.
+- `src/dom.js`: DOM helper functions, including required element assertions
+  and small element/escaping helpers shared by renderers.
 - `src/utils.js`: stream helpers and abort-aware async iteration.
 - `src/tabs/tree.js`: box tree DOM rendering.
 - `src/tabs/sizes.js`: size chart/map/table rendering.
@@ -76,6 +78,24 @@ provided `AbortSignal`.
 
 Rendering code generally builds DOM nodes directly. When inserting parser data,
 prefer `textContent` or the existing `esc()` helper over raw `innerHTML`.
+
+For static page-shell elements that must exist in `build/index.html`, use
+`requireElementById(id, ElementConstructor)` from `src/dom.js`. This keeps
+TypeScript null checks honest and fails loudly if the HTML shell and JS drift
+apart. Use the most specific constructor that matches the expected element, for
+example `HTMLInputElement` or `HTMLButtonElement`.
+
+Keep optional or dynamically-created elements explicit. For example, tooltip
+nodes or other lazy UI should still use a local nullable lookup and an
+`if (!element)` creation/return branch instead of `requireElementById`.
+
+Do not use `querySelector` or `querySelectorAll`. Prefer IDs plus
+`requireElementById` for shell elements, `getElementsByClassName` with explicit
+index-based loops for class collections, and direct child traversal for local
+tree checks.
+
+`HTMLCollection` is handled with index-based loops in this project so the code
+stays compatible with the current TypeScript/lib settings.
 
 The app intentionally yields during stream consumption in `src/utils.js` so the
 browser can keep painting during heavy parsing. Be careful with changes that

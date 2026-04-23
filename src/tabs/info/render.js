@@ -1,4 +1,5 @@
-import { el, fmtBytes } from "../utils";
+import { el, requireElementById } from "../../dom.js";
+import { fmtBytes } from "../utils";
 import deriveMediaInfo from "./read";
 import { getSampleKindLabel, getSampleKindTitle, numberFormat } from "./utils";
 
@@ -6,10 +7,7 @@ import { getSampleKindLabel, getSampleKindTitle, numberFormat } from "./utils";
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
  */
 export default function renderMediaInfo(boxes) {
-  const container = document.getElementById("media-info");
-  if (!container) {
-    return;
-  }
+  const container = requireElementById("media-info", HTMLElement);
   container.innerHTML = "";
   if (!boxes.length) {
     return;

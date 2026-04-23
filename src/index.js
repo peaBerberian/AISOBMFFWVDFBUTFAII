@@ -1,3 +1,4 @@
+import { requireElementById } from "./dom.js";
 import ProgressBar from "./ProgressBar.js";
 import { parseAndRender } from "./parse.js";
 import { initializeTabNavigation } from "./tabs";
@@ -22,10 +23,7 @@ initializeGithubStars();
  * @param {boolean} isLoading
  */
 function setResultsLoading(isLoading) {
-  const results = document.getElementById("results");
-  if (!results) {
-    return;
-  }
+  const results = requireElementById("results", HTMLElement);
   results.classList.toggle("is-stale-loading", isLoading);
   results.inert = isLoading;
   results.setAttribute("aria-busy", isLoading ? "true" : "false");
@@ -36,7 +34,7 @@ function setResultsLoading(isLoading) {
  * Can be aborted at any time with the given `AbortSignal`.
  * @param {string} url
  * @param {AbortSignal} signal
- * @returns {Promise}
+ * @returns {Promise<void>}
  */
 async function fetchSegmentAndParse(url, signal) {
   ProgressBar.start("fetching…");
@@ -57,7 +55,8 @@ async function fetchSegmentAndParse(url, signal) {
     );
   } catch (err) {
     if (!signal.aborted) {
-      ProgressBar.fail(`fetch error: ${err?.message ?? err}`);
+      const message = err instanceof Error ? err.message : err;
+      ProgressBar.fail(`fetch error: ${message}`);
       throw err;
     }
   }
@@ -70,8 +69,9 @@ async function fetchSegmentAndParse(url, signal) {
  * @returns {import("isobmff-inspector").ISOBMFFInput}
  */
 function formatFileInput(file, signal) {
-  if (typeof file.stream === "function") {
-    return createAbortableAsyncIterable(file.stream(), signal);
+  const streamableFile = /** @type {{ stream?: Blob["stream"] }} */ (file);
+  if (typeof streamableFile.stream === "function") {
+    return createAbortableAsyncIterable(streamableFile.stream(), signal);
   }
   return file;
 }
@@ -97,17 +97,18 @@ function parseLocalFile(file) {
 
 function initializeFileReaderInput() {
   if (window.File && window.FileReader && window.Uint8Array) {
-    document.getElementById("file-input").addEventListener("change", (evt) => {
-      const fileInputElt = /** @type {HTMLInputElement | null} */ (evt.target);
-      const files = fileInputElt.files;
+    const fileInput = requireElementById("file-input", HTMLInputElement);
+    fileInput.addEventListener("change", () => {
+      const files = fileInput.files;
       if (!files?.length) {
         return;
       }
       parseLocalFile(files[0]);
     });
   } else {
-    document.getElementById("choices-local-segment").style.display = "none";
-    document.getElementById("choices-separator").style.display = "none";
+    requireElementById("choices-local-segment", HTMLElement).style.display =
+      "none";
+    requireElementById("choices-separator", HTMLElement).style.display = "none";
   }
 }
 
@@ -129,10 +130,7 @@ function initializeFileDrop() {
     return;
   }
 
-  const dropOverlay = document.getElementById("drop-overlay");
-  if (!dropOverlay) {
-    return;
-  }
+  const dropOverlay = requireElementById("drop-overlay", HTMLElement);
 
   let dragDepth = 0;
 
@@ -155,11 +153,12 @@ function initializeFileDrop() {
   });
 
   document.addEventListener("dragover", (evt) => {
-    if (!dataTransferHasFiles(evt.dataTransfer)) {
+    const dataTransfer = evt.dataTransfer;
+    if (dataTransfer === null || !dataTransferHasFiles(dataTransfer)) {
       return;
     }
     evt.preventDefault();
-    evt.dataTransfer.dropEffect = "copy";
+    dataTransfer.dropEffect = "copy";
     showDropTarget();
   });
 
@@ -174,11 +173,12 @@ function initializeFileDrop() {
   });
 
   document.addEventListener("drop", (evt) => {
-    if (!dataTransferHasFiles(evt.dataTransfer)) {
+    const dataTransfer = evt.dataTransfer;
+    if (dataTransfer === null || !dataTransferHasFiles(dataTransfer)) {
       return;
     }
     evt.preventDefault();
-    const [file] = Array.from(evt.dataTransfer.files);
+    const [file] = Array.from(dataTransfer.files);
     hideDropTarget();
     if (file) {
       parseLocalFile(file);
@@ -187,10 +187,8 @@ function initializeFileDrop() {
 }
 
 function initializeUrlInput() {
-  if (window.fetch && window.Uint8Array) {
-    const urlInput = /** @type {HTMLInputElement} */ (
-      document.getElementById("url-input")
-    );
+  if ("fetch" in window && "Uint8Array" in window) {
+    const urlInput = requireElementById("url-input", HTMLInputElement);
 
     /**
      * @param {string} url
@@ -219,31 +217,39 @@ function initializeUrlInput() {
       inspectUrl(urlInput.value);
     }
 
-    document.getElementById("url-button").addEventListener("click", onUrlClick);
-    document.getElementById("url-input").addEventListener("keypress", (evt) => {
+    requireElementById("url-button", HTMLButtonElement).addEventListener(
+      "click",
+      onUrlClick,
+    );
+    urlInput.addEventListener("keypress", (evt) => {
       if ((evt.keyCode || evt.which) === 13) {
         onUrlClick();
       }
     });
-    document.querySelectorAll(".example-source-button").forEach((button) => {
+    const exampleButtons = document.getElementsByClassName(
+      "example-source-button",
+    );
+    for (let buttonIdx = 0; buttonIdx < exampleButtons.length; buttonIdx++) {
+      const button = exampleButtons[buttonIdx];
       button.addEventListener("click", () => {
         if (!(button instanceof HTMLElement)) {
           return;
         }
         inspectUrl(button.dataset.exampleUrl ?? "");
       });
-    });
+    }
   } else {
-    document.getElementById("choices-separator").style.display = "none";
-    document.getElementById("choices-url-segment").style.display = "none";
+    requireElementById("choices-separator", HTMLElement).style.display = "none";
+    requireElementById("choices-url-segment", HTMLElement).style.display =
+      "none";
   }
 }
 
 function initializeGithubStars() {
-  const starsElt = document.getElementById("github-stars");
-  if (!starsElt || !window.fetch) {
+  if (!("fetch" in window)) {
     return;
   }
+  const starsElt = requireElementById("github-stars", HTMLElement);
 
   const fetchStars = async () => {
     try {

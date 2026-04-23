@@ -1,8 +1,14 @@
-const progressBarWrapperElt = document.getElementById("progress-bar-wrap");
-const progressBarElt = document.getElementById("progress-bar");
-const statusLineElt = document.getElementById("status-line");
-const cancelButtonElt = /** @type {HTMLButtonElement} */ (
-  document.getElementById("progress-cancel-button")
+import { requireElementById } from "./dom.js";
+
+const progressBarWrapperElt = requireElementById(
+  "progress-bar-wrap",
+  HTMLElement,
+);
+const progressBarElt = requireElementById("progress-bar", HTMLElement);
+const statusLineElt = requireElementById("status-line", HTMLElement);
+const cancelButtonElt = requireElementById(
+  "progress-cancel-button",
+  HTMLButtonElement,
 );
 
 const TOAST_STATE_CLASSES = [
@@ -18,12 +24,19 @@ const TOAST_STATE_CLASSES = [
  * the weird naming.
  */
 class ProgressBarClass {
+  /** @type {ReturnType<typeof requestAnimationFrame> | null} */
   #restartRaf = null;
+  /** @type {ReturnType<typeof setTimeout> | null} */
   #fadeTimeout = null;
+  /** @type {ReturnType<typeof setTimeout> | null} */
   #resetTimeout = null;
+  /** @type {ReturnType<typeof setTimeout> | null} */
   #cancelButtonTimeout = null;
+  /** @type {(() => void) | null} */
   #cancelAction = null;
+  /** @type {ReturnType<typeof requestAnimationFrame> | null} */
   #easingRaf = null;
+  /** @type {number} */
   #percent = 0;
 
   constructor() {
@@ -51,7 +64,7 @@ class ProgressBarClass {
     this.#clearPendingAnimation();
     this.#hideCancelButton();
     this.#setToastState("is-active");
-    if (this.#cancelAction) {
+    if (this.#cancelAction !== null) {
       this.#cancelButtonTimeout = setTimeout(() => {
         if (!this.#cancelAction) {
           return;
@@ -201,10 +214,18 @@ class ProgressBarClass {
       cancelAnimationFrame(this.#restartRaf);
       this.#restartRaf = null;
     }
-    clearTimeout(this.#fadeTimeout);
-    clearTimeout(this.#resetTimeout);
-    clearTimeout(this.#cancelButtonTimeout);
-    this.#cancelButtonTimeout = null;
+    if (this.#fadeTimeout !== null) {
+      clearTimeout(this.#fadeTimeout);
+      this.#fadeTimeout = null;
+    }
+    if (this.#resetTimeout !== null) {
+      clearTimeout(this.#resetTimeout);
+      this.#resetTimeout = null;
+    }
+    if (this.#cancelButtonTimeout !== null) {
+      clearTimeout(this.#cancelButtonTimeout);
+      this.#cancelButtonTimeout = null;
+    }
     progressBarWrapperElt.style.transition = "none";
     progressBarWrapperElt.style.opacity = "1";
     progressBarElt.style.transition = "none";
@@ -214,8 +235,10 @@ class ProgressBarClass {
   }
 
   #hideCancelButton() {
-    clearTimeout(this.#cancelButtonTimeout);
-    this.#cancelButtonTimeout = null;
+    if (this.#cancelButtonTimeout !== null) {
+      clearTimeout(this.#cancelButtonTimeout);
+      this.#cancelButtonTimeout = null;
+    }
     cancelButtonElt.classList.remove("is-visible");
     cancelButtonElt.disabled = false;
     cancelButtonElt.setAttribute("aria-hidden", "true");

@@ -1,4 +1,5 @@
 import { parseEvents } from "isobmff-inspector";
+import { requireElementById } from "./dom.js";
 import ProgressBar from "./ProgressBar.js";
 import {
   BoxTreeNodeView,
@@ -37,21 +38,21 @@ export async function parseAndRender(input, abortSignal) {
   // that accumulates during streaming.
   const topLevelBoxes = [];
   let boxCount = 0;
-  const tabs = document.getElementById("tabs");
-  const results = document.getElementById("results");
-  const resultNotices = document.getElementById("result-notices");
-  const wrapper = document.getElementById("file-description");
-  const sizeChart = document.getElementById("size-chart");
-  const mediaInfo = document.getElementById("media-info");
+
+  const tabs = requireElementById("tabs", HTMLElement);
+  const results = requireElementById("results", HTMLElement);
+  const resultNotices = requireElementById("result-notices", HTMLElement);
+  const wrapper = requireElementById("file-description", HTMLElement);
+  const sizeChart = requireElementById("size-chart", HTMLElement);
+  const mediaInfo = requireElementById("media-info", HTMLElement);
+
   resultNotices.innerHTML = "";
   wrapper.innerHTML = "";
   sizeChart.innerHTML = "";
   mediaInfo.innerHTML = "";
-  if (results) {
-    results.classList.remove("is-stale-loading");
-    results.inert = false;
-    results.setAttribute("aria-busy", "true");
-  }
+  results.classList.remove("is-stale-loading");
+  results.inert = false;
+  results.setAttribute("aria-busy", "true");
   topLevelBoxes.length = 0;
   tabs.hidden = false;
   switchToTab("boxes");
@@ -182,11 +183,12 @@ export async function parseAndRender(input, abortSignal) {
     }
     tabs.hidden = true;
     tabs.classList.remove("is-reserved", "is-visible");
-    ProgressBar.fail(`parse error: ${err?.message ?? err}`);
+    const message = err instanceof Error ? err.message : err;
+    ProgressBar.fail(`parse error: ${message}`);
     console.error("parse error", err);
   } finally {
     if (!abortSignal.aborted) {
-      results?.setAttribute("aria-busy", "false");
+      results.setAttribute("aria-busy", "false");
     }
     if (!abortSignal.aborted && completed) {
       if (inputHeuristicNotice?.severity === "error") {

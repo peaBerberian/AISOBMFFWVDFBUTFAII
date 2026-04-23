@@ -1,4 +1,5 @@
-import { el, esc, fmtBytes } from "./utils";
+import { el, esc, requireElementById } from "../dom.js";
+import { fmtBytes } from "./utils";
 
 const CHART_COLORS = [
   "#1F6FB8",
@@ -72,6 +73,7 @@ function flattenBoxes(boxes, depth, colors, out, path = "") {
 
 /**
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
+ * @returns {number}
  */
 function sumExcludedShareBoxes(boxes) {
   return boxes.reduce((sum, box) => {
@@ -300,8 +302,8 @@ function createScaleButton(label, scale, ariaLabel) {
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
  */
 export default function renderSizeChart(boxes) {
-  const container = document.getElementById("size-chart");
-  if (!container || !boxes.length) {
+  const container = requireElementById("size-chart", HTMLElement);
+  if (!boxes.length) {
     return;
   }
 
@@ -496,10 +498,10 @@ export default function renderSizeChart(boxes) {
    */
   function setPreviewMapRow(row) {
     previewMapRow = row;
-    mapDetails.textContent =
-      previewMapRow || activeMapRow
-        ? getRowDetail(previewMapRow ?? activeMapRow, showNonMdatShare)
-        : "Hover or select a box to inspect its size and path.";
+    const refRow = previewMapRow || activeMapRow;
+    mapDetails.textContent = refRow
+      ? getRowDetail(refRow, showNonMdatShare)
+      : "Hover or select a box to inspect its size and path.";
     syncBoxHighlights();
   }
 

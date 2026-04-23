@@ -1,13 +1,4 @@
 /**
- * @param {string|number|bigint} s
- */
-export function esc(s) {
-  const d = document.createElement("div");
-  d.appendChild(document.createTextNode(String(s)));
-  return d.innerHTML;
-}
-
-/**
  * @param {number} n
  */
 export function fmtBytes(n) {
@@ -26,21 +17,4 @@ export function fmtBytes(n) {
     return `${b} B`;
   }
   return `${value.toFixed(unitIndex === 1 ? 1 : 2)} ${units[unitIndex]}`;
-}
-
-/**
- * @param {string} tag
- * @param {string=} cls
- * @param {string=} html
- * @returns {HTMLElement}
- */
-export function el(tag, cls, html) {
-  const e = document.createElement(tag);
-  if (cls) {
-    e.className = cls;
-  }
-  if (html) {
-    e.innerHTML = html;
-  }
-  return e;
 }

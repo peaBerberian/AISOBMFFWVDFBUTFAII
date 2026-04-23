@@ -1,3 +1,5 @@
+import { requireElementById } from "../dom.js";
+
 /**
  * @param {string} tabName
  */
@@ -77,11 +79,9 @@ function getNextTab(currentTab, key) {
 }
 
 function updateTabIndicator() {
-  const tabs = document.getElementById("tabs");
-  const activeTab = /** @type {HTMLElement | null} */ (
-    document.querySelector(".tab.active")
-  );
-  if (!tabs || !activeTab) {
+  const tabs = requireElementById("tabs", HTMLElement);
+  const activeTab = getActiveTab();
+  if (!activeTab) {
     return;
   }
 
@@ -92,4 +92,18 @@ function updateTabIndicator() {
     `${activeRect.left - tabsRect.left}px`,
   );
   tabs.style.setProperty("--active-tab-width", `${activeRect.width}px`);
+}
+
+/**
+ * @returns {HTMLElement | null}
+ */
+function getActiveTab() {
+  const tabElts = document.getElementsByClassName("tab");
+  for (let tabIdx = 0; tabIdx < tabElts.length; tabIdx++) {
+    const tabEl = tabElts[tabIdx];
+    if (tabEl instanceof HTMLElement && tabEl.classList.contains("active")) {
+      return tabEl;
+    }
+  }
+  return null;
 }
