@@ -1,6 +1,6 @@
 import { el } from "../../dom.js";
 import { fmtBytes } from "../utils.js";
-import { getBoxNodeKey } from "./BoxTreeNodeView.js";
+import { getBoxNodeKey, openBoxBody } from "./BoxTreeNodeView.js";
 
 const TREE_MAP_COLORS = [
   "#1F6FB8",
@@ -647,15 +647,20 @@ function focusTreeNode(treeRoot, key) {
       continue;
     }
     openAncestorBoxes(node, treeRoot);
-    node.scrollIntoView({ block: "start" });
+    /** @type {HTMLElement} */
+    let scrollTarget = node;
     if (node instanceof HTMLDetailsElement) {
-      node.open = true;
+      openBoxBody(node);
       const summary = node.firstElementChild;
       if (summary instanceof HTMLElement) {
-        summary.focus();
+        scrollTarget = summary;
       }
-    } else {
-      node.focus();
+    }
+    scrollTarget.scrollIntoView({ block: "start" });
+    try {
+      scrollTarget.focus({ preventScroll: true });
+    } catch {
+      scrollTarget.focus();
     }
     return;
   }
@@ -669,7 +674,7 @@ function openAncestorBoxes(node, treeRoot) {
   let current = node.parentElement;
   while (current && current !== treeRoot) {
     if (current instanceof HTMLDetailsElement) {
-      current.open = true;
+      openBoxBody(current);
     }
     current = current.parentElement;
   }

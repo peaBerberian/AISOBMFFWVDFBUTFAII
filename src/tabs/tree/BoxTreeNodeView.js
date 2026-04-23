@@ -4,6 +4,18 @@ import { getPsshPreviewField, renderPsshPreviewField } from "./pssh";
 
 const AUTO_OPEN_FIELD_LIMIT = 80;
 const COLLAPSIBLE_TEXT_LIMIT = 160;
+/**
+ * Some Box's details, containing their parsed content, are collapsed by default
+ * and not even present in the DOM.
+ * This is for performance reasons as a few metadata boxes could become huge.
+ *
+ * As such this map link the corresponding `HTMLDetailElement` to the code that
+ * both insert the DOM and open the detail element.
+ *
+ * Once the detail has been opened, the entry is removed.
+ * @type {WeakMap<HTMLDetailsElement, () => void>}
+ */
+const lazyBoxBodies = new WeakMap();
 
 /**
  * View abstraction for one rendered box-tree node.
@@ -213,17 +225,21 @@ function renderBoxTreeNode(box, options = {}) {
 
   if (hasContent) {
     const insertBody = () => {
+      if (hasDirectChildWithClass(det, "box-body")) {
+        return;
+      }
       det.insertBefore(makeBody(), childContainer);
     };
 
     if (det.open) {
       insertBody();
     } else {
+      lazyBoxBodies.set(det, insertBody);
       det.addEventListener(
         "toggle",
         () => {
-          if (det.open && !hasDirectChildWithClass(det, "box-body")) {
-            insertBody();
+          if (det.open) {
+            openBoxBody(det);
           }
         },
         { once: true },
@@ -266,6 +282,20 @@ export function getBoxNodeKey(box) {
     return "";
   }
   return `${offset}:${size}:${box.type}`;
+}
+
+/**
+ * Opens a rendered box-node `<details>` and inserts its lazy body if needed.
+ * @param {HTMLDetailsElement} details
+ */
+export function openBoxBody(details) {
+  details.open = true;
+  const insertBody = lazyBoxBodies.get(details);
+  if (!insertBody) {
+    return;
+  }
+  insertBody();
+  lazyBoxBodies.delete(details);
 }
 
 /**
