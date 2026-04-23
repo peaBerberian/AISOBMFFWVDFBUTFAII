@@ -9,7 +9,7 @@ import {
   switchToTab,
 } from "./tabs";
 
-const AUTO_OPEN_BOX_LIMIT = 400;
+const AUTO_OPEN_BOX_LIMIT = 200;
 const USUAL_FIRST_BOX_TYPES = new Set([
   "ftyp",
   "styp",

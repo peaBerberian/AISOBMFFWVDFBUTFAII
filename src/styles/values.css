@@ -141,6 +141,45 @@
   overflow-wrap: anywhere;
 }
 
+.vv-limited-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vv-more-controls {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.vv-more-button {
+  padding: 2px 8px;
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: 999px;
+  appearance: none;
+  background: var(--color-background-secondary);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.vv-more-button:hover,
+.vv-more-button:focus-visible {
+  border-color: var(--color-text-tertiary);
+  color: var(--color-text-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(55, 138, 221, 0.16);
+}
+
+.vv-more-status {
+  font-size: 10.5px;
+  color: var(--color-text-tertiary);
+}
+
 .pssh-preview {
   display: flex;
   flex-direction: column;

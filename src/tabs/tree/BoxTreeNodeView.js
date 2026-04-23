@@ -4,6 +4,7 @@ import { getPsshPreviewField, renderPsshPreviewField } from "./pssh";
 
 const AUTO_OPEN_FIELD_LIMIT = 80;
 const COLLAPSIBLE_TEXT_LIMIT = 160;
+const VALUE_RENDER_BATCH_SIZE = 200;
 /**
  * Some Box's details, containing their parsed content, are collapsed by default
  * and not even present in the DOM.
@@ -375,25 +376,42 @@ function renderValue(f, options = {}) {
 
     case "flags": {
       const wrap = el("div", "flags-grid");
-      for (const flag of f.flags ?? []) {
-        const chip = el("span", `flag-chip${flag.value ? " on" : ""}`);
-        chip.textContent = flag.key;
-        wrap.appendChild(chip);
-      }
-      if (!f.flags?.length) {
+      const flags = f.flags ?? [];
+      if (!flags.length) {
         wrap.textContent = "—";
+        return wrap;
       }
-      return wrap;
+      return renderIncrementalCollection({
+        container: wrap,
+        itemCount: flags.length,
+        itemLabel: "flags",
+        appendRange(start, end) {
+          for (let index = start; index < end; index++) {
+            const flag = flags[index];
+            const chip = el("span", `flag-chip${flag.value ? " on" : ""}`);
+            chip.textContent = flag.key;
+            wrap.appendChild(chip);
+          }
+        },
+      });
     }
 
     case "bits": {
       const wrap = el("div", "bits-row");
-      for (const b of f.fields ?? []) {
-        const part = el("span", "bits-field");
-        part.innerHTML = `${esc(b.key)}=<span>${esc(b.value)}</span>`;
-        wrap.appendChild(part);
-      }
-      return wrap;
+      const bitFields = f.fields ?? [];
+      return renderIncrementalCollection({
+        container: wrap,
+        itemCount: bitFields.length,
+        itemLabel: "bit fields",
+        appendRange(start, end) {
+          for (let index = start; index < end; index++) {
+            const b = bitFields[index];
+            const part = el("span", "bits-field");
+            part.innerHTML = `${esc(b.key)}=<span>${esc(b.value)}</span>`;
+            wrap.appendChild(part);
+          }
+        },
+      });
     }
 
     case "struct": {
@@ -417,12 +435,20 @@ function renderValue(f, options = {}) {
         return s;
       }
       const tbl = /** @type {HTMLTableElement} */ (el("table", "values-table"));
-      for (const sf of f.fields ?? []) {
-        const row = tbl.insertRow();
-        renderKeyCell(row.insertCell(), sf);
-        row.insertCell().appendChild(renderValue(sf, options));
-      }
-      return tbl;
+      const structFields = f.fields ?? [];
+      return renderIncrementalCollection({
+        container: tbl,
+        itemCount: structFields.length,
+        itemLabel: "fields",
+        appendRange(start, end) {
+          for (let index = start; index < end; index++) {
+            const sf = structFields[index];
+            const row = tbl.insertRow();
+            renderKeyCell(row.insertCell(), sf);
+            row.insertCell().appendChild(renderValue(sf, options));
+          }
+        },
+      });
     }
 
     case "array": {
@@ -431,23 +457,91 @@ function renderValue(f, options = {}) {
         s.textContent = "[]";
         return s;
       }
-      if (f.items.every((i) => i.kind === "number" || i.kind === "bigint")) {
+      if (
+        f.items.length <= VALUE_RENDER_BATCH_SIZE &&
+        f.items.every((i) => i.kind === "number" || i.kind === "bigint")
+      ) {
         const s = el("span", "vv-num");
         s.textContent = `[${f.items.map((i) => i.value).join(", ")}]`;
         return s;
       }
       const wrap = el("div");
-      f.items.forEach((item, idx) => {
-        const row = el("div", "arr-item");
-        const lbl = el("span", "arr-label");
-        lbl.textContent = `[${idx}] `;
-        row.appendChild(lbl);
-        row.appendChild(renderValue(item, options));
-        wrap.appendChild(row);
+      return renderIncrementalCollection({
+        container: wrap,
+        itemCount: f.items.length,
+        itemLabel: "items",
+        appendRange(start, end) {
+          for (let index = start; index < end; index++) {
+            const item = f.items[index];
+            const row = el("div", "arr-item");
+            const lbl = el("span", "arr-label");
+            lbl.textContent = `[${index}] `;
+            row.appendChild(lbl);
+            row.appendChild(renderValue(item, options));
+            wrap.appendChild(row);
+          }
+        },
       });
-      return wrap;
     }
   }
+}
+
+/**
+ * @param {{
+ *   container: HTMLElement,
+ *   itemCount: number,
+ *   itemLabel: string,
+ *   appendRange: (start: number, end: number) => void,
+ * }} options
+ * @returns {HTMLElement}
+ */
+function renderIncrementalCollection(options) {
+  const { container, itemCount, itemLabel, appendRange } = options;
+  if (itemCount <= VALUE_RENDER_BATCH_SIZE) {
+    appendRange(0, itemCount);
+    return container;
+  }
+
+  const wrapper = el("div", "vv-limited-block");
+  wrapper.appendChild(container);
+
+  const controls = el("div", "vv-more-controls");
+  const button = /** @type {HTMLButtonElement} */ (
+    el("button", "vv-more-button")
+  );
+  button.type = "button";
+  const status = el("span", "vv-more-status");
+  controls.appendChild(button);
+  controls.appendChild(status);
+  wrapper.appendChild(controls);
+
+  let renderedCount = 0;
+
+  const updateControls = () => {
+    const remainingCount = itemCount - renderedCount;
+    if (remainingCount <= 0) {
+      controls.remove();
+      return;
+    }
+
+    const nextBatchSize = Math.min(VALUE_RENDER_BATCH_SIZE, remainingCount);
+    button.textContent = `Show ${nextBatchSize} more`;
+    status.textContent = `${remainingCount} ${itemLabel} remaining`;
+  };
+
+  const renderNextBatch = () => {
+    const nextCount = Math.min(
+      itemCount,
+      renderedCount + VALUE_RENDER_BATCH_SIZE,
+    );
+    appendRange(renderedCount, nextCount);
+    renderedCount = nextCount;
+    updateControls();
+  };
+
+  button.addEventListener("click", renderNextBatch);
+  renderNextBatch();
+  return wrapper;
 }
 
 /**
