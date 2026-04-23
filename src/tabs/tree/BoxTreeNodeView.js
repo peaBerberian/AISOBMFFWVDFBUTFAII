@@ -1,9 +1,5 @@
 import { el, esc, fmtBytes } from "../utils";
-import {
-  getPsshPreviewField,
-  isCollapsedPsshStringField,
-  renderPsshPreviewField,
-} from "./pssh";
+import { getPsshPreviewField, renderPsshPreviewField } from "./pssh";
 
 const AUTO_OPEN_FIELD_LIMIT = 80;
 const COLLAPSIBLE_TEXT_LIMIT = 160;
@@ -272,11 +268,9 @@ function renderValue(f, options = {}) {
       return s;
     }
 
+    case "bytes":
     case "string": {
-      return renderStringValue(f.value, {
-        className: "vv-str",
-        forceExpanded: !isCollapsedPsshStringField(options.box, f),
-      });
+      return renderStringValue(f.value, { className: "vv-str" });
     }
 
     case "boolean": {

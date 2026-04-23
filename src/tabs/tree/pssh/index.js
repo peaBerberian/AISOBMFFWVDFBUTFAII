@@ -22,12 +22,3 @@ export function renderPsshPreviewField(field, renderStringValue) {
   );
   return wrap;
 }
-
-/**
- * @param {import("isobmff-inspector").ParsedBox | undefined} box
- * @param {import("isobmff-inspector").ParsedField & { key?: string }} field
- * @returns {boolean}
- */
-export function isCollapsedPsshStringField(box, field) {
-  return box?.type === "pssh" && field.key === "data";
-}

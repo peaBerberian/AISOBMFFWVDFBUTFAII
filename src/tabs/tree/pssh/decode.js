@@ -20,8 +20,11 @@ const WIDEVINE_SYSTEM_ID = "EDEF8BA979D64ACEA3C827DCD51D21ED";
 export function getPsshPreviewField(box) {
   const systemIdField = findBoxValue(box, "systemID");
   const dataField = findBoxValue(box, "data");
-  const systemId = getSystemIdValue(systemIdField);
-  const hex = dataField?.kind === "string" ? dataField.value : null;
+  const systemId =
+    systemIdField?.kind !== "string" && systemIdField?.kind !== "bytes"
+      ? null
+      : systemIdField.value;
+  const hex = dataField?.kind === "bytes" ? dataField.value : null;
   if (!systemId || !hex) {
     return null;
   }
@@ -86,18 +89,6 @@ export function getPsshPreviewField(box) {
  */
 function findBoxValue(box, key) {
   return (box.values ?? []).find((value) => value.key === key) ?? null;
-}
-
-/**
- * @param {import("isobmff-inspector").ParsedBoxValue | null} field
- * @returns {string | null}
- */
-function getSystemIdValue(field) {
-  if (field?.kind !== "string") {
-    return null;
-  }
-  const match = /^[0-9A-F]+/.exec(field.value);
-  return match ? match[0] : null;
 }
 
 /**
