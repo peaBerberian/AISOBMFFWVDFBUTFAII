@@ -5,6 +5,7 @@ import {
   BoxTreeNodeView,
   renderMediaInfo,
   renderSizeChart,
+  renderTreePositionMap,
   switchToTab,
 } from "./tabs";
 
@@ -23,6 +24,9 @@ const USUAL_FIRST_BOX_TYPES = new Set([
   "prft",
   "uuid",
 ]);
+
+/** Allows to clean the resource reserved to show the current parsed file. */
+let currentFileAbortCtrl = new AbortController();
 
 /**
  * @typedef {{ severity: "warning" | "error", message: string }} ParseNotice
@@ -45,6 +49,9 @@ export async function parseAndRender(input, abortSignal) {
   const wrapper = requireElementById("file-description", HTMLElement);
   const sizeChart = requireElementById("size-chart", HTMLElement);
   const mediaInfo = requireElementById("media-info", HTMLElement);
+
+  currentFileAbortCtrl.abort();
+  currentFileAbortCtrl = new AbortController();
 
   resultNotices.innerHTML = "";
   wrapper.innerHTML = "";
@@ -174,6 +181,7 @@ export async function parseAndRender(input, abortSignal) {
 
     renderMediaInfo(topLevelBoxes);
     renderSizeChart(topLevelBoxes);
+    renderTreePositionMap(topLevelBoxes, wrapper, currentFileAbortCtrl.signal);
     tabs.classList.remove("is-reserved");
     tabs.classList.add("is-visible");
     completed = true;
@@ -186,6 +194,7 @@ export async function parseAndRender(input, abortSignal) {
     const message = err instanceof Error ? err.message : err;
     ProgressBar.fail(`parse error: ${message}`);
     console.error("parse error", err);
+    currentFileAbortCtrl.abort();
   } finally {
     if (!abortSignal.aborted) {
       results.setAttribute("aria-busy", "false");

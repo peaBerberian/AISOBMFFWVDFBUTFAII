@@ -184,7 +184,9 @@ function renderBoxTreeNode(box, options = {}) {
   };
 
   if (!hasContent && !box.children) {
-    const div = el("div", "leaf-box");
+    const div = el("div", "leaf-box box-node");
+    assignBoxNodeMetadata(div, box);
+    div.tabIndex = -1;
     const caret = el("span", "box-caret");
     caret.textContent = "";
     caret.style.opacity = "0";
@@ -194,9 +196,12 @@ function renderBoxTreeNode(box, options = {}) {
   }
 
   const det = document.createElement("details");
+  det.className = "box-node";
+  assignBoxNodeMetadata(det, box);
   det.open = autoOpen;
 
   const summary = document.createElement("summary");
+  summary.className = "box-node-header";
   const caret = el("span", "box-caret");
   caret.setAttribute("aria-hidden", "true");
   summary.appendChild(caret);
@@ -235,6 +240,32 @@ function renderBoxTreeNode(box, options = {}) {
   }
 
   return { element: det, childContainer };
+}
+
+/**
+ * @param {HTMLElement} element
+ * @param {import("isobmff-inspector").ParsedBox} box
+ */
+function assignBoxNodeMetadata(element, box) {
+  const key = getBoxNodeKey(box);
+  if (key) {
+    element.dataset.boxKey = key;
+  } else {
+    delete element.dataset.boxKey;
+  }
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox} box
+ * @returns {string}
+ */
+export function getBoxNodeKey(box) {
+  const offset = Number(box.offset);
+  const size = Number(box.size);
+  if (!Number.isFinite(offset) || !Number.isFinite(size)) {
+    return "";
+  }
+  return `${offset}:${size}:${box.type}`;
 }
 
 /**
