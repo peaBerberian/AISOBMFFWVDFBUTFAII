@@ -252,7 +252,7 @@ function renderValue(f, options = {}) {
   }
 
   if ("kind" in f && f.kind === "pssh-preview") {
-    return renderPsshPreviewField(f, renderStringValue);
+    return renderPsshPreviewField(f, renderBytesValue);
   }
 
   if (typeof f !== "object") {
@@ -269,7 +269,9 @@ function renderValue(f, options = {}) {
       return s;
     }
 
-    case "bytes":
+    case "bytes": {
+      return renderBytesValue(f.value, { className: "vv-str" });
+    }
     case "string": {
       return renderStringValue(f.value, { className: "vv-str" });
     }
@@ -412,6 +414,25 @@ function getDisplayFields(box) {
  */
 function renderStringValue(value, options) {
   const text = `"${value}"`;
+  return outputPotentiallyLongString(text, options);
+}
+
+/**
+ * @param {string} value
+ * @param {{ className: string, forceExpanded?: boolean, preserveWhitespace?: boolean }} options
+ * @returns {HTMLElement}
+ */
+function renderBytesValue(value, options) {
+  const text = `${value}`;
+  return outputPotentiallyLongString(text, options);
+}
+
+/**
+ * @param {string} text
+ * @param {{ className: string, forceExpanded?: boolean, preserveWhitespace?: boolean }} options
+ * @returns {HTMLElement}
+ */
+function outputPotentiallyLongString(text, options) {
   if (options.forceExpanded || text.length <= COLLAPSIBLE_TEXT_LIMIT) {
     const s = el(
       "span",
