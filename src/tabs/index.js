@@ -1,8 +1,8 @@
-import renderMediaInfo from "./info";
-import renderSampleView from "./samples";
-import renderSizeChart from "./sizes";
-import { initializeTabNavigation, switchToTab } from "./tab_menu";
-import BoxTreeNodeView, { renderTreePositionMap } from "./tree";
+import renderMediaInfo from "./info/index.js";
+import renderSampleView from "./samples.js";
+import renderSizeChart from "./sizes.js";
+import { initializeTabNavigation, switchToTab } from "./tab_menu.js";
+import BoxTreeNodeView, { renderTreePositionMap } from "./tree/index.js";
 
 export {
   BoxTreeNodeView,

@@ -1,5 +1,5 @@
 import { el, esc, requireElementById } from "../dom.js";
-import { fmtBytes } from "./utils";
+import { fmtBytes } from "./utils.js";
 
 const CHART_COLORS = [
   "#1F6FB8",

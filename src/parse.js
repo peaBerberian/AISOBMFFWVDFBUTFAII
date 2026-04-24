@@ -8,7 +8,7 @@ import {
   renderSizeChart,
   renderTreePositionMap,
   switchToTab,
-} from "./tabs";
+} from "./tabs/index.js";
 
 const AUTO_OPEN_BOX_LIMIT = 200;
 const USUAL_FIRST_BOX_TYPES = new Set([
@@ -79,7 +79,7 @@ export async function parseAndRender(input, abortSignal) {
   ProgressBar.start("parsing…");
   ProgressBar.startEasing();
 
-  /** @type {Array<import("./tabs").BoxTreeNodeView>} */
+  /** @type {Array<import("./tabs/index.js").BoxTreeNodeView>} */
   const stack = [];
   let completed = false;
   let renderedBoxCount = 0;

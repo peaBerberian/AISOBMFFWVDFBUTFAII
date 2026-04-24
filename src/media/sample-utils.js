@@ -1,8 +1,8 @@
 /**
- * @param {number} value
+ * @param {number} sampleFlags
  */
-export function numberFormat(value) {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
+export function isSyncSampleFlags(sampleFlags) {
+  return (sampleFlags & 0x10000) === 0;
 }
 
 /** @typedef {"sync" | "reordered" | "discardable" | "dependent" | "non-sync" | "unknown"} SampleClass */
@@ -78,7 +78,7 @@ export function classifySample(flags) {
 }
 
 /**
- * @returns {Record<import("./utils").SampleClass, number>}
+ * @returns {Record<SampleClass, number>}
  */
 export function createSampleCounts() {
   return {

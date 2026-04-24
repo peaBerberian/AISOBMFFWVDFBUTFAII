@@ -1,13 +1,13 @@
 import { el, requireElementById } from "../dom.js";
-import { getSampleKindTitle, numberFormat } from "./info/utils";
-import deriveMediaInfo from "./media/read";
-import { fmtBytes } from "./utils";
+import deriveMediaInfo, { getSampleKindTitle } from "../media/index.js";
+import { numberFormat } from "../utils.js";
+import { fmtBytes } from "./utils.js";
 
 const DEFAULT_SAMPLE_COUNT = 200;
 const MAX_RENDERED_SAMPLE_COUNT = 5000;
 /**
  * @typedef {keyof Pick<
- *   import("./media/read").SampleRow,
+ *   import("../media/index.js").SampleRow,
  *   | "index"
  *   | "dts"
  *   | "pts"
@@ -51,12 +51,12 @@ export default function renderSampleView(boxes) {
   }
 
   /** @type {{
-   *   view: import("./media/read").SampleView,
+   *   view: import("../media/index.js").SampleView,
    *   start: number,
    *   count: number,
    *   sortKey: SampleSortKey,
    *   sortDirection: "asc" | "desc",
-   *   renderedRows: import("./media/read").SampleRow[],
+   *   renderedRows: import("../media/index.js").SampleRow[],
    * }} */
   const state = {
     view: info.sampleViews[0],
@@ -238,7 +238,7 @@ export default function renderSampleView(boxes) {
 }
 
 /**
- * @param {import("./media/read").SampleRow} row
+ * @param {import("../media/index.js").SampleRow} row
  * @param {number | null} timescale
  * @param {UnknownTickContexts} tickContexts
  */
@@ -394,7 +394,7 @@ function formatFullInteger(value) {
  */
 
 /**
- * @param {import("./media/read").SampleRow[]} rows
+ * @param {import("../media/index.js").SampleRow[]} rows
  * @returns {UnknownTickContexts}
  */
 function createUnknownTickContexts(rows) {
@@ -483,11 +483,11 @@ function getColumnLabel(key) {
 }
 
 /**
- * @param {import("./media/read").SampleRow[]} rows
+ * @param {import("../media/index.js").SampleRow[]} rows
  * @param {SampleSortKey} sortKey
  * @param {"asc" | "desc"} sortDirection
- * @param {import("./media/read").SampleRow[]} previousRows
- * @returns {import("./media/read").SampleRow[]}
+ * @param {import("../media/index.js").SampleRow[]} previousRows
+ * @returns {import("../media/index.js").SampleRow[]}
  */
 function sortRows(rows, sortKey, sortDirection, previousRows) {
   const previousOrder = new Map(
@@ -538,7 +538,7 @@ function compareSampleValues(left, right) {
 }
 
 /**
- * @param {import("./media/read").SampleRow} row
+ * @param {import("../media/index.js").SampleRow} row
  */
 function getSampleRowId(row) {
   return String(row.index);

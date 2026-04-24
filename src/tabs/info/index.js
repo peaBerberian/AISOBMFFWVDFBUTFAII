@@ -1,2 +1,2 @@
-import renderMediaInfo from "./render";
+import renderMediaInfo from "./render.js";
 export default renderMediaInfo;

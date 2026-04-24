@@ -1,10 +1,14 @@
-import { el } from "../../../dom";
-import { getPsshPreviewField, getPsshSystemIdLabel } from "./decode";
+import { el } from "../../../dom.js";
+import { getPsshPreviewField, getPsshSystemIdLabel } from "./decode.js";
 
 export { getPsshPreviewField, getPsshSystemIdLabel };
 
 /**
- * @param {import("./decode").PsshPreviewField} field
+ * @typedef {import("./decode.js").PsshPreviewField} PsshPreviewField
+ */
+
+/**
+ * @param {import("./decode.js").PsshPreviewField} field
  * @param {(value: string, options: { className: string, forceExpanded?: boolean, preserveWhitespace?: boolean }) => HTMLElement} renderStringValue
  * @returns {HTMLElement}
  */

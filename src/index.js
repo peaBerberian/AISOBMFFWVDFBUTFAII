@@ -1,7 +1,7 @@
 import { requireElementById } from "./dom.js";
 import ProgressBar from "./ProgressBar.js";
 import { parseAndRender } from "./parse.js";
-import { initializeTabNavigation } from "./tabs";
+import { initializeTabNavigation } from "./tabs/index.js";
 import { createAbortableAsyncIterable } from "./utils.js";
 
 /**

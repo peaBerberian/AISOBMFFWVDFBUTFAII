@@ -1,10 +1,10 @@
-import { el, esc } from "../../dom";
-import { fmtBytes } from "../utils";
+import { el, esc } from "../../dom.js";
+import { fmtBytes } from "../utils.js";
 import {
   getPsshPreviewField,
   getPsshSystemIdLabel,
   renderPsshPreviewField,
-} from "./pssh";
+} from "./pssh/index.js";
 
 const AUTO_OPEN_FIELD_LIMIT = 80;
 const COLLAPSIBLE_TEXT_LIMIT = 160;
@@ -304,7 +304,7 @@ export function openBoxBody(details) {
 }
 
 /**
- * @typedef {import("./pssh/decode").PsshPreviewField} PsshPreviewField
+ * @typedef {import("./pssh/index.js").PsshPreviewField} PsshPreviewField
  */
 
 /**
