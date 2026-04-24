@@ -130,14 +130,14 @@ export function renderTreePositionMap(boxes, treeRoot, abortSignal) {
   function setCollapsed(collapsed) {
     isCollapsed = collapsed;
     panel.classList.toggle("tree-position-panel-collapsed", collapsed);
-    toggleButton.textContent = collapsed ? "+" : "-";
-    toggleButton.style.fontWeight = "bold";
+    toggleButton.textContent = collapsed ? "↓" : "↑";
     toggleButton.title = collapsed ? "Show ruler" : "Hide ruler";
     toggleButton.setAttribute(
       "aria-label",
       collapsed ? "Show ruler" : "Hide ruler",
     );
     toggleButton.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    toggleButton.dataset.state = collapsed ? "collapsed" : "expanded";
     updateMapHeight();
   }
 
@@ -154,7 +154,7 @@ export function renderTreePositionMap(boxes, treeRoot, abortSignal) {
     details.textContent = row ? getRowDetail(row) : getIdleDetail();
     for (const button of scaleButtons) {
       const isExcludingMdat = mapScale === "excluding-mdat";
-      button.textContent = isExcludingMdat ? "md-" : "all";
+      button.textContent = isExcludingMdat ? "+m" : "-m";
       button.title = isExcludingMdat
         ? "Switch to whole file scale"
         : "Switch to scale without mdat";
