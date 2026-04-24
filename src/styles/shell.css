@@ -69,7 +69,7 @@ input[type="file"]:focus-visible,
 #selection {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(260px, 1.2fr);
-  align-items: end;
+  align-items: center;
   gap: 12px;
   padding: 0.85rem 0 1rem;
   margin-bottom: 1rem;
@@ -198,6 +198,21 @@ input[type="file"]::file-selector-button:hover,
   padding: 2px 8px;
   font-size: 11px;
   line-height: 18px;
+}
+
+.inspection-source {
+  grid-column: 1 / -1;
+  display: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: -2px;
+  padding-top: 0.35rem;
+  min-width: 0;
+}
+
+.inspection-source-item {
+  flex: 1 1 240px;
+  min-width: 0;
 }
 
 .drop-overlay {

@@ -142,14 +142,15 @@ const parseAttributeList = (attrString) => {
   const map = new Map();
   // Regex: KEY=VALUE where VALUE is either "quoted" or unquoted-no-comma
   const re = /([A-Z0-9_-]+)=("(?:[^"\\]|\\.)*"|[^,]*)/g;
-  let m;
-  while ((m = re.exec(attrString)) !== null) {
+  let m = re.exec(attrString);
+  while (m !== null) {
     const key = m[1];
     let value = m[2];
     if (value.startsWith('"') && value.endsWith('"')) {
       value = value.slice(1, -1);
     }
     map.set(key, value);
+    m = re.exec(attrString);
   }
   return map;
 };
@@ -203,16 +204,18 @@ const isLikelyISOBMFF = (url, codecs) => {
   const ext = (path.match(/\.([a-z0-9]+)$/i) ?? [])[1]?.toLowerCase() ?? "";
 
   // Explicit ISOBMFF extensions
-  if (/^(mp4|m4s|m4v|m4a|m4f|cmfv|cmfa|cmft|fmp4|cmaf|mov)$/.test(ext))
+  if (/^(mp4|m4s|m4v|m4a|m4f|cmfv|cmfa|cmft|fmp4|cmaf|mov)$/.test(ext)) {
     return true;
+  }
 
   // Explicit non-ISOBMFF extensions → reject
   if (
     /^(ts|aac|ac3|ec3|mp3|vtt|webvtt|ttml|dfxp|srt|ass|ssa|flac|ogg|webm)$/.test(
       ext,
     )
-  )
+  ) {
     return false;
+  }
 
   // No extension or unknown extension → assume ISOBMFF (modern HLS defaults to fMP4)
   return true;
@@ -301,11 +304,16 @@ const detectPlaylistKind = (text) => {
   if (!text.trimStart().startsWith("#EXTM3U")) {
     return "plain";
   }
-  if (/#EXT-X-STREAM-INF/.test(text)) return "master";
-  if (/#EXTINF/.test(text) || /#EXT-X-TARGETDURATION/.test(text))
+  if (/#EXT-X-STREAM-INF/.test(text)) {
+    return "master";
+  }
+  if (/#EXTINF/.test(text) || /#EXT-X-TARGETDURATION/.test(text)) {
     return "media";
+  }
   // Master with only I-Frame or session playlists (no STREAM-INF)
-  if (/#EXT-X-I-FRAME-STREAM-INF/.test(text)) return "master";
+  if (/#EXT-X-I-FRAME-STREAM-INF/.test(text)) {
+    return "master";
+  }
   // Fallback: treat as plain
   return "plain";
 };
@@ -351,13 +359,17 @@ const parseMediaPlaylist = (text, baseUrl, variantCodecs) => {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (!line || line === "#EXTM3U") continue;
+    if (!line || line === "#EXTM3U") {
+      continue;
+    }
 
     // EXT-X-MAP
     if (line.startsWith("#EXT-X-MAP:")) {
       const attrs = parseAttributeList(line.slice("#EXT-X-MAP:".length));
       const mapUri = attrs.get("URI");
-      if (!mapUri) continue;
+      if (!mapUri) {
+        continue;
+      }
       const mapUrl = resolveUrl(baseUrl, mapUri);
       /** @type {ByteRange | null} */
       let mapRange = null;
@@ -402,7 +414,9 @@ const parseMediaPlaylist = (text, baseUrl, variantCodecs) => {
     }
 
     // Skip other tags
-    if (line.startsWith("#")) continue;
+    if (line.startsWith("#")) {
+      continue;
+    }
 
     // Segment URI line
     const segUrl = resolveUrl(baseUrl, line);
@@ -456,7 +470,9 @@ const parsePlainPlaylist = (text, baseUrl) => {
   const lines = text.split(/\r?\n/);
   for (const raw of lines) {
     const line = raw.trim();
-    if (!line || line.startsWith("#")) continue;
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
     const url = resolveUrl(baseUrl, line);
     if (isLikelyISOBMFF(url, null)) {
       segments.push({
@@ -508,7 +524,9 @@ const parseMasterPlaylist = (text, baseUrl) => {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (!line) continue;
+    if (!line) {
+      continue;
+    }
 
     if (line.startsWith("#EXT-X-STREAM-INF:")) {
       const attrs = parseAttributeList(line.slice("#EXT-X-STREAM-INF:".length));
@@ -528,7 +546,9 @@ const parseMasterPlaylist = (text, baseUrl) => {
       continue;
     }
 
-    if (line.startsWith("#")) continue;
+    if (line.startsWith("#")) {
+      continue;
+    }
 
     // URI line following EXT-X-STREAM-INF
     if (pendingVariantAttrs !== null) {
@@ -537,7 +557,6 @@ const parseMasterPlaylist = (text, baseUrl) => {
         attributes: pendingVariantAttrs,
       });
       pendingVariantAttrs = null;
-      continue;
     }
   }
 

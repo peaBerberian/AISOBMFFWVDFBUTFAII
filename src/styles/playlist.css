@@ -36,6 +36,7 @@
 
 .segment-choice-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 10px;
 }
 
@@ -46,6 +47,8 @@
   border: 0.5px solid var(--color-border-tertiary);
   border-radius: var(--border-radius-lg);
   background: var(--color-background-secondary);
+  overflow: hidden;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .segment-choice-title {
@@ -181,21 +184,6 @@
   color: var(--color-accent-blue);
 }
 
-.inspection-source {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: -2px;
-  padding-top: 0.35rem;
-  border-top: 0.5px solid var(--color-border-tertiary);
-}
-
-.inspection-source-item {
-  flex: 1 1 240px;
-  min-width: 0;
-}
-
 .compact-source {
   min-width: 0;
 }
@@ -245,7 +233,6 @@
 .compact-source-value {
   display: block;
   margin: 4px 0 0;
-  padding-left: calc(6px + 4.8em);
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--color-text-primary);

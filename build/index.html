@@ -8,7 +8,7 @@
     content="Inspect MP4 and ISOBMFF files directly in your browser. View box trees, parsed metadata fields, byte offsets, box sizes, and fragmented MP4 segment structure without uploading files."
   >
   <link rel="canonical" href="https://peaberberian.github.io/AISOBMFFWVDFBUTFAII/">
-	<link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <meta property="og:title" content="MP4 Box Inspector - ISOBMFF Analyzer">
   <meta
     property="og:description"
@@ -70,25 +70,37 @@
         <button type="button" id="url-button">Inspect</button>
       </div>
       <div class="example-sources" aria-label="Example files">
-        <span class="example-sources-label">Try</span>
-        <button
-          type="button"
-          class="example-source-button"
-          data-example-url="https://dash.akamaized.net/dash264/TestCases/1c/envivio/seg_b1000k_v_init.m4s"
-          title="Inspect a DASH video initialization segment, 687 bytes"
-        >DASH init</button>
-        <button
-          type="button"
-          class="example-source-button"
-          data-example-url="https://dash.akamaized.net/dash264/TestCases/1c/envivio/seg_b1000k_v_t12012.m4s"
-          title="Inspect a DASH video media segment, 51 KB"
-        >DASH media</button>
+        <span class="example-sources-label">Examples:</span>
         <button
           type="button"
           class="example-source-button"
           data-example-url="https://peaberberian.github.io/AISOBMFFWVDFBUTFAII/examples/example-av.mp4"
           title="Inspect a small complete H.264/AAC MP4 file with mixed P/B-frame sections, 95 KB"
         >MP4 file</button>
+        <button
+          type="button"
+          class="example-source-button"
+          data-example-url="https://dash.akamaized.net/dash264/TestCases/1c/envivio/seg_b1000k_v_init.m4s"
+          title="Inspect a DASH video initialization segment, 687 bytes"
+        >init segment</button>
+        <button
+          type="button"
+          class="example-source-button"
+          data-example-url="https://dash.akamaized.net/dash264/TestCases/1c/envivio/seg_b1000k_v_t12012.m4s"
+          title="Inspect a DASH video media segment, 51 KB"
+        >media segment</button>
+        <button
+          type="button"
+          class="example-source-button"
+          data-example-url="https://www.bok.net/dash/tears_of_steel/cleartext/stream.mpd"
+          title="Inspect MP4 files in a DASH VOD test asset"
+        >DASH VOD</button>
+        <button
+          type="button"
+          class="example-source-button"
+          data-example-url="https://storage.googleapis.com/shaka-demo-assets/angel-one-hls/hls.m3u8"
+          title="Inspect MP4 files in an HLS VOD test asset"
+        >HLS VOD</button>
       </div>
     </div>
     <section id="inspection-source" class="inspection-source" aria-label="Current inspection source" hidden></section>

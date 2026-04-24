@@ -51,7 +51,8 @@ function summarizeSourceValue(value) {
       const pathname = url.pathname.split("/").filter(Boolean);
       const lastSegment = pathname[pathname.length - 1];
       if (lastSegment) {
-        return `${url.hostname}/${lastSegment}`;
+        // XXX TODO: do better
+        return `${url.hostname}/…/${lastSegment}`;
       }
       if (url.search) {
         return `${url.hostname}${url.search}`;

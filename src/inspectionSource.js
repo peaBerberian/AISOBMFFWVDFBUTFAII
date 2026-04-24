@@ -23,10 +23,12 @@ export function setInspectionSource(input) {
     );
   }
 
+  rootElt.style.display = "flex";
   rootElt.hidden = false;
 }
 
 export function clearInspectionSource() {
+  rootElt.style.display = "none";
   rootElt.hidden = true;
   rootElt.replaceChildren();
 }

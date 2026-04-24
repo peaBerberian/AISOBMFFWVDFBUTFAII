@@ -20,7 +20,7 @@ const chooserElt = requireElementById("segment-chooser", HTMLElement);
 
 /**
  * @param {string} sourceUrl
- * @param {import("./extractors/DashUrlExtractor.js").DashTree} tree
+ * @param {import("./extractors/dash/types.js").DashTree} tree
  * @param {(segmentUrl: string) => void} onInspect
  */
 export function showDashSegmentChooser(sourceUrl, tree, onInspect) {
@@ -67,9 +67,9 @@ export function showDashSegmentChooser(sourceUrl, tree, onInspect) {
   }
 
   renderChooser({
-    title: "Choose a DASH segment",
+    title: "Select an MP4 segment from that DASH content",
     intro:
-      "The MPD was resolved successfully. Pick an initialization, index, or media segment to inspect.",
+      "The MPD was fetched successfully. Pick an initialization or media segment to start inspecting it.",
     sourceUrl,
     cards,
     onInspect,
@@ -151,10 +151,11 @@ function renderChooser(input) {
   intro.textContent = input.intro;
   header.appendChild(intro);
 
-  const source = document.createElement("div");
-  source.className = "segment-chooser-source";
-  source.appendChild(createCompactSource("Source", input.sourceUrl));
-  header.appendChild(source);
+  // TODO: remove?
+  // const source = document.createElement("div");
+  // source.className = "segment-chooser-source";
+  // source.appendChild(createCompactSource("Source", input.sourceUrl));
+  // header.appendChild(source);
 
   chooserElt.appendChild(header);
 
@@ -397,7 +398,7 @@ function getHlsFields(result) {
 }
 
 /**
- * @param {import("./extractors/DashUrlExtractor.js").RepresentationTree} representation
+ * @param {import("./extractors/dash/types.js").RepresentationTree} representation
  * @param {number} representationIndex
  */
 function formatDashTitle(representation, representationIndex) {
@@ -410,7 +411,7 @@ function formatDashTitle(representation, representationIndex) {
 }
 
 /**
- * @param {import("./extractors/DashUrlExtractor.js").SegmentItem} segment
+ * @param {import("./extractors/dash/types.js").SegmentItem} segment
  * @param {number} segmentIndex
  */
 function formatDashSegmentLabel(segment, segmentIndex) {

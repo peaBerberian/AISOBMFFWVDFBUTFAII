@@ -1,5 +1,5 @@
 import { requireElementById } from "./dom.js";
-import { extractSegmentsFromURL } from "./extractors/DashUrlExtractor.js";
+import { extractSegmentsFromURL } from "./extractors/dash/index.js";
 import { extractISOBMFFSegments } from "./extractors/HlsUrlExtractor.js";
 import {
   clearInspectionSource,
@@ -429,7 +429,7 @@ function getRemoteSourceKind(sourceUrl) {
 }
 
 /**
- * @param {import("./extractors/DashUrlExtractor.js").DashTree} tree
+ * @param {import("./extractors/dash/types.js").DashTree} tree
  */
 function countDashSegments(tree) {
   let count = 0;
