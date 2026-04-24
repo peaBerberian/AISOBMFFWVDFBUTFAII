@@ -279,6 +279,13 @@
   font-size: 12px;
 }
 
+.info-issue-context {
+  margin-bottom: 2px;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
 @media (max-width: 600px) {
   .info-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));

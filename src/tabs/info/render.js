@@ -22,6 +22,7 @@ export default function renderMediaInfo(boxes) {
   container.appendChild(renderFragments(info.fragments));
   container.appendChild(renderTracks(info.tracks));
   container.appendChild(renderHints(info.hints));
+  container.appendChild(renderIssues(boxes));
 }
 
 /**
@@ -227,6 +228,35 @@ function renderHints(hints) {
 }
 
 /**
+ * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
+ */
+function renderIssues(boxes) {
+  const issues = collectBoxIssues(boxes);
+  const section = createSection("parsing issues");
+  if (!issues.length) {
+    const empty = el("div", "info-empty");
+    empty.textContent = "No parsing issues were reported.";
+    section.body.appendChild(empty);
+    return section.section;
+  }
+
+  const hasOnlyWarnings = issues.every((issue) => issue.severity === "warning");
+  const list = el("div", `issue-list${hasOnlyWarnings ? " warn" : ""}`);
+  for (const issue of issues) {
+    const item = el("div", "issue-item");
+    const context = el("div", "info-issue-context");
+    context.textContent = issue.location;
+    const message = el("div");
+    message.textContent = issue.message;
+    item.appendChild(context);
+    item.appendChild(message);
+    list.appendChild(item);
+  }
+  section.body.appendChild(list);
+  return section.section;
+}
+
+/**
  * @param {string} title
  */
 function createSection(title) {
@@ -288,6 +318,64 @@ function addFact(list, key, value) {
   detail.textContent = value;
   list.appendChild(term);
   list.appendChild(detail);
+}
+
+/**
+ * @typedef {{
+ *   severity: "warning" | "error",
+ *   message: string,
+ *   location: string
+ * }} InfoIssue
+ */
+
+/**
+ * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
+ * @returns {InfoIssue[]}
+ */
+function collectBoxIssues(boxes) {
+  /** @type {InfoIssue[]} */
+  const issues = [];
+  const typeCounts = new Map();
+
+  for (const box of boxes) {
+    const index = (typeCounts.get(box.type) ?? 0) + 1;
+    typeCounts.set(box.type, index);
+    collectBoxIssuesFromBox(box, `${box.type}[${index}]`, issues);
+  }
+
+  return issues;
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox} box
+ * @param {string} path
+ * @param {InfoIssue[]} out
+ */
+function collectBoxIssuesFromBox(box, path, out) {
+  for (const issue of box.issues ?? []) {
+    out.push({
+      severity: issue.severity,
+      message: issue.message,
+      location: formatIssueLocation(path, box),
+    });
+  }
+
+  const childTypeCounts = new Map();
+  for (const child of box.children ?? []) {
+    const index = (childTypeCounts.get(child.type) ?? 0) + 1;
+    childTypeCounts.set(child.type, index);
+    collectBoxIssuesFromBox(child, `${path} > ${child.type}[${index}]`, out);
+  }
+}
+
+/**
+ * @param {string} path
+ * @param {import("isobmff-inspector").ParsedBox} box
+ * @returns {string}
+ */
+function formatIssueLocation(path, box) {
+  const offset = Number(box.offset);
+  return Number.isFinite(offset) ? `${path} @ ${fmtBytes(offset)}` : path;
 }
 
 /**
