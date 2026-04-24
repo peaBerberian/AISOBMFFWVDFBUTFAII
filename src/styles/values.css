@@ -187,6 +187,26 @@
   padding: 4px 0;
 }
 
+.pssh-system-id {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.pssh-system-id-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #e6f1fb;
+  color: #185fa5;
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: normal;
+}
+
 .pssh-preview-badge {
   display: inline-flex;
   width: fit-content;

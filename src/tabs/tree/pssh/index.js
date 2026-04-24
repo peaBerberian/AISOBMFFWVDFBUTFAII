@@ -1,7 +1,7 @@
 import { el } from "../../../dom";
-import { getPsshPreviewField } from "./decode";
+import { getPsshPreviewField, getPsshSystemIdLabel } from "./decode";
 
-export { getPsshPreviewField };
+export { getPsshPreviewField, getPsshSystemIdLabel };
 
 /**
  * @param {import("./decode").PsshPreviewField} field

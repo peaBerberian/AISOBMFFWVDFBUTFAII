@@ -1,6 +1,10 @@
 import { el, esc } from "../../dom";
 import { fmtBytes } from "../utils";
-import { getPsshPreviewField, renderPsshPreviewField } from "./pssh";
+import {
+  getPsshPreviewField,
+  getPsshSystemIdLabel,
+  renderPsshPreviewField,
+} from "./pssh";
 
 const AUTO_OPEN_FIELD_LIMIT = 80;
 const COLLAPSIBLE_TEXT_LIMIT = 160;
@@ -323,6 +327,14 @@ function renderValue(f, options = {}) {
     return s;
   }
 
+  const psshSystemIdInfo = getRenderedPsshSystemIdInfo(f, options.box);
+  if (psshSystemIdInfo) {
+    return renderPsshSystemIdValue(
+      psshSystemIdInfo.value,
+      psshSystemIdInfo.label,
+    );
+  }
+
   switch (f.kind) {
     case "number":
     case "bigint": {
@@ -580,6 +592,42 @@ function renderStringValue(value, options) {
 function renderBytesValue(value, options) {
   const text = `${value}`;
   return outputPotentiallyLongString(text, options);
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedField} field
+ * @param {import("isobmff-inspector").ParsedBox | undefined} box
+ * @returns {{ value: string, label: string } | null}
+ */
+function getRenderedPsshSystemIdInfo(field, box) {
+  if (
+    box?.type !== "pssh" ||
+    !("key" in field) ||
+    field.key !== "systemID" ||
+    !("value" in field) ||
+    typeof field.value !== "string"
+  ) {
+    return null;
+  }
+  const label = getPsshSystemIdLabel(field.value);
+  if (!label) {
+    return null;
+  }
+  return { value: field.value, label };
+}
+
+/**
+ * @param {string} value
+ * @param {string} label
+ * @returns {HTMLElement}
+ */
+function renderPsshSystemIdValue(value, label) {
+  const wrap = el("div", "pssh-system-id");
+  wrap.appendChild(renderBytesValue(value, { className: "vv-str" }));
+  const chip = el("span", "pssh-system-id-label");
+  chip.textContent = label;
+  wrap.appendChild(chip);
+  return wrap;
 }
 
 /**

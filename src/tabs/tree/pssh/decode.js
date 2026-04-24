@@ -1,6 +1,48 @@
 const PLAYREADY_SYSTEM_ID = "9A04F07998404286AB92E65BE0885F95";
 const NAGRA_SYSTEM_ID = "ADB41C242DBF4A6D958B4457C0D27B95";
 const WIDEVINE_SYSTEM_ID = "EDEF8BA979D64ACEA3C827DCD51D21ED";
+const SYSTEM_IDS = new Map([
+  [PLAYREADY_SYSTEM_ID, "Microsoft PlayReady"],
+  ["1077EFECC0B24D02ACE33C1E52E2FB4B", "W3C Common PSSH box"],
+  ["94CE86FB07FF4F43ADB893D2FA968CA2", "Apple FairPlay"],
+  ["3EA8778F77424BF9B18BE834B2ACBD47", "Clear Key AES-128"],
+  ["BE58615B19C4468488B3C8C57E99E957", "Clear Key SAMPLE-AES"],
+  ["E2719D58A985B3C9781AB030AF78D30E", "Clear Key DASH-IF"],
+  ["644FE7B5260F4FAD949A0762FFB054B4", "CMLA (OMA DRM)"],
+  ["6DD8B3C345F44A68BF3A64168D01A4A6", "ABV DRM (MoDRM)"],
+  ["F239E769EFA348509C16A903C6932EFB", "Adobe Primetime DRM version 4"],
+  ["616C7469636173742D50726F74656374", "Alticast"],
+  ["279FE473512C48FEADE8D176FEE6B40F", "Arris Titanium"],
+  ["3D5E6D359B9A41E8B843DD3C6E72C42C", "ChinaDRM"],
+  ["37C332587B994C7EB15D19AF74482154", "Commscope Titanium V3"],
+  ["45D481CB8FE049C0ADA9AB2D2455B2F2", "CoreCrypt"],
+  ["DCF4E3E362F158187BA60A6FE33FF3DD", "DigiCAP SmartXess"],
+  ["35BF197B530E42D78B651B4BF415070F", "DivX DRM Series 5"],
+  ["80A6BE7E14484C379E70D5AEBE04C8D2", "Irdeto Content Protection"],
+  [
+    "5E629AF538DA4063897797FFBD9902D4",
+    "Marlin Adaptive Streaming Simple Profile V1.0",
+  ],
+  [NAGRA_SYSTEM_ID, "Nagra MediaAccess PRM 3.0"],
+  ["6A99532D869F59229A9113ABB7B1E2F3", "MobiTV DRM"],
+  ["1F83E1E86EE94F0DBA2F5EC4E3ED1A66", "SecureMedia"],
+  ["992C46E6C4374899B6A050FA91AD0E39", "SecureMedia SteelKnot"],
+  ["A68129D3575B4F1A9CBA3223846CF7C3", "Synamedia/Cisco/NDS VideoGuard DRM"],
+  ["AA11967FCC014A4A8E99C5D3DDDFEA2D", "Unitend DRM (UDRM)"],
+  ["9A27DD82FDE247258CBC4234AA06EC09", "Verimatrix VCAS"],
+  ["B4413586C58CFFB094A5D4896C1AF6C3", "Viaccess-Orca DRM (VODRM)"],
+  ["793B79569F944946A94223E7EF7E44B4", "VisionCrypt"],
+  [WIDEVINE_SYSTEM_ID, "Widevine Content Protection"],
+]);
+
+/**
+ * @param {string} systemId
+ * @returns {string | null}
+ */
+export function getPsshSystemIdLabel(systemId) {
+  const normalized = systemId.trim().toUpperCase();
+  return SYSTEM_IDS.get(normalized) ?? null;
+}
 
 /**
  * @typedef {{
@@ -23,7 +65,7 @@ export function getPsshPreviewField(box) {
   const systemId =
     systemIdField?.kind !== "string" && systemIdField?.kind !== "bytes"
       ? null
-      : systemIdField.value;
+      : systemIdField.value.trim().toUpperCase();
   const hex = dataField?.kind === "bytes" ? dataField.value : null;
   if (!systemId || !hex) {
     return null;
