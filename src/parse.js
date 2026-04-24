@@ -4,6 +4,7 @@ import ProgressBar from "./ProgressBar.js";
 import {
   BoxTreeNodeView,
   renderMediaInfo,
+  renderSampleView,
   renderSizeChart,
   renderTreePositionMap,
   switchToTab,
@@ -49,6 +50,12 @@ export async function parseAndRender(input, abortSignal) {
   const wrapper = requireElementById("file-description", HTMLElement);
   const sizeChart = requireElementById("size-chart", HTMLElement);
   const mediaInfo = requireElementById("media-info", HTMLElement);
+  const sampleView = requireElementById("sample-view", HTMLElement);
+  const sampleTabButton = requireElementById(
+    "tab-button-samples",
+    HTMLButtonElement,
+  );
+  const sampleTabPanel = requireElementById("tab-samples", HTMLElement);
 
   currentFileAbortCtrl.abort();
   currentFileAbortCtrl = new AbortController();
@@ -57,6 +64,9 @@ export async function parseAndRender(input, abortSignal) {
   wrapper.innerHTML = "";
   sizeChart.innerHTML = "";
   mediaInfo.innerHTML = "";
+  sampleView.innerHTML = "";
+  sampleTabButton.hidden = true;
+  sampleTabPanel.hidden = true;
   results.classList.remove("is-stale-loading");
   results.inert = false;
   results.setAttribute("aria-busy", "true");
@@ -180,6 +190,9 @@ export async function parseAndRender(input, abortSignal) {
     }
 
     renderMediaInfo(topLevelBoxes);
+    const hasSampleView = renderSampleView(topLevelBoxes);
+    sampleTabButton.hidden = !hasSampleView;
+    sampleTabPanel.hidden = !hasSampleView;
     renderSizeChart(topLevelBoxes);
     renderTreePositionMap(topLevelBoxes, wrapper, currentFileAbortCtrl.signal);
     tabs.classList.remove("is-reserved");

@@ -4,7 +4,7 @@ import {
   getSampleKindLabel,
   getSampleKindTitle,
   numberFormat,
-} from "./utils";
+} from "../info/utils";
 
 const SAMPLE_TIMELINE_LIMIT = 240;
 const VIDEO_SAMPLE_ENTRY_TYPES = new Set([
@@ -104,6 +104,7 @@ const PROTECTION_SCHEME_NAMES = new Map([
  *   mdatSize: number,
  *   tracks: TrackInfo[],
  *   fragments: FragmentInfo[],
+ *   sampleViews: SampleView[],
  *   hints: string[],
  * }} MediaInfo
  *
@@ -126,6 +127,7 @@ const PROTECTION_SCHEME_NAMES = new Map([
  *   gops: GopRun[],
  *   frameArrangement: string | null,
  *   sampleTimeline: SampleTimeline | null,
+ *   sampleView: SampleView | null,
  *   details: string[],
  * }} TrackInfo
  *
@@ -143,6 +145,7 @@ const PROTECTION_SCHEME_NAMES = new Map([
  *   gops: GopRun[],
  *   frameArrangement: string | null,
  *   sampleTimeline: SampleTimeline | null,
+ *   sampleView: SampleView | null,
  * }} FragmentInfo
  *
  * @typedef {{
@@ -151,13 +154,13 @@ const PROTECTION_SCHEME_NAMES = new Map([
  *   totalBytes: number | null,
  *   known: boolean,
  * }} GopRun
-
+ *
  * @typedef {{
  *   sampleCount: number,
  *   constantSize: number | null,
  *   entries: number[],
  * }} SampleSizeSource
-
+ *
  * @typedef {{
  *   sampleCount: number,
  *   totalDuration: number | null,
@@ -166,8 +169,36 @@ const PROTECTION_SCHEME_NAMES = new Map([
  * }} TimingAnalysis
  *
  * @typedef {{
+ *   count: number,
+ *   value: number | null,
+ * }} SampleValueRun
+ *
+ * @typedef {{
  *   index: number,
- *   kind: import("./utils").SampleClass,
+ *   dts: number | null,
+ *   pts: number | null,
+ *   duration: number | null,
+ *   size: number | null,
+ *   isSync: boolean | null,
+ *   sampleDependsOn: number | null,
+ *   sampleIsDependedOn: number | null,
+ *   sampleHasRedundancy: number | null,
+ *   kind: import("../info/utils").SampleClass,
+ * }} SampleRow
+ *
+ * @typedef {{
+ *   id: string,
+ *   label: string,
+ *   kind: "track" | "fragment",
+ *   totalSamples: number,
+ *   timescale: number | null,
+ *   note: string | null,
+ *   getRows: (startSample: number, count: number) => SampleRow[],
+ * }} SampleView
+ *
+ * @typedef {{
+ *   index: number,
+ *   kind: import("../info/utils").SampleClass,
  *   label: string,
  *   title: string,
  * }} SamplePoint
@@ -175,7 +206,7 @@ const PROTECTION_SCHEME_NAMES = new Map([
  *   samples: SamplePoint[],
  *   totalSamples: number,
  *   limited: boolean,
- *   counts: Record<import("./utils").SampleClass, number>,
+ *   counts: Record<import("../info/utils").SampleClass, number>,
  * }} SampleTimeline
  */
 
@@ -221,6 +252,14 @@ export default function deriveMediaInfo(boxes) {
     mdatSize,
     tracks,
     fragments,
+    sampleViews: [
+      ...tracks.flatMap((track) =>
+        track.sampleView ? [track.sampleView] : [],
+      ),
+      ...fragments.flatMap((fragment) =>
+        fragment.sampleView ? [fragment.sampleView] : [],
+      ),
+    ],
     hints: [],
   };
   info.hints = deriveHints(info, boxes);
@@ -273,6 +312,16 @@ function deriveTrackInfo(trak) {
     sampleCount,
     syncSampleNumbers,
     ctts,
+    sdtp,
+  });
+  const sampleView = createTrackSampleView({
+    trackId: String(getNumberField(tkhd, "track_ID") ?? ""),
+    kind,
+    timescale: getNumberField(mdhd, "timescale"),
+    stts,
+    ctts,
+    stsz,
+    stss,
     sdtp,
   });
   const timing = analyzeTrackTiming(
@@ -367,6 +416,7 @@ function deriveTrackInfo(trak) {
       getNumberField(mdhd, "timescale"),
     ),
     sampleTimeline,
+    sampleView,
     details: details.length ? details : getSampleTimingDetails(stts),
   };
 }
@@ -413,6 +463,17 @@ function deriveFragmentInfo(
     );
     const gops = getGopsFromTruns(truns, tfhd, defaults.defaultSampleSize);
     const sampleTimeline = getFragmentSampleTimeline(truns, tfhd);
+    const sampleView = createFragmentSampleView({
+      sequence,
+      trackId,
+      trackKind,
+      timescale,
+      baseDecodeTime: getField(tfdt, "baseMediaDecodeTime"),
+      truns,
+      tfhd,
+      fallbackSampleDuration: defaults.defaultSampleDuration,
+      fallbackSampleSize: defaults.defaultSampleSize,
+    });
     const timing = analyzeFragmentTiming(
       truns,
       tfhd,
@@ -448,6 +509,7 @@ function deriveFragmentInfo(
       gops,
       frameArrangement: getFragmentFrameArrangement(samples, timescale),
       sampleTimeline,
+      sampleView,
     };
   });
 }
@@ -1276,6 +1338,443 @@ function getConstantTimingSummary(duration, timescale, trackKind) {
 }
 
 /**
+ * @param {{
+ *   trackId: string,
+ *   kind: string,
+ *   timescale: number | null,
+ *   stts: import("isobmff-inspector").ParsedBox | null,
+ *   ctts: import("isobmff-inspector").ParsedBox | null,
+ *   stsz: import("isobmff-inspector").ParsedBox | null,
+ *   stss: import("isobmff-inspector").ParsedBox | null,
+ *   sdtp: import("isobmff-inspector").ParsedBox | null,
+ * }} input
+ * @returns {SampleView | null}
+ */
+function createTrackSampleView({
+  trackId,
+  kind,
+  timescale,
+  stts,
+  ctts,
+  stsz,
+  stss,
+  sdtp,
+}) {
+  const timingRuns = getSampleValueRuns(stts, "entries", "sample_delta");
+  const compositionRuns = getSampleValueRuns(ctts, "entries", "sample_offset");
+  const sampleSizes = getTrackSampleSizeSource(stsz);
+  const syncSampleNumbers = getNumberArrayField(stss, "sample_numbers");
+  const dependencyInfo = getSampleDependencyInfo(sdtp);
+  const totalSamples = Math.max(
+    getNumberField(stsz, "sample_count") ?? 0,
+    countSamplesFromEntries(stts),
+    countSamplesFromEntries(ctts),
+    syncSampleNumbers.at(-1) ?? 0,
+    dependencyInfo.size,
+  );
+  if (!totalSamples) {
+    return null;
+  }
+
+  const hasUsefulMetadata =
+    timingRuns.length ||
+    sampleSizes != null ||
+    stss != null ||
+    sdtp != null ||
+    compositionRuns.length;
+  if (!hasUsefulMetadata) {
+    return null;
+  }
+
+  return {
+    id: `track:${trackId || kind}`,
+    label: `track ${trackId || "?"} (${kind})`,
+    kind: "track",
+    totalSamples,
+    timescale,
+    note: "sample table view from moov/stbl metadata",
+    getRows(startSample, count) {
+      return getTrackSampleRows({
+        totalSamples,
+        startSample,
+        count,
+        timescale,
+        timingRuns,
+        compositionRuns,
+        sampleSizes,
+        syncSampleNumbers,
+        hasExplicitSyncTable: stss != null,
+        dependencyInfo,
+      });
+    },
+  };
+}
+
+/**
+ * @param {{
+ *   sequence: number | null,
+ *   trackId: string,
+ *   trackKind: string,
+ *   timescale: number | null,
+ *   baseDecodeTime: import("isobmff-inspector").ParsedField | null,
+ *   truns: Array<import("isobmff-inspector").ParsedBox>,
+ *   tfhd: import("isobmff-inspector").ParsedBox | null,
+ *   fallbackSampleDuration: number | null,
+ *   fallbackSampleSize: number | null,
+ * }} input
+ * @returns {SampleView | null}
+ */
+function createFragmentSampleView({
+  sequence,
+  trackId,
+  trackKind,
+  timescale,
+  baseDecodeTime,
+  truns,
+  tfhd,
+  fallbackSampleDuration,
+  fallbackSampleSize,
+}) {
+  const totalSamples = truns.reduce(
+    (sum, trun) =>
+      sum +
+      Math.max(
+        getNumberField(trun, "sample_count") ?? 0,
+        getStructArrayField(trun, "samples").length,
+      ),
+    0,
+  );
+  if (!totalSamples) {
+    return null;
+  }
+
+  return {
+    id: `fragment:${sequence ?? "?"}:${trackId}`,
+    label: `fragment ${sequence ?? "?"} / track ${trackId} (${trackKind})`,
+    kind: "fragment",
+    totalSamples,
+    timescale,
+    note: "sample rows from moof/traf/trun metadata",
+    getRows(startSample, count) {
+      return getFragmentSampleRows({
+        startSample,
+        count,
+        timescale,
+        baseDecodeTime,
+        truns,
+        tfhd,
+        fallbackSampleDuration,
+        fallbackSampleSize,
+      });
+    },
+  };
+}
+
+/**
+ * @param {{
+ *   totalSamples: number,
+ *   startSample: number,
+ *   count: number,
+ *   timescale: number | null,
+ *   timingRuns: SampleValueRun[],
+ *   compositionRuns: SampleValueRun[],
+ *   sampleSizes: SampleSizeSource | null,
+ *   syncSampleNumbers: number[],
+ *   hasExplicitSyncTable: boolean,
+ *   dependencyInfo: Map<number, {
+ *     sampleDependsOn: number | null,
+ *     sampleIsDependedOn: number | null,
+ *     sampleHasRedundancy: number | null,
+ *   }>,
+ * }} input
+ * @returns {SampleRow[]}
+ */
+function getTrackSampleRows({
+  totalSamples,
+  startSample,
+  count,
+  timescale: _timescale,
+  timingRuns,
+  compositionRuns,
+  sampleSizes,
+  syncSampleNumbers,
+  hasExplicitSyncTable,
+  dependencyInfo,
+}) {
+  const rows = [];
+  const boundedStart = Math.min(Math.max(1, startSample), totalSamples);
+  const endSample = Math.min(
+    totalSamples,
+    boundedStart + Math.max(0, count) - 1,
+  );
+  const timingWindow = getDecodeTimingWindow(
+    timingRuns,
+    boundedStart,
+    endSample,
+  );
+  const compositionWindow =
+    compositionRuns.length > 0
+      ? getSampleRunWindow(compositionRuns, boundedStart, endSample, null)
+      : null;
+  const syncSamples = hasExplicitSyncTable ? new Set(syncSampleNumbers) : null;
+
+  for (
+    let sampleIndex = boundedStart;
+    sampleIndex <= endSample;
+    sampleIndex++
+  ) {
+    const offsetIndex = sampleIndex - boundedStart;
+    const dependency = dependencyInfo.get(sampleIndex);
+    const isSync = syncSamples ? syncSamples.has(sampleIndex) : true;
+    const compositionOffset = compositionWindow
+      ? compositionWindow[offsetIndex]
+      : 0;
+    const dts = timingWindow[offsetIndex]?.dts ?? null;
+    rows.push({
+      index: sampleIndex,
+      dts,
+      pts:
+        dts != null && compositionOffset != null
+          ? dts + compositionOffset
+          : dts,
+      duration: timingWindow[offsetIndex]?.duration ?? null,
+      size: getSampleSizeAt(sampleSizes, sampleIndex),
+      isSync,
+      sampleDependsOn: dependency?.sampleDependsOn ?? null,
+      sampleIsDependedOn: dependency?.sampleIsDependedOn ?? null,
+      sampleHasRedundancy: dependency?.sampleHasRedundancy ?? null,
+      kind: classifySample({
+        isSync,
+        isReordered: compositionOffset != null && compositionOffset !== 0,
+        isExplicitNonSync: syncSamples != null && !isSync,
+        dependsOnOthers: dependency?.sampleDependsOn === 1,
+        isDiscardable: dependency?.sampleIsDependedOn === 2,
+      }),
+    });
+  }
+  return rows;
+}
+
+/**
+ * @param {{
+ *   startSample: number,
+ *   count: number,
+ *   timescale: number | null,
+ *   baseDecodeTime: import("isobmff-inspector").ParsedField | null,
+ *   truns: Array<import("isobmff-inspector").ParsedBox>,
+ *   tfhd: import("isobmff-inspector").ParsedBox | null,
+ *   fallbackSampleDuration: number | null,
+ *   fallbackSampleSize: number | null,
+ * }} input
+ * @returns {SampleRow[]}
+ */
+function getFragmentSampleRows({
+  startSample,
+  count,
+  timescale: _timescale,
+  baseDecodeTime,
+  truns,
+  tfhd,
+  fallbackSampleDuration,
+  fallbackSampleSize,
+}) {
+  const rows = [];
+  const boundedStart = Math.max(1, startSample);
+  const boundedCount = Math.max(0, count);
+  const endSample = boundedStart + boundedCount - 1;
+  const defaultSampleDuration =
+    getNumberField(tfhd, "default_sample_duration") ?? fallbackSampleDuration;
+  const defaultSampleSize =
+    getNumberField(tfhd, "default_sample_size") ?? fallbackSampleSize;
+  const defaultSampleFlags = getNumberField(tfhd, "default_sample_flags");
+  let sampleIndex = 1;
+  let nextDecodeTime = toNullableNumber(getFieldPrimitive(baseDecodeTime));
+
+  for (const trun of truns) {
+    const samples = getStructArrayField(trun, "samples");
+    const firstSampleFlags = getNumberField(trun, "first_sample_flags");
+    const trunSampleCount =
+      getNumberField(trun, "sample_count") ?? samples.length;
+    for (let i = 0; i < trunSampleCount; i++) {
+      const sample = samples[i];
+      const duration =
+        getNumberFromStruct(sample, "sample_duration") ?? defaultSampleDuration;
+      const sampleFlags =
+        getNumberFromStruct(sample, "sample_flags") ??
+        (i === 0 ? firstSampleFlags : null) ??
+        defaultSampleFlags;
+      const compositionOffset =
+        getNumberFromStruct(sample, "sample_composition_time_offset") ?? 0;
+      if (sampleIndex >= boundedStart && sampleIndex <= endSample) {
+        rows.push({
+          index: sampleIndex,
+          dts: nextDecodeTime,
+          pts:
+            nextDecodeTime != null && compositionOffset != null
+              ? nextDecodeTime + compositionOffset
+              : nextDecodeTime,
+          duration,
+          size: getNumberFromStruct(sample, "sample_size") ?? defaultSampleSize,
+          isSync: sampleFlags != null ? isSyncSampleFlags(sampleFlags) : null,
+          sampleDependsOn:
+            sampleFlags != null
+              ? getSampleDependsOnFromFlags(sampleFlags)
+              : null,
+          sampleIsDependedOn:
+            sampleFlags != null
+              ? getSampleIsDependedOnFromFlags(sampleFlags)
+              : null,
+          sampleHasRedundancy:
+            sampleFlags != null
+              ? getSampleHasRedundancyFromFlags(sampleFlags)
+              : null,
+          kind: classifySample({
+            isSync:
+              sampleFlags != null ? isSyncSampleFlags(sampleFlags) : undefined,
+            isReordered: compositionOffset !== 0,
+            isExplicitNonSync:
+              sampleFlags != null ? !isSyncSampleFlags(sampleFlags) : false,
+            dependsOnOthers:
+              sampleFlags != null
+                ? getSampleDependsOnFromFlags(sampleFlags) === 1
+                : false,
+            isDiscardable:
+              sampleFlags != null
+                ? getSampleIsDependedOnFromFlags(sampleFlags) === 2
+                : false,
+          }),
+        });
+      }
+      sampleIndex++;
+      nextDecodeTime =
+        nextDecodeTime != null && duration != null
+          ? nextDecodeTime + duration
+          : null;
+      if (sampleIndex > endSample) {
+        return rows;
+      }
+    }
+  }
+  return rows;
+}
+
+/**
+ * @param {SampleValueRun[]} runs
+ * @param {number} startSample
+ * @param {number} endSample
+ */
+function getDecodeTimingWindow(runs, startSample, endSample) {
+  /** @type {Array<{ dts: number | null, duration: number | null }>} */
+  const output = [];
+  if (endSample < startSample) {
+    return output;
+  }
+
+  let sampleIndex = 1;
+  let dts = 0;
+  let dtsKnown = true;
+  for (const run of runs) {
+    const runStart = sampleIndex;
+    const runEnd = sampleIndex + run.count - 1;
+    if (run.value == null) {
+      dtsKnown = false;
+    }
+    if (endSample >= runStart && startSample <= runEnd) {
+      const from = Math.max(startSample, runStart);
+      const to = Math.min(endSample, runEnd);
+      for (let index = from; index <= to; index++) {
+        output.push({
+          dts:
+            dtsKnown && run.value != null
+              ? dts + (index - runStart) * run.value
+              : null,
+          duration: run.value,
+        });
+      }
+    }
+    if (dtsKnown && run.value != null) {
+      dts += run.value * run.count;
+    } else {
+      dtsKnown = false;
+    }
+    sampleIndex += run.count;
+    if (sampleIndex > endSample) {
+      break;
+    }
+  }
+
+  while (output.length < endSample - startSample + 1) {
+    output.push({ dts: null, duration: null });
+  }
+  return output;
+}
+
+/**
+ * @param {SampleValueRun[]} runs
+ * @param {number} startSample
+ * @param {number} endSample
+ * @param {number | null} fallbackValue
+ */
+function getSampleRunWindow(runs, startSample, endSample, fallbackValue) {
+  /** @type {Array<number | null>} */
+  const output = [];
+  if (endSample < startSample) {
+    return output;
+  }
+
+  let sampleIndex = 1;
+  for (const run of runs) {
+    const runStart = sampleIndex;
+    const runEnd = sampleIndex + run.count - 1;
+    if (endSample >= runStart && startSample <= runEnd) {
+      const from = Math.max(startSample, runStart);
+      const to = Math.min(endSample, runEnd);
+      for (let index = from; index <= to; index++) {
+        output.push(run.value);
+      }
+    }
+    sampleIndex += run.count;
+    if (sampleIndex > endSample) {
+      break;
+    }
+  }
+
+  while (output.length < endSample - startSample + 1) {
+    output.push(fallbackValue);
+  }
+  return output;
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox | null | undefined} box
+ * @param {string} arrayKey
+ * @param {string} valueKey
+ * @returns {SampleValueRun[]}
+ */
+function getSampleValueRuns(box, arrayKey, valueKey) {
+  return getStructArrayField(box, arrayKey)
+    .map((entry) => ({
+      count: getNumberFromStruct(entry, "sample_count") ?? 0,
+      value: getNumberFromStruct(entry, valueKey),
+    }))
+    .filter((entry) => entry.count > 0);
+}
+
+/**
+ * @param {SampleSizeSource | null} sampleSizes
+ * @param {number} sampleIndex
+ */
+function getSampleSizeAt(sampleSizes, sampleIndex) {
+  if (!sampleSizes) {
+    return null;
+  }
+  if (sampleSizes.constantSize != null) {
+    return sampleSizes.constantSize;
+  }
+  return sampleSizes.entries[sampleIndex - 1] ?? null;
+}
+
+/**
  * @param {GopRun[]} gops
  * @param {number | null} sampleCount
  */
@@ -1763,8 +2262,8 @@ function getTrackSampleTimeline({
       isSync: syncSamples.has(sampleIndex),
       isReordered: reorderedSamples.has(sampleIndex),
       isExplicitNonSync: syncSamples.size > 0 && !syncSamples.has(sampleIndex),
-      dependsOnOthers: dependency?.dependsOnOthers ?? false,
-      isDiscardable: dependency?.isDiscardable ?? false,
+      dependsOnOthers: dependency?.sampleDependsOn === 1,
+      isDiscardable: dependency?.sampleIsDependedOn === 2,
     });
   });
 }
@@ -1776,7 +2275,7 @@ function getTrackSampleTimeline({
  */
 function getFragmentSampleTimeline(truns, tfhd) {
   const defaultSampleFlags = getNumberField(tfhd, "default_sample_flags");
-  /** @type Array<import("./utils").SampleClass> */
+  /** @type Array<import("../info/utils").SampleClass> */
   const samples = [];
   for (const trun of truns) {
     const trunSamples = getStructArrayField(trun, "samples");
@@ -1823,7 +2322,7 @@ function getFragmentSampleTimeline(truns, tfhd) {
 
 /**
  * @param {number} totalSamples
- * @param {(sampleIndex: number) => import("./utils").SampleClass} getKind
+ * @param {(sampleIndex: number) => import("../info/utils").SampleClass} getKind
  * @returns {SampleTimeline}
  */
 function buildSampleTimeline(totalSamples, getKind) {
@@ -1865,6 +2364,13 @@ function getSampleIsDependedOnFromFlags(sampleFlags) {
 }
 
 /**
+ * @param {number} sampleFlags
+ */
+function getSampleHasRedundancyFromFlags(sampleFlags) {
+  return (sampleFlags >>> 20) & 3;
+}
+
+/**
  * @param {import("isobmff-inspector").ParsedBox | null | undefined} ctts
  * @param {number} sampleLimit
  */
@@ -1901,8 +2407,9 @@ function getSampleDependencyInfo(sdtp) {
   const dependencies = new Map();
   getStructArrayField(sdtp, "samples").forEach((sample, index) => {
     dependencies.set(index + 1, {
-      dependsOnOthers: getNumberFromStruct(sample, "sample_depends_on") === 1,
-      isDiscardable: getNumberFromStruct(sample, "sample_is_depended_on") === 2,
+      sampleDependsOn: getNumberFromStruct(sample, "sample_depends_on"),
+      sampleIsDependedOn: getNumberFromStruct(sample, "sample_is_depended_on"),
+      sampleHasRedundancy: getNumberFromStruct(sample, "sample_has_redundancy"),
     });
   });
   return dependencies;

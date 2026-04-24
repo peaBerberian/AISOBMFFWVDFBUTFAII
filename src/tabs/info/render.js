@@ -1,6 +1,6 @@
 import { el, requireElementById } from "../../dom.js";
+import deriveMediaInfo from "../media/read";
 import { fmtBytes } from "../utils";
-import deriveMediaInfo from "./read";
 import { getSampleKindLabel, getSampleKindTitle, numberFormat } from "./utils";
 
 /**
@@ -22,7 +22,7 @@ export default function renderMediaInfo(boxes) {
 }
 
 /**
- * @param {import("./read").MediaInfo} info
+ * @param {import("../media/read").MediaInfo} info
  */
 function renderSummary(info) {
   const section = createSection("summary");
@@ -45,7 +45,7 @@ function renderSummary(info) {
 }
 
 /**
- * @param {import("./read").MediaInfo} info
+ * @param {import("../media/read").MediaInfo} info
  */
 function renderGops(info) {
   const allGops = [
@@ -105,7 +105,7 @@ function renderGops(info) {
 }
 
 /**
- * @param {import("./read").FragmentInfo[]} fragments
+ * @param {import("../media/read").FragmentInfo[]} fragments
  */
 function renderFragments(fragments) {
   if (!fragments.length) {
@@ -154,7 +154,7 @@ function renderFragments(fragments) {
 }
 
 /**
- * @param {import("./read").TrackInfo[]} tracks
+ * @param {import("../media/read").TrackInfo[]} tracks
  */
 function renderTracks(tracks) {
   if (!tracks.length) {
@@ -288,7 +288,7 @@ function addFact(list, key, value) {
 }
 
 /**
- * @param {import("./read").GopRun[]} gops
+ * @param {import("../media/read").GopRun[]} gops
  */
 function renderGopBar(gops) {
   const total = gops.reduce((sum, gop) => sum + gop.sampleCount, 0) || 1;
@@ -309,7 +309,7 @@ function renderGopBar(gops) {
 }
 
 /**
- * @param {import("./read").SampleTimeline} timeline
+ * @param {import("../media/read").SampleTimeline} timeline
  */
 function renderSampleTimeline(timeline) {
   if (!hasKnownSampleTimelineSignal(timeline)) {
@@ -356,7 +356,7 @@ function renderSampleTimeline(timeline) {
 }
 
 /**
- * @param {import("./read").SampleTimeline} timeline
+ * @param {import("../media/read").SampleTimeline} timeline
  */
 function hasKnownSampleTimelineSignal(timeline) {
   return Object.entries(timeline.counts).some(
@@ -365,7 +365,7 @@ function hasKnownSampleTimelineSignal(timeline) {
 }
 
 /**
- * @param {import("./read").SampleTimeline} timeline
+ * @param {import("../media/read").SampleTimeline} timeline
  */
 function getSampleTimelineSummary(timeline) {
   const parts = [

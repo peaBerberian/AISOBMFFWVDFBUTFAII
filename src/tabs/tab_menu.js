@@ -61,9 +61,15 @@ export function initializeTabNavigation() {
  * @returns {HTMLElement | null}
  */
 function getNextTab(currentTab, key) {
-  const tabs = Array.from(document.getElementsByClassName("tab")).filter(
-    (tab) => tab instanceof HTMLElement,
-  );
+  /** @type {HTMLElement[]} */
+  const tabs = [];
+  const tabElements = document.getElementsByClassName("tab");
+  for (let index = 0; index < tabElements.length; index++) {
+    const tab = tabElements[index];
+    if (tab instanceof HTMLElement && !tab.hidden) {
+      tabs.push(tab);
+    }
+  }
   const currentIndex = tabs.indexOf(currentTab);
   if (currentIndex < 0) {
     return null;
