@@ -1,3 +1,8 @@
+import {
+  getActualBoxSize,
+  getAdvertisedBoxSize,
+  hasDistinctActualBoxSize,
+} from "../box_size.js";
 import { el, esc, requireElementById } from "../dom.js";
 import { fmtBytes } from "./utils.js";
 
@@ -78,7 +83,7 @@ function flattenBoxes(boxes, depth, colors, out, path = "") {
 function sumExcludedShareBoxes(boxes) {
   return boxes.reduce((sum, box) => {
     const ownSize = EXCLUDED_SHARE_BOX_TYPES.has(box.type)
-      ? Number(box.size ?? 0)
+      ? getActualBoxSize(box)
       : 0;
     return sum + ownSize + sumExcludedShareBoxes(box.children ?? []);
   }, 0);
@@ -127,7 +132,7 @@ function sortSizeRows(sortKey, direction, rows) {
  * @returns {number}
  */
 function getBoxSize(box) {
-  return Number(box.size ?? 0);
+  return getActualBoxSize(box);
 }
 
 /**
@@ -248,7 +253,9 @@ function layoutSizeMap(
 function getRowDetail(row, showNonMdatShare) {
   const details = [
     `${row.path}`,
-    `${fmtBytes(row.size)}`,
+    hasDistinctActualBoxSize(row.box)
+      ? `${fmtBytes(row.size)} actual (${fmtBytes(getAdvertisedBoxSize(row.box))} announced)`
+      : `${fmtBytes(row.size)}`,
     `${fmtPct(row.filePct)} of file`,
   ];
   if (showNonMdatShare) {
@@ -307,10 +314,8 @@ export default function renderSizeChart(boxes) {
     return;
   }
 
-  const total = boxes.reduce((s, b) => s + Number(b.size ?? 0), 0) || 1;
-  const sorted = [...boxes].sort(
-    (a, b) => Number(b.size ?? 0) - Number(a.size ?? 0),
-  );
+  const total = boxes.reduce((s, b) => s + getBoxSize(b), 0) || 1;
+  const sorted = [...boxes].sort((a, b) => getBoxSize(b) - getBoxSize(a));
   const colors = new WeakMap();
   sorted.forEach((box, index) => {
     colors.set(box, CHART_COLORS[index % CHART_COLORS.length]);
@@ -319,11 +324,11 @@ export default function renderSizeChart(boxes) {
   const flattenedRows = [];
   flattenBoxes(boxes, 0, colors, flattenedRows);
   const rowsBySize = [...flattenedRows].sort((a, b) => {
-    const sizeDelta = Number(b.box.size ?? 0) - Number(a.box.size ?? 0);
+    const sizeDelta = getBoxSize(b.box) - getBoxSize(a.box);
     return sizeDelta || a.order - b.order;
   });
   const largestBox = sorted[0];
-  const largestPct = largestBox ? Number(largestBox.size ?? 0) / total : 0;
+  const largestPct = largestBox ? getBoxSize(largestBox) / total : 0;
   const excludedShareBytes = sumExcludedShareBoxes(boxes);
   const nonMdatTotal = Math.max(0, total - excludedShareBytes);
   const showNonMdatShare = excludedShareBytes > 0 && nonMdatTotal > 0;
@@ -333,7 +338,7 @@ export default function renderSizeChart(boxes) {
   });
   /** @type {Array<SizeRow>} */
   const rows = flattenedRows.map((row) => {
-    const size = Number(row.box.size ?? 0);
+    const size = getBoxSize(row.box);
     const isNonMdatExcluded = EXCLUDED_SHARE_BOX_TYPES.has(row.box.type);
     return {
       ...row,
@@ -714,7 +719,7 @@ export default function renderSizeChart(boxes) {
     {
       key: "size",
       label: "size",
-      title: "Box size in bytes, formatted for display.",
+      title: "Actual box size in bytes, formatted for display.",
       defaultDirection: "desc",
     },
     {
@@ -820,7 +825,7 @@ export default function renderSizeChart(boxes) {
       <span class="size-type">${esc(b.type)}</span>
       <span class="size-depth">${depth === 0 ? "top-level" : `child level ${depth}`}</span>
       <span class="size-container">${rowData.container ? "yes" : "no"}</span>
-      <span class="size-bytes">${esc(fmtBytes(b.size))}</span>
+      <span class="size-bytes">${esc(fmtBytes(rowData.size))}</span>
       <div class="size-scale-cell size-scale-file">
         <span class="size-scale-kind">file share</span>
         <span class="size-pct">${fmtPct(rowData.filePct)}</span>

@@ -31,6 +31,7 @@ let currentFileAbortCtrl = new AbortController();
 
 /**
  * @typedef {{ severity: "warning" | "error", message: string }} ParseNotice
+ * @typedef {import("./box_size.js").BoxWithOptionalActualSize} PendingParsedBox
  */
 
 /**
@@ -97,6 +98,7 @@ export async function parseAndRender(input, abortSignal) {
         const depth = event.path.length - 1;
         stack.length = depth;
 
+        /** @type {PendingParsedBox} */
         const box = {
           type: event.type,
           size: event.size,
@@ -258,7 +260,7 @@ function getIncompleteHeaderNotice(box) {
  * This is intentionally a UI heuristic, not parser validation. It catches
  * common wrong inputs early while still letting the parser show any tentative
  * structure it can recover.
- * @param {import("isobmff-inspector").ParsedBox} box
+ * @param {PendingParsedBox} box
  * @returns {ParseNotice | null}
  */
 function getInputHeuristicNotice(box) {

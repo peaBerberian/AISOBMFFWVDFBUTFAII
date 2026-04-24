@@ -1,3 +1,8 @@
+import {
+  getActualBoxSize,
+  getAdvertisedBoxSize,
+  hasDistinctActualBoxSize,
+} from "../../box_size.js";
 import { el, esc } from "../../dom.js";
 import { fmtBytes } from "../utils.js";
 import {
@@ -9,6 +14,9 @@ import {
 const AUTO_OPEN_FIELD_LIMIT = 80;
 const COLLAPSIBLE_TEXT_LIMIT = 160;
 const VALUE_RENDER_BATCH_SIZE = 200;
+/**
+ * @typedef {import("../../box_size.js").BoxWithOptionalActualSize} RenderedBox
+ */
 /**
  * Some Box's details, containing their parsed content, are collapsed by default
  * and not even present in the DOM.
@@ -32,7 +40,7 @@ export default class BoxTreeNodeView {
   #childContainer;
 
   /**
-   * @param {import("isobmff-inspector").ParsedBox} box
+   * @param {RenderedBox} box
    * @param {{ autoOpen?: boolean, shallow?: boolean }} options
    */
   constructor(box, options = {}) {
@@ -50,7 +58,7 @@ export default class BoxTreeNodeView {
 
   /**
    * Creates, attaches, and returns a child box view.
-   * @param {import("isobmff-inspector").ParsedBox} box
+   * @param {RenderedBox} box
    * @param {{ autoOpen?: boolean }} options
    * @returns {BoxTreeNodeView}
    */
@@ -116,7 +124,7 @@ export default class BoxTreeNodeView {
  * When `shallow` is true (streaming mode) the children array on the box
  * object is ignored — the caller appends child elements directly into the
  * returned element's child container.
- * @param {import("isobmff-inspector").ParsedBox} box
+ * @param {RenderedBox} box
  * @param {{ autoOpen?: boolean, shallow?: boolean }} options
  * @returns {{ element: HTMLElement, childContainer: HTMLElement | null }}
  */
@@ -155,7 +163,10 @@ function renderBoxTreeNode(box, options = {}) {
       header.appendChild(nameSpan);
     }
     const sizeSpan = el("span", "box-size");
-    sizeSpan.textContent = fmtBytes(box.size);
+    sizeSpan.textContent = getDisplayBoxSize(box);
+    if (hasDistinctActualBoxSize(box)) {
+      sizeSpan.title = `actual ${fmtBytes(getActualBoxSize(box))}, announced ${fmtBytes(getAdvertisedBoxSize(box))}`;
+    }
     header.appendChild(sizeSpan);
     const dot = makeDot();
     if (dot) {
@@ -265,7 +276,7 @@ function renderBoxTreeNode(box, options = {}) {
 
 /**
  * @param {HTMLElement} element
- * @param {import("isobmff-inspector").ParsedBox} box
+ * @param {RenderedBox} box
  */
 function assignBoxNodeMetadata(element, box) {
   const key = getBoxNodeKey(box);
@@ -277,16 +288,30 @@ function assignBoxNodeMetadata(element, box) {
 }
 
 /**
- * @param {import("isobmff-inspector").ParsedBox} box
+ * @param {RenderedBox} box
  * @returns {string}
  */
 export function getBoxNodeKey(box) {
   const offset = Number(box.offset);
-  const size = Number(box.size);
+  const size = getAdvertisedBoxSize(box);
   if (!Number.isFinite(offset) || !Number.isFinite(size)) {
     return "";
   }
   return `${offset}:${size}:${box.type}`;
+}
+
+/**
+ * @param {RenderedBox} box
+ * @returns {string}
+ */
+function getDisplayBoxSize(box) {
+  if (Number.isFinite(Number(box.actualSize))) {
+    return fmtBytes(getActualBoxSize(box));
+  }
+  if (box.sizeField === "extendsToEnd") {
+    return "to EOF";
+  }
+  return fmtBytes(getAdvertisedBoxSize(box));
 }
 
 /**
@@ -309,7 +334,7 @@ export function openBoxBody(details) {
 
 /**
  * @param {import("isobmff-inspector").ParsedField | PsshPreviewField | null} f
- * @param {{ box?: import("isobmff-inspector").ParsedBox }} [options]
+ * @param {{ box?: RenderedBox }} [options]
  * @returns {HTMLElement}
  */
 function renderValue(f, options = {}) {
@@ -557,7 +582,7 @@ function renderIncrementalCollection(options) {
 }
 
 /**
- * @param {import("isobmff-inspector").ParsedBox} box
+ * @param {RenderedBox} box
  * @returns {Array<import("isobmff-inspector").ParsedBoxValue | PsshPreviewField>}
  */
 function getDisplayFields(box) {
@@ -567,7 +592,9 @@ function getDisplayFields(box) {
     return values;
   }
 
-  const preview = getPsshPreviewField(box);
+  const preview = getPsshPreviewField(
+    /** @type {import("isobmff-inspector").ParsedBox} */ (box),
+  );
   if (preview) {
     values.push(preview);
   }
@@ -596,7 +623,7 @@ function renderBytesValue(value, options) {
 
 /**
  * @param {import("isobmff-inspector").ParsedField} field
- * @param {import("isobmff-inspector").ParsedBox | undefined} box
+ * @param {RenderedBox | undefined} box
  * @returns {{ value: string, label: string } | null}
  */
 function getRenderedPsshSystemIdInfo(field, box) {
@@ -661,7 +688,7 @@ function outputPotentiallyLongString(text, options) {
 }
 
 /**
- * @param {import("isobmff-inspector").ParsedBox} box
+ * @param {RenderedBox} box
  * @returns {boolean}
  */
 function shouldAutoOpenBox(box) {
@@ -669,7 +696,7 @@ function shouldAutoOpenBox(box) {
 }
 
 /**
- * @param {import("isobmff-inspector").ParsedBox} box
+ * @param {RenderedBox} box
  * @returns {boolean}
  */
 function shouldAutoOpen(box) {

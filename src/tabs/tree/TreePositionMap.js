@@ -1,3 +1,8 @@
+import {
+  getActualBoxSize,
+  getAdvertisedBoxSize,
+  hasDistinctActualBoxSize,
+} from "../../box_size.js";
 import { el } from "../../dom.js";
 import { fmtBytes } from "../utils.js";
 import { getBoxNodeKey, openBoxBody } from "./BoxTreeNodeView.js";
@@ -370,13 +375,13 @@ export function renderTreePositionMap(boxes, treeRoot, abortSignal) {
 function getFileTotalSize(boxes) {
   let total = 0;
   for (const box of boxes) {
-    const end = Number(box.offset ?? 0) + Number(box.size ?? 0);
+    const end = Number(box.offset ?? 0) + getActualBoxSize(box);
     total = Math.max(total, end);
   }
   if (total > 0) {
     return total;
   }
-  return boxes.reduce((sum, box) => sum + Number(box.size ?? 0), 0);
+  return boxes.reduce((sum, box) => sum + getActualBoxSize(box), 0);
 }
 
 /**
@@ -396,7 +401,7 @@ function flattenBoxes(boxes) {
    */
   function visit(children, depth, path = "") {
     children.forEach((box, index) => {
-      const size = Number(box.size ?? 0);
+      const size = getActualBoxSize(box);
       const offset = Number(box.offset ?? 0);
       const rowPath = `${path}/${box.type}[${index}]`;
       const key = getBoxNodeKey(box);
@@ -462,7 +467,7 @@ function layoutExcludingMdatNodes(
  * @returns {number}
  */
 function getMapBoxSize(box, scale) {
-  const size = Number(box.size ?? 0);
+  const size = getActualBoxSize(box);
   if (scale === "file") {
     return size;
   }
@@ -479,7 +484,7 @@ function getMapBoxSize(box, scale) {
 function sumExcludedShareBoxes(boxes) {
   return boxes.reduce((sum, box) => {
     const ownSize = EXCLUDED_SHARE_BOX_TYPES.has(box.type)
-      ? Number(box.size ?? 0)
+      ? getActualBoxSize(box)
       : 0;
     return sum + ownSize + sumExcludedShareBoxes(box.children ?? []);
   }, 0);
@@ -499,6 +504,9 @@ function getBoxesTotalSize(boxes, scale) {
  * @returns {string}
  */
 function getRowDetail(row) {
+  if (hasDistinctActualBoxSize(row.box)) {
+    return `${row.box.type} (${fmtBytes(row.size)} actual, ${fmtBytes(getAdvertisedBoxSize(row.box))} announced)`;
+  }
   return `${row.box.type} (${fmtBytes(row.size)})`;
 }
 

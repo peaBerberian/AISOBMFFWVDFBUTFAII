@@ -1,3 +1,4 @@
+import { getActualBoxSize } from "../box_size.js";
 import { numberFormat } from "../utils.js";
 import {
   analyzeFragmentTiming,
@@ -26,7 +27,6 @@ import {
   getStructArrayField,
   hasBoxType,
   toNullableNumber,
-  toNumber,
 } from "./box_access.js";
 import {
   AUDIO_SAMPLE_ENTRY_TYPES,
@@ -82,7 +82,7 @@ export default function deriveMediaInfo(boxes) {
   const mdatBoxes = findBoxes(boxes, "mdat");
   const moofBoxes = findBoxes(boxes, "moof");
   const mdatSize = sumBoxes(mdatBoxes);
-  const totalSize = boxes.reduce((sum, box) => sum + toNumber(box.size), 0);
+  const totalSize = boxes.reduce((sum, box) => sum + getActualBoxSize(box), 0);
   const metadataSize = Math.max(0, totalSize - mdatSize);
   const tracks = findBoxes(moov ? [moov] : boxes, "trak").map(deriveTrackInfo);
   const trackTimescales = new Map(
@@ -540,5 +540,5 @@ function getFragmentDecodeWindow(baseDecodeTimeField, duration, timescale) {
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
  */
 function sumBoxes(boxes) {
-  return boxes.reduce((sum, box) => sum + toNumber(box.size), 0);
+  return boxes.reduce((sum, box) => sum + getActualBoxSize(box), 0);
 }
