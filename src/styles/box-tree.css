@@ -11,6 +11,7 @@
 
 .tree-pane-content {
   min-width: 0;
+	padding-bottom: 2rem;
 }
 
 .tree-position-panel {
