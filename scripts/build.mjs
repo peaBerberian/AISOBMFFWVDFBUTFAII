@@ -26,6 +26,7 @@ const styleSources = [
   "base.css",
   "progress.css",
   "shell.css",
+  "playlist.css",
   "box-tree.css",
   "values.css",
   "info.css",

@@ -1,6 +1,18 @@
 import { requireElementById } from "./dom.js";
+import { extractSegmentsFromURL } from "./extractors/DashUrlExtractor.js";
+import { extractISOBMFFSegments } from "./extractors/HlsUrlExtractor.js";
+import {
+  clearInspectionSource,
+  setInspectionSource,
+} from "./inspectionSource.js";
 import ProgressBar from "./ProgressBar.js";
 import { parseAndRender } from "./parse.js";
+import {
+  hasVisibleSegmentChooser,
+  hideSegmentChooser,
+  showDashSegmentChooser,
+  showHlsSegmentChooser,
+} from "./playlistSelection.js";
 import { initializeTabNavigation } from "./tabs/index.js";
 import { createAbortableAsyncIterable } from "./utils.js";
 
@@ -81,17 +93,15 @@ function formatFileInput(file, signal) {
  * @param {Blob} file
  */
 function parseLocalFile(file) {
-  currentSegmentParsingAbortController?.abort();
-  currentSegmentParsingAbortController = new AbortController();
-  const controller = currentSegmentParsingAbortController;
-  const signal = currentSegmentParsingAbortController.signal;
-  ProgressBar.setCancelAction(() => controller.abort());
-  setResultsLoading(true);
+  const controller = beginInspectionLifecycle();
+  const signal = controller.signal;
+  const namedFile = /** @type {{ name?: string }} */ (file);
+  setInspectionSource({
+    selectedLabel: "Local file",
+    selectedValue: namedFile.name || "Unnamed file",
+  });
   parseAndRender(formatFileInput(file, signal), signal).finally(() => {
-    if (currentSegmentParsingAbortController === controller) {
-      setResultsLoading(false);
-      currentSegmentParsingAbortController = null;
-    }
+    finishInspectionLifecycle(controller);
   });
 }
 
@@ -199,16 +209,10 @@ function initializeUrlInput() {
         return;
       }
       urlInput.value = trimmedUrl;
-      currentSegmentParsingAbortController?.abort();
-      currentSegmentParsingAbortController = new AbortController();
-      const controller = currentSegmentParsingAbortController;
-      const signal = controller.signal;
-      ProgressBar.setCancelAction(() => controller.abort());
-      setResultsLoading(true);
-      fetchSegmentAndParse(trimmedUrl, signal).finally(() => {
-        if (currentSegmentParsingAbortController === controller) {
-          setResultsLoading(false);
-          currentSegmentParsingAbortController = null;
+      const controller = beginInspectionLifecycle();
+      inspectRemoteUrl(trimmedUrl, controller).finally(() => {
+        if (!hasVisibleSegmentChooser()) {
+          finishInspectionLifecycle(controller);
         }
       });
     }
@@ -243,6 +247,242 @@ function initializeUrlInput() {
     requireElementById("choices-url-segment", HTMLElement).style.display =
       "none";
   }
+}
+
+/**
+ * @returns {AbortController}
+ */
+function beginInspectionLifecycle() {
+  currentSegmentParsingAbortController?.abort();
+  hideSegmentChooser();
+  currentSegmentParsingAbortController = new AbortController();
+  const controller = currentSegmentParsingAbortController;
+  ProgressBar.setCancelAction(() => controller.abort());
+  setResultsLoading(true);
+  controller.signal.addEventListener(
+    "abort",
+    () => {
+      if (currentSegmentParsingAbortController !== controller) {
+        return;
+      }
+      hideSegmentChooser();
+      clearInspectionSource();
+      setResultsLoading(false);
+      ProgressBar.setCancelAction(null);
+      currentSegmentParsingAbortController = null;
+    },
+    { once: true },
+  );
+  return controller;
+}
+
+/**
+ * @param {AbortController} controller
+ */
+function finishInspectionLifecycle(controller) {
+  if (currentSegmentParsingAbortController !== controller) {
+    return;
+  }
+  hideSegmentChooser();
+  setResultsLoading(false);
+  ProgressBar.setCancelAction(null);
+  currentSegmentParsingAbortController = null;
+}
+
+/**
+ * @param {string} sourceUrl
+ * @param {AbortController} controller
+ */
+async function inspectRemoteUrl(sourceUrl, controller) {
+  const signal = controller.signal;
+  const sourceKind = getRemoteSourceKind(sourceUrl);
+  if (sourceKind === "dash") {
+    setInspectionSource({
+      selectedLabel: "DASH manifest",
+      selectedValue: sourceUrl,
+    });
+    ProgressBar.start("loading DASH manifest…");
+    ProgressBar.startEasing();
+    try {
+      const tree = await extractSegmentsFromURL(sourceUrl, signal);
+      if (signal.aborted) {
+        return;
+      }
+      const segmentCount = countDashSegments(tree);
+      if (segmentCount === 0) {
+        ProgressBar.fail("No ISOBMFF segments found in DASH manifest.");
+        return;
+      }
+      ProgressBar.setProgress(
+        1,
+        `DASH manifest loaded. Choose one of ${segmentCount} segments to inspect.`,
+      );
+      showDashSegmentChooser(sourceUrl, tree, (segmentUrl) => {
+        inspectChosenSegment(
+          segmentUrl,
+          controller,
+          sourceUrl,
+          "DASH manifest",
+        );
+      });
+      return;
+    } catch (err) {
+      if (!signal.aborted) {
+        const message = err instanceof Error ? err.message : err;
+        ProgressBar.fail(`manifest error: ${message}`);
+        throw err;
+      }
+      return;
+    }
+  }
+
+  if (sourceKind === "hls") {
+    setInspectionSource({
+      selectedLabel: "HLS playlist",
+      selectedValue: sourceUrl,
+    });
+    ProgressBar.start("loading HLS playlist…");
+    ProgressBar.startEasing();
+    try {
+      const extraction = await extractISOBMFFSegments(sourceUrl, signal);
+      if (signal.aborted) {
+        return;
+      }
+      const segmentCount = countHlsSegments(extraction);
+      if (segmentCount === 0) {
+        ProgressBar.fail("No ISOBMFF segments found in HLS playlist.");
+        return;
+      }
+      ProgressBar.setProgress(
+        1,
+        `HLS playlist loaded. Choose one of ${segmentCount} resources to inspect.`,
+      );
+      showHlsSegmentChooser(sourceUrl, extraction, (segmentUrl) => {
+        inspectChosenSegment(segmentUrl, controller, sourceUrl, "HLS playlist");
+      });
+      return;
+    } catch (err) {
+      if (!signal.aborted) {
+        const message = err instanceof Error ? err.message : err;
+        ProgressBar.fail(`playlist error: ${message}`);
+        throw err;
+      }
+      return;
+    }
+  }
+
+  setInspectionSource({
+    selectedLabel: "Remote resource",
+    selectedValue: sourceUrl,
+  });
+  await fetchSegmentAndParse(sourceUrl, signal);
+}
+
+/**
+ * @param {string} segmentUrl
+ * @param {AbortController} controller
+ * @param {string | null} [originUrl=null]
+ * @param {string | null} [originKind=null]
+ */
+function inspectChosenSegment(
+  segmentUrl,
+  controller,
+  originUrl = null,
+  originKind = null,
+) {
+  if (
+    currentSegmentParsingAbortController !== controller ||
+    controller.signal.aborted
+  ) {
+    return;
+  }
+  setInspectionSource({
+    selectedLabel: "Selected segment URL",
+    selectedValue: segmentUrl,
+    originLabel: originUrl && originKind ? `${originKind} source` : undefined,
+    originValue: originUrl ?? undefined,
+  });
+  hideSegmentChooser();
+  fetchSegmentAndParse(segmentUrl, controller.signal).finally(() => {
+    finishInspectionLifecycle(controller);
+  });
+}
+
+/**
+ * @param {string} sourceUrl
+ * @returns {"dash" | "hls" | "segment"}
+ */
+function getRemoteSourceKind(sourceUrl) {
+  try {
+    const parsed = new URL(sourceUrl, window.location.href);
+    const pathname = parsed.pathname.toLowerCase();
+    if (pathname.endsWith(".mpd")) {
+      return "dash";
+    }
+    if (pathname.endsWith(".m3u8") || pathname.endsWith(".m3u")) {
+      return "hls";
+    }
+  } catch {
+    // Leave malformed values to fetch for the existing error path.
+  }
+  return "segment";
+}
+
+/**
+ * @param {import("./extractors/DashUrlExtractor.js").DashTree} tree
+ */
+function countDashSegments(tree) {
+  let count = 0;
+  for (let periodIndex = 0; periodIndex < tree.periods.length; periodIndex++) {
+    const period = tree.periods[periodIndex];
+    for (
+      let adaptationIndex = 0;
+      adaptationIndex < period.adaptationSets.length;
+      adaptationIndex++
+    ) {
+      const adaptation = period.adaptationSets[adaptationIndex];
+      for (
+        let representationIndex = 0;
+        representationIndex < adaptation.representations.length;
+        representationIndex++
+      ) {
+        count +=
+          adaptation.representations[representationIndex].segments.length;
+      }
+    }
+  }
+  return count;
+}
+
+/**
+ * @param {import("./extractors/HlsUrlExtractor.js").ExtractionResult} extraction
+ */
+function countHlsSegments(extraction) {
+  let count = 0;
+  for (
+    let resultIndex = 0;
+    resultIndex < extraction.results.length;
+    resultIndex++
+  ) {
+    const result = extraction.results[resultIndex];
+    const seenMapKeys = new Set();
+    for (
+      let segmentIndex = 0;
+      segmentIndex < result.segments.length;
+      segmentIndex++
+    ) {
+      const segment = result.segments[segmentIndex];
+      if (segment.map) {
+        const mapKey = `${segment.map.url}:${segment.map.byteRange?.offset ?? ""}:${segment.map.byteRange?.length ?? ""}`;
+        if (!seenMapKeys.has(mapKey)) {
+          seenMapKeys.add(mapKey);
+          count++;
+        }
+      }
+      count++;
+    }
+  }
+  return count;
 }
 
 function initializeGithubStars() {
