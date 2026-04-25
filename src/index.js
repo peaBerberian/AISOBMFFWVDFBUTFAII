@@ -1,10 +1,12 @@
 import {
-  extractSegmentsFromString,
-  extractSegmentsFromURL,
+  parseMPDFromString,
+  parseMPDFromURL,
+  resolveIndexForRepresentation,
 } from "./extractors/dash/index.js";
 import {
-  extractISOBMFFSegments,
-  extractISOBMFFSegmentsFromString,
+  extractISOBMFFPlaylistMetadata,
+  extractISOBMFFPlaylistMetadataFromString,
+  resolveMediaPlaylist,
 } from "./extractors/hls/index.js";
 import { probeRemoteSource } from "./filetype_detection.js";
 import parseAndRenderSegment from "./parseAndRenderSegment.js";
@@ -314,29 +316,54 @@ async function inspectRemoteUrl(sourceUrl, controller) {
     try {
       const tree =
         probe.text !== null
-          ? await extractSegmentsFromString(probe.text, sourceUrl, signal)
-          : await extractSegmentsFromURL(sourceUrl, signal);
+          ? parseMPDFromString(probe.text, sourceUrl, signal)
+          : await parseMPDFromURL(sourceUrl, signal);
       if (signal.aborted) {
         return;
       }
-      const segmentCount = countDashSegments(tree);
-      if (segmentCount === 0) {
+      const representationCount = countDashChoices(tree);
+      if (representationCount === 0) {
         ProgressBar.fail("No ISOBMFF segments found in DASH manifest.");
         return;
       }
       ProgressBar.end(
-        `DASH manifest loaded. Choose one of ${segmentCount} segments to inspect.`,
+        "DASH manifest loaded. Choose a representation to inspect or load on demand.",
       );
       InspectionResultsView.clear();
-      showDashSegmentChooser(sourceUrl, tree, (segmentUrl, byteRange) => {
-        inspectChosenSegment(
-          segmentUrl,
-          byteRange,
-          controller,
+      const renderDashChooser = () => {
+        showDashSegmentChooser(
           sourceUrl,
-          "DASH manifest",
+          tree,
+          (segmentUrl, byteRange) => {
+            inspectChosenSegment(
+              segmentUrl,
+              byteRange,
+              controller,
+              sourceUrl,
+              "DASH manifest",
+            );
+          },
+          async (representation) => {
+            ProgressBar.start("loading DASH segment list...");
+            ProgressBar.startEasing();
+            try {
+              await resolveIndexForRepresentation(representation, signal);
+              if (signal.aborted) {
+                return;
+              }
+              ProgressBar.end("DASH segment list loaded.");
+              renderDashChooser();
+            } catch (err) {
+              if (!signal.aborted) {
+                const message = err instanceof Error ? err.message : err;
+                ProgressBar.fail(`segment list error: ${message}`);
+                throw err;
+              }
+            }
+          },
         );
-      });
+      };
+      renderDashChooser();
       return;
     } catch (err) {
       if (!signal.aborted) {
@@ -358,33 +385,54 @@ async function inspectRemoteUrl(sourceUrl, controller) {
     try {
       const extraction =
         probe.text !== null
-          ? await extractISOBMFFSegmentsFromString(
-              probe.text,
-              sourceUrl,
-              signal,
-            )
-          : await extractISOBMFFSegments(sourceUrl, signal);
+          ? extractISOBMFFPlaylistMetadataFromString(probe.text, sourceUrl)
+          : await extractISOBMFFPlaylistMetadata(sourceUrl, signal);
       if (signal.aborted) {
         return;
       }
-      const segmentCount = countHlsSegments(extraction);
-      if (segmentCount === 0) {
+      const resultCount = countHlsChoices(extraction);
+      if (resultCount === 0) {
         ProgressBar.fail("No ISOBMFF segments found in HLS playlist.");
         return;
       }
       ProgressBar.end(
-        `HLS playlist loaded. Choose one of ${segmentCount} resources to inspect.`,
+        "HLS playlist loaded. Choose a stream to inspect or load on demand.",
       );
       InspectionResultsView.clear();
-      showHlsSegmentChooser(sourceUrl, extraction, (segmentUrl, byteRange) => {
-        inspectChosenSegment(
-          segmentUrl,
-          byteRange,
-          controller,
+      const renderHlsChooser = () => {
+        showHlsSegmentChooser(
           sourceUrl,
-          "HLS playlist",
+          extraction,
+          (segmentUrl, byteRange) => {
+            inspectChosenSegment(
+              segmentUrl,
+              byteRange,
+              controller,
+              sourceUrl,
+              "HLS playlist",
+            );
+          },
+          async (result) => {
+            ProgressBar.start("loading HLS segment list...");
+            ProgressBar.startEasing();
+            try {
+              await resolveMediaPlaylist(result, signal);
+              if (signal.aborted) {
+                return;
+              }
+              ProgressBar.end("HLS segment list loaded.");
+              renderHlsChooser();
+            } catch (err) {
+              if (!signal.aborted) {
+                const message = err instanceof Error ? err.message : err;
+                ProgressBar.fail(`playlist error: ${message}`);
+                throw err;
+              }
+            }
+          },
         );
-      });
+      };
+      renderHlsChooser();
       return;
     } catch (err) {
       if (!signal.aborted) {
@@ -446,7 +494,7 @@ function inspectChosenSegment(
 /**
  * @param {import("./extractors/dash/types.js").DashTree} tree
  */
-function countDashSegments(tree) {
+function countDashChoices(tree) {
   let count = 0;
   for (let periodIndex = 0; periodIndex < tree.periods.length; periodIndex++) {
     const period = tree.periods[periodIndex];
@@ -461,8 +509,13 @@ function countDashSegments(tree) {
         representationIndex < adaptation.representations.length;
         representationIndex++
       ) {
-        count +=
-          adaptation.representations[representationIndex].segments.length;
+        const representation = adaptation.representations[representationIndex];
+        if (
+          representation.segments.length > 0 ||
+          representation.sidxPending !== undefined
+        ) {
+          count++;
+        }
       }
     }
   }
@@ -472,7 +525,7 @@ function countDashSegments(tree) {
 /**
  * @param {import("./extractors/hls/index.js").ExtractionResult} extraction
  */
-function countHlsSegments(extraction) {
+function countHlsChoices(extraction) {
   let count = 0;
   for (
     let resultIndex = 0;
@@ -480,6 +533,10 @@ function countHlsSegments(extraction) {
     resultIndex++
   ) {
     const result = extraction.results[resultIndex];
+    if (result.segments === null) {
+      count++;
+      continue;
+    }
     const seenMapKeys = new Set();
     for (
       let segmentIndex = 0;

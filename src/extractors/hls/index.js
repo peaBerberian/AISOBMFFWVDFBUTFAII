@@ -1,11 +1,4 @@
 /**
- * Parses M3U / M3U8 playlists and returns the URLs of all ISOBMFF (MP4/fMP4/CMAF)
- * segments, grouped by Variant / Media rendition with their associated attributes.
- *
- * @module hls-isobmff-extractor
- */
-
-/**
  * The detected kind of playlist.
  * @typedef {'plain' | 'master' | 'media'} PlaylistKind
  */
@@ -70,7 +63,7 @@
  *   kind: 'variant',
  *   playlistUrl: string,
  *   attributes: VariantAttributes,
- *   segments: ISOBMFFSegment[]
+ *   segments: ISOBMFFSegment[] | null
  * }} VariantResult
  */
 
@@ -80,7 +73,7 @@
  *   kind: 'media',
  *   playlistUrl: string,
  *   attributes: MediaAttributes,
- *   segments: ISOBMFFSegment[]
+ *   segments: ISOBMFFSegment[] | null
  * }} MediaResult
  */
 
@@ -112,16 +105,16 @@
 // ---------------------------------------------------------------------------
 
 /** Absolute-URL resolution that works for both http(s) and blob URLs. */
-const resolveUrl = (
+function resolveUrl(
   /** @type {string} */ base,
   /** @type {string} */ relative,
-) => {
+) {
   try {
     return new URL(relative, base).href;
   } catch {
     return relative;
   }
-};
+}
 
 /**
  * Parse a quoted-string-or-unquoted attribute value map from an HLS tag line.
@@ -129,7 +122,7 @@ const resolveUrl = (
  * @param {string} attrString
  * @returns {Map<string, string>}
  */
-const parseAttributeList = (attrString) => {
+function parseAttributeList(attrString) {
   /** @type {Map<string, string>} */
   const map = new Map();
   // Regex: KEY=VALUE where VALUE is either "quoted" or unquoted-no-comma
@@ -145,7 +138,7 @@ const parseAttributeList = (attrString) => {
     m = re.exec(attrString);
   }
   return map;
-};
+}
 
 /**
  * Parse EXT-X-BYTERANGE value: `<length>[@<offset>]`
@@ -153,12 +146,12 @@ const parseAttributeList = (attrString) => {
  * @param {number} [previousEnd] - the byte offset where the previous range ended (for chained ranges)
  * @returns {[number, number]}
  */
-const parseByteRange = (value, previousEnd = 0) => {
+function parseByteRange(value, previousEnd = 0) {
   const [lenStr, offStr] = value.split("@");
   const length = parseInt(lenStr, 10);
   const offset = offStr !== undefined ? parseInt(offStr, 10) : previousEnd;
   return [offset, offset + length];
-};
+}
 
 /**
  * Detect whether a segment URL (or its initialization section) is ISOBMFF.
@@ -172,7 +165,7 @@ const parseByteRange = (value, previousEnd = 0) => {
  * @param {string | null} [codecs]
  * @returns {boolean}
  */
-const isLikelyISOBMFF = (url, codecs) => {
+function isLikelyISOBMFF(url, codecs) {
   // Known ISOBMFF codecs (ISO Base Media codec strings)
   if (codecs) {
     // avc1, hev1, hvc1, av01, mp4a, ec-3, ac-3, fLaC, Opus, vp09 → all carried in ISOBMFF
@@ -211,62 +204,58 @@ const isLikelyISOBMFF = (url, codecs) => {
 
   // No extension or unknown extension → assume ISOBMFF (modern HLS defaults to fMP4)
   return true;
-};
-
-// ---------------------------------------------------------------------------
-// Line-level parsers
-// ---------------------------------------------------------------------------
+}
 
 /**
  * @param {Map<string, string>} attrs
  * @returns {VariantAttributes}
  */
-const buildVariantAttributes = (attrs) => ({
-  bandwidth: attrs.has("BANDWIDTH")
-    ? parseInt(/** @type {string} */ (attrs.get("BANDWIDTH")), 10)
-    : null,
-  averageBandwidth: attrs.has("AVERAGE-BANDWIDTH")
-    ? parseInt(/** @type {string} */ (attrs.get("AVERAGE-BANDWIDTH")), 10)
-    : null,
-  codecs: attrs.get("CODECS") ?? null,
-  resolution: attrs.get("RESOLUTION") ?? null,
-  frameRate: attrs.has("FRAME-RATE")
-    ? parseFloat(/** @type {string} */ (attrs.get("FRAME-RATE")))
-    : null,
-  hdcpLevel: attrs.get("HDCP-LEVEL") ?? null,
-  allowedCpc: attrs.get("ALLOWED-CPC") ?? null,
-  videoRange: attrs.get("VIDEO-RANGE") ?? null,
-  stableVariantId: attrs.get("STABLE-VARIANT-ID") ?? null,
-  audio: attrs.get("AUDIO") ?? null,
-  video: attrs.get("VIDEO") ?? null,
-  subtitles: attrs.get("SUBTITLES") ?? null,
-  closedCaptions: attrs.get("CLOSED-CAPTIONS") ?? null,
-  pathwayId: attrs.get("PATHWAY-ID") ?? null,
-});
+function buildVariantAttributes(attrs) {
+  return {
+    bandwidth: attrs.has("BANDWIDTH")
+      ? parseInt(/** @type {string} */ (attrs.get("BANDWIDTH")), 10)
+      : null,
+    averageBandwidth: attrs.has("AVERAGE-BANDWIDTH")
+      ? parseInt(/** @type {string} */ (attrs.get("AVERAGE-BANDWIDTH")), 10)
+      : null,
+    codecs: attrs.get("CODECS") ?? null,
+    resolution: attrs.get("RESOLUTION") ?? null,
+    frameRate: attrs.has("FRAME-RATE")
+      ? parseFloat(/** @type {string} */ (attrs.get("FRAME-RATE")))
+      : null,
+    hdcpLevel: attrs.get("HDCP-LEVEL") ?? null,
+    allowedCpc: attrs.get("ALLOWED-CPC") ?? null,
+    videoRange: attrs.get("VIDEO-RANGE") ?? null,
+    stableVariantId: attrs.get("STABLE-VARIANT-ID") ?? null,
+    audio: attrs.get("AUDIO") ?? null,
+    video: attrs.get("VIDEO") ?? null,
+    subtitles: attrs.get("SUBTITLES") ?? null,
+    closedCaptions: attrs.get("CLOSED-CAPTIONS") ?? null,
+    pathwayId: attrs.get("PATHWAY-ID") ?? null,
+  };
+}
 
 /**
  * @param {Map<string, string>} attrs
  * @returns {MediaAttributes}
  */
-const buildMediaAttributes = (attrs) => ({
-  type: attrs.get("TYPE") ?? null,
-  groupId: attrs.get("GROUP-ID") ?? null,
-  language: attrs.get("LANGUAGE") ?? null,
-  assocLanguage: attrs.get("ASSOC-LANGUAGE") ?? null,
-  name: attrs.get("NAME") ?? null,
-  stableRenditionId: attrs.get("STABLE-RENDITION-ID") ?? null,
-  default: attrs.get("DEFAULT") === "YES",
-  autoselect: attrs.get("AUTOSELECT") === "YES",
-  forced: attrs.get("FORCED") === "YES",
-  instreamId: attrs.get("INSTREAM-ID") ?? null,
-  characteristics: attrs.get("CHARACTERISTICS") ?? null,
-  channels: attrs.get("CHANNELS") ?? null,
-  uri: attrs.get("URI") ?? null,
-});
-
-// ---------------------------------------------------------------------------
-// Core fetch helper
-// ---------------------------------------------------------------------------
+function buildMediaAttributes(attrs) {
+  return {
+    type: attrs.get("TYPE") ?? null,
+    groupId: attrs.get("GROUP-ID") ?? null,
+    language: attrs.get("LANGUAGE") ?? null,
+    assocLanguage: attrs.get("ASSOC-LANGUAGE") ?? null,
+    name: attrs.get("NAME") ?? null,
+    stableRenditionId: attrs.get("STABLE-RENDITION-ID") ?? null,
+    default: attrs.get("DEFAULT") === "YES",
+    autoselect: attrs.get("AUTOSELECT") === "YES",
+    forced: attrs.get("FORCED") === "YES",
+    instreamId: attrs.get("INSTREAM-ID") ?? null,
+    characteristics: attrs.get("CHARACTERISTICS") ?? null,
+    channels: attrs.get("CHANNELS") ?? null,
+    uri: attrs.get("URI") ?? null,
+  };
+}
 
 /**
  * Fetch a playlist text, throwing on network / HTTP errors.
@@ -274,25 +263,21 @@ const buildMediaAttributes = (attrs) => ({
  * @param {AbortSignal | null | undefined} signal
  * @returns {Promise<string>}
  */
-const fetchPlaylist = async (url, signal) => {
+async function fetchPlaylist(url, signal) {
   const response = await fetch(url, signal ? { signal } : {});
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} fetching playlist: ${url}`);
   }
   const text = await response.text();
   return text;
-};
-
-// ---------------------------------------------------------------------------
-// Playlist detection
-// ---------------------------------------------------------------------------
+}
 
 /**
  * Determine playlist kind from its raw text.
  * @param {string} text
  * @returns {PlaylistKind}
  */
-const detectPlaylistKind = (text) => {
+function detectPlaylistKind(text) {
   if (!text.trimStart().startsWith("#EXTM3U")) {
     return "plain";
   }
@@ -308,11 +293,7 @@ const detectPlaylistKind = (text) => {
   }
   // Fallback: treat as plain
   return "plain";
-};
-
-// ---------------------------------------------------------------------------
-// Media playlist parser (segments)
-// ---------------------------------------------------------------------------
+}
 
 /**
  * Parse a Media Playlist text and return ISOBMFF segments.
@@ -326,7 +307,7 @@ const detectPlaylistKind = (text) => {
  * @param {string | null} [variantCodecs]  CODECS from the master STREAM-INF (if available)
  * @returns {ISOBMFFSegment[]}
  */
-const parseMediaPlaylist = (text, baseUrl, variantCodecs) => {
+function parseMediaPlaylist(text, baseUrl, variantCodecs) {
   const lines = text.split(/\r?\n/);
 
   /** @type {ISOBMFFSegment[]} */
@@ -444,11 +425,7 @@ const parseMediaPlaylist = (text, baseUrl, variantCodecs) => {
   }
 
   return segments;
-};
-
-// ---------------------------------------------------------------------------
-// Plain M3U parser (fallback)
-// ---------------------------------------------------------------------------
+}
 
 /**
  * Parse a plain M3U playlist (no HLS tags) and return ISOBMFF URLs.
@@ -456,7 +433,7 @@ const parseMediaPlaylist = (text, baseUrl, variantCodecs) => {
  * @param {string} baseUrl
  * @returns {ISOBMFFSegment[]}
  */
-const parsePlainPlaylist = (text, baseUrl) => {
+function parsePlainPlaylist(text, baseUrl) {
   /** @type {ISOBMFFSegment[]} */
   const segments = [];
   const lines = text.split(/\r?\n/);
@@ -478,11 +455,7 @@ const parsePlainPlaylist = (text, baseUrl) => {
     }
   }
   return segments;
-};
-
-// ---------------------------------------------------------------------------
-// Master playlist parser
-// ---------------------------------------------------------------------------
+}
 
 /**
  * @typedef {{
@@ -503,7 +476,7 @@ const parsePlainPlaylist = (text, baseUrl) => {
  * @param {string} baseUrl
  * @returns {{ variants: VariantEntry[], media: MediaEntry[] }}
  */
-const parseMasterPlaylist = (text, baseUrl) => {
+function parseMasterPlaylist(text, baseUrl) {
   const lines = text.split(/\r?\n/);
 
   /** @type {VariantEntry[]} */
@@ -553,56 +526,35 @@ const parseMasterPlaylist = (text, baseUrl) => {
   }
 
   return { variants, media };
-};
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
+}
 
 /**
- * Parse an M3U / M3U8 playlist (fetched from `playlistUrl`) and return all
- * ISOBMFF segment URLs grouped by Variant / Media rendition.
+ * Fetch an HLS playlist and return metadata-first results. Master playlist
+ * entries are returned without fetching their child playlists yet.
  *
- * The function:
- *  1. Fetches the root playlist.
- *  2. Detects its kind (plain / master / media).
- *  3. For a **master** playlist:
- *     - Fetches every Variant Stream playlist in parallel.
- *     - Fetches every Alternative Rendition playlist that has a URI, in parallel.
- *     - Returns one {@link VariantResult} per variant and one {@link MediaResult}
- *       per media rendition.
- *  4. For a **media** playlist: returns a single {@link SimpleResult}.
- *  5. For a **plain** M3U:  returns a single {@link SimpleResult}.
- *
- * @param {string} playlistUrl  Absolute URL of the root playlist.
- * @param {AbortSignal} [signal]  Optional AbortSignal to cancel in-flight fetches.
- * @returns {Promise<ExtractionResult>}
- * @throws {Error} If the fetch fails, the playlist is malformed in a way that
- *                 prevents parsing, or the signal is aborted.
- */
-export const extractISOBMFFSegments = async (playlistUrl, signal) => {
-  // ── 1. Fetch root playlist ────────────────────────────────────────────────
-  const rootText = await fetchPlaylist(playlistUrl, signal);
-  return extractISOBMFFSegmentsFromString(rootText, playlistUrl, signal);
-};
-
-/**
- * Parse an M3U / M3U8 playlist from raw text and return all ISOBMFF segment
- * URLs grouped by Variant / Media rendition.
- *
- * @param {string} rootText
  * @param {string} playlistUrl
  * @param {AbortSignal} [signal]
  * @returns {Promise<ExtractionResult>}
  */
-export const extractISOBMFFSegmentsFromString = async (
+export async function extractISOBMFFPlaylistMetadata(playlistUrl, signal) {
+  const rootText = await fetchPlaylist(playlistUrl, signal);
+  return extractISOBMFFPlaylistMetadataFromString(rootText, playlistUrl);
+}
+
+/**
+ * Parse HLS content into metadata-first results. Master playlist entries are
+ * returned unresolved and can later be loaded one by one.
+ *
+ * @param {string} rootText
+ * @param {string} playlistUrl
+ * @returns {ExtractionResult}
+ */
+export function extractISOBMFFPlaylistMetadataFromString(
   rootText,
   playlistUrl,
-  signal,
-) => {
+) {
   const kind = detectPlaylistKind(rootText);
 
-  // ── 2. Plain M3U ─────────────────────────────────────────────────────────
   if (kind === "plain") {
     const segments = parsePlainPlaylist(rootText, playlistUrl);
     /** @type {SimpleResult} */
@@ -610,7 +562,6 @@ export const extractISOBMFFSegmentsFromString = async (
     return { playlistKind: "plain", results: [result] };
   }
 
-  // ── 3. Bare Media Playlist ────────────────────────────────────────────────
   if (kind === "media") {
     const segments = parseMediaPlaylist(rootText, playlistUrl, null);
     /** @type {SimpleResult} */
@@ -618,74 +569,58 @@ export const extractISOBMFFSegmentsFromString = async (
     return { playlistKind: "media", results: [result] };
   }
 
-  // ── 4. Master Playlist ────────────────────────────────────────────────────
   const { variants, media } = parseMasterPlaylist(rootText, playlistUrl);
-
   if (variants.length === 0 && media.length === 0) {
     throw new Error("Master playlist contains no renditions.");
   }
 
-  // Fetch all child playlists in parallel
-  const variantPromises = variants.map(async (v) => {
-    const text = await fetchPlaylist(v.variantUrl, signal);
-    const segments = parseMediaPlaylist(
-      text,
-      v.variantUrl,
-      v.attributes.codecs,
-    );
-    /** @type {VariantResult} */
-    const res = {
-      kind: "variant",
-      playlistUrl: v.variantUrl,
-      attributes: v.attributes,
-      segments,
-    };
-    return res;
-  });
-
-  const mediaPromises = media
-    .filter((m) => m.attributes.uri != null)
-    .map(async (m) => {
-      const mediaUrl = resolveUrl(
-        playlistUrl,
-        /** @type {string} */ (m.attributes.uri),
-      );
-      const text = await fetchPlaylist(mediaUrl, signal);
-      const segments = parseMediaPlaylist(text, mediaUrl, null);
-      /** @type {MediaResult} */
-      const res = {
-        kind: "media",
-        playlistUrl: mediaUrl,
-        attributes: m.attributes,
-        segments,
-      };
-      return res;
-    });
-
   /** @type {(VariantResult | MediaResult)[]} */
-  const allResults = await Promise.all([...variantPromises, ...mediaPromises]);
+  const results = [];
+  for (let variantIndex = 0; variantIndex < variants.length; variantIndex++) {
+    const variant = variants[variantIndex];
+    results.push({
+      kind: "variant",
+      playlistUrl: variant.variantUrl,
+      attributes: variant.attributes,
+      segments: null,
+    });
+  }
+  for (let mediaIndex = 0; mediaIndex < media.length; mediaIndex++) {
+    const entry = media[mediaIndex];
+    if (entry.attributes.uri == null) {
+      continue;
+    }
+    results.push({
+      kind: "media",
+      playlistUrl: resolveUrl(
+        playlistUrl,
+        /** @type {string} */ (entry.attributes.uri),
+      ),
+      attributes: entry.attributes,
+      segments: null,
+    });
+  }
 
-  return { playlistKind: "master", results: allResults };
-};
+  return { playlistKind: "master", results };
+}
 
 /**
- * Convenience helper: flatten an {@link ExtractionResult} into a deduplicated
- * array of ISOBMFF segment URLs (ignoring grouping).
+ * Resolve a single HLS playlist result in place.
  *
- * @param {ExtractionResult} result
- * @returns {string[]}
+ * @param {PlaylistResult} result
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<PlaylistResult>}
  */
-export const flattenSegmentUrls = (result) => {
-  const seen = new Set();
-  /** @type {string[]} */
-  const urls = [];
-  for (const r of result.results) {
-    for (const seg of r.segments) {
-      if (!seen.has(seg.url)) {
-        seen.add(seg.url);
-        urls.push(seg.url);
-      }
-    }
+export async function resolveMediaPlaylist(result, signal) {
+  if (result.segments !== null) {
+    return result;
   }
-  return urls;
-};
+
+  const codecs =
+    result.kind === "variant" && "attributes" in result
+      ? result.attributes.codecs
+      : null;
+  const text = await fetchPlaylist(result.playlistUrl, signal);
+  result.segments = parseMediaPlaylist(text, result.playlistUrl, codecs);
+  return result;
+}

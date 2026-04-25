@@ -16,6 +16,9 @@ const chooserElt = requireElementById("segment-chooser", HTMLElement);
  *   summary: string[],
  *   fields: Array<[string, string]>,
  *   choices: SegmentChoice[],
+ *   loadLabel?: string,
+ *   loadDescription?: string,
+ *   onLoadChoices?: (() => Promise<void> | void),
  * }} SegmentChoiceCard
  */
 
@@ -26,8 +29,14 @@ const chooserElt = requireElementById("segment-chooser", HTMLElement);
  *   segmentUrl: string,
  *   byteRange: [number, number|undefined]|undefined
  * ) => void} onInspect
+ * @param {(representation: import("../extractors/dash/types.js").RepresentationTree) => Promise<void> | void} [onLoadRepresentation]
  */
-export function showDashSegmentChooser(sourceUrl, tree, onInspect) {
+export function showDashSegmentChooser(
+  sourceUrl,
+  tree,
+  onInspect,
+  onLoadRepresentation,
+) {
   /** @type {SegmentChoiceCard[]} */
   const cards = [];
   for (let periodIndex = 0; periodIndex < tree.periods.length; periodIndex++) {
@@ -44,7 +53,10 @@ export function showDashSegmentChooser(sourceUrl, tree, onInspect) {
         representationIndex++
       ) {
         const representation = adaptation.representations[representationIndex];
-        if (!representation.segments.length) {
+        if (
+          representation.segments.length === 0 &&
+          !representation.sidxPending
+        ) {
           continue;
         }
         cards.push({
@@ -58,7 +70,14 @@ export function showDashSegmentChooser(sourceUrl, tree, onInspect) {
             ["Adaptation Set", adaptation.id || `${adaptationIndex + 1}`],
             ["Language", adaptation.lang || "n/a"],
             ["Codecs", representation.codecs || adaptation.codecs || "n/a"],
-            ["Segments", `${representation.segments.length}`],
+            [
+              "Segments",
+              representation.sidxPending
+                ? representation.segments.length > 0
+                  ? `${representation.segments.length} loaded + more via SIDX`
+                  : "Load via SIDX on demand"
+                : `${representation.segments.length}`,
+            ],
           ],
           choices: representation.segments.map((segment, segmentIndex) => ({
             label: formatDashSegmentLabel(segment, segmentIndex),
@@ -66,6 +85,16 @@ export function showDashSegmentChooser(sourceUrl, tree, onInspect) {
             byteRange: segment.byteRange,
             type: segment.type,
           })),
+          loadLabel: representation.sidxPending
+            ? "Load segment list"
+            : undefined,
+          loadDescription: representation.sidxPending
+            ? "Fetch the SIDX for this representation and enumerate its media segments."
+            : undefined,
+          onLoadChoices:
+            representation.sidxPending && onLoadRepresentation
+              ? () => onLoadRepresentation(representation)
+              : undefined,
         });
       }
     }
@@ -88,8 +117,14 @@ export function showDashSegmentChooser(sourceUrl, tree, onInspect) {
  *   segmentUrl: string,
  *   byteRange: [number, number|undefined]|undefined
  * ) => void} onInspect
+ * @param {(result: import("../extractors/hls/index.js").PlaylistResult) => Promise<void> | void} [onLoadResult]
  */
-export function showHlsSegmentChooser(sourceUrl, extraction, onInspect) {
+export function showHlsSegmentChooser(
+  sourceUrl,
+  extraction,
+  onInspect,
+  onLoadResult,
+) {
   /** @type {SegmentChoiceCard[]} */
   const cards = [];
 
@@ -99,8 +134,8 @@ export function showHlsSegmentChooser(sourceUrl, extraction, onInspect) {
     resultIndex++
   ) {
     const result = extraction.results[resultIndex];
-    const choices = collectHlsChoices(result);
-    if (!choices.length) {
+    const choices = result.segments === null ? [] : collectHlsChoices(result);
+    if (!choices.length && result.segments !== null) {
       continue;
     }
     cards.push({
@@ -108,10 +143,21 @@ export function showHlsSegmentChooser(sourceUrl, extraction, onInspect) {
       summary: [
         `Root playlist: ${extraction.playlistKind}`,
         result.kind,
-        `${result.segments.length} segment${result.segments.length === 1 ? "" : "s"}`,
+        result.segments === null
+          ? "segment list not loaded"
+          : `${result.segments.length} segment${result.segments.length === 1 ? "" : "s"}`,
       ],
       fields: getHlsFields(result),
       choices,
+      loadLabel: result.segments === null ? "Load segment list" : undefined,
+      loadDescription:
+        result.segments === null
+          ? "Fetch this media playlist and enumerate its initialization map and media segments."
+          : undefined,
+      onLoadChoices:
+        result.segments === null && onLoadResult
+          ? () => onLoadResult(result)
+          : undefined,
     });
   }
 
@@ -161,12 +207,6 @@ function renderChooser(input) {
   intro.className = "segment-chooser-intro";
   intro.textContent = input.intro;
   header.appendChild(intro);
-
-  // TODO: remove?
-  // const source = document.createElement("div");
-  // source.className = "segment-chooser-source";
-  // source.appendChild(createCompactSource("Source", input.sourceUrl));
-  // header.appendChild(source);
 
   chooserElt.appendChild(header);
 
@@ -219,6 +259,31 @@ function createChoiceCard(card, onInspect) {
     fields.appendChild(dd);
   }
   article.appendChild(fields);
+
+  if (card.onLoadChoices) {
+    const loadControls = document.createElement("div");
+    loadControls.className = "segment-choice-controls";
+    article.appendChild(loadControls);
+    const loadButton = document.createElement("button");
+    loadButton.type = "button";
+    loadButton.className = "segment-choice-button";
+    loadButton.textContent = card.loadLabel || "Load";
+    article.appendChild(loadButton);
+    loadButton.addEventListener("click", async () => {
+      loadButton.disabled = true;
+      loadButton.textContent = "Loading...";
+      try {
+        await card.onLoadChoices?.();
+      } catch {
+        loadButton.disabled = false;
+        loadButton.textContent = card.loadLabel || "Load";
+      }
+    });
+  }
+
+  if (!card.choices.length) {
+    return article;
+  }
 
   const controls = document.createElement("div");
   controls.className = "segment-choice-controls";
@@ -323,6 +388,9 @@ function createChoiceCard(card, onInspect) {
  * @returns {SegmentChoice[]}
  */
 function collectHlsChoices(result) {
+  if (result.segments === null) {
+    return [];
+  }
   /** @type {SegmentChoice[]} */
   const choices = [];
   const seen = new Set();
@@ -392,7 +460,12 @@ function formatHlsTitle(result, resultIndex) {
  */
 function getHlsFields(result) {
   if (!("attributes" in result) || !result.attributes) {
-    return [["Segments", `${result.segments.length}`]];
+    return [
+      [
+        "Segments",
+        result.segments === null ? "Not loaded" : `${result.segments.length}`,
+      ],
+    ];
   }
 
   if (result.kind === "variant") {
@@ -402,7 +475,10 @@ function getHlsFields(result) {
       ["Resolution", result.attributes.resolution || "n/a"],
       ["Codecs", result.attributes.codecs || "n/a"],
       ["Audio Group", result.attributes.audio || "n/a"],
-      ["Segments", `${result.segments.length}`],
+      [
+        "Segments",
+        result.segments === null ? "Not loaded" : `${result.segments.length}`,
+      ],
     ];
   }
 
@@ -412,7 +488,10 @@ function getHlsFields(result) {
     ["Language", result.attributes.language || "n/a"],
     ["Group", result.attributes.groupId || "n/a"],
     ["Channels", result.attributes.channels || "n/a"],
-    ["Segments", `${result.segments.length}`],
+    [
+      "Segments",
+      result.segments === null ? "Not loaded" : `${result.segments.length}`,
+    ],
   ];
 }
 

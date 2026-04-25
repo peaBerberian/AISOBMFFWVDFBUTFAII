@@ -1,36 +1,20 @@
 import { parseByteRange } from "./utils";
 
 /**
- * Walk a DashTree and resolve all `sidxPending` entries in parallel,
- * replacing each with fully-populated `segments`.
- * Safe to call on a tree that has no pending SIDX entries (no-op).
+ * Resolve a single SIDX-backed representation in place.
  *
- * @param {import("./types").DashTree} tree
+ * @param {import("./types").RepresentationTree} representation
  * @param {AbortSignal} [signal]
- * @returns {Promise<import("./types").DashTree>}
+ * @returns {Promise<import("./types").RepresentationTree>}
  */
-export async function resolveSIDX(tree, signal) {
-  /** @type {Promise<void>[]} */
-  const tasks = [];
-
-  for (const period of tree.periods) {
-    for (const as of period.adaptationSets) {
-      for (const rep of as.representations) {
-        if (!rep.sidxPending) {
-          continue;
-        }
-        const pending = rep.sidxPending;
-        tasks.push(
-          resolveSidxPending(pending, signal).then((segs) => {
-            rep.segments = segs;
-            delete rep.sidxPending;
-          }),
-        );
-      }
-    }
+export async function resolveIndexForRepresentation(representation, signal) {
+  if (!representation.sidxPending) {
+    return representation;
   }
-  await Promise.all(tasks);
-  return tree;
+  const pending = representation.sidxPending;
+  representation.segments = await resolveSidxPending(pending, signal);
+  delete representation.sidxPending;
+  return representation;
 }
 
 /**
