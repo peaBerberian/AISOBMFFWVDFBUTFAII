@@ -22,8 +22,8 @@ Avoid duplicating parser logic here unless it is clearly UI-facing.
 ## Important Files
 
 - `src/index.js`: app entry point wiring everything.
-- `src/parseAndRenderSegment.js`: consumes parser events, incrementally renders
-  the box tree, and triggers derived views once parsing finishes.
+- `src/parseAndRenderSegment.js`: consumes parser events and delegates
+   parsed-result rendering to the inspection results view.
 - `src/filetype_detection.js`: probes remote resources and classifies them (as
   DASH, HLS, direct ISOBMFF content...) before the main inspection flow.
 - `src/extractors/dash/*.js`: DASH manifest parsing and ISOBMFF segment
@@ -32,6 +32,9 @@ Avoid duplicating parser logic here unless it is clearly UI-facing.
   extraction.
 - `src/post-process/*.js`: derived analysis built from parsed boxes.
 - `src/ui/ProgressBar.js`: progress, status, easing, and cancel-button state.
+- `src/ui/InspectionResultsView.js`: owns the whole results area lifecycle:
+  stale/loading state, chooser-time clearing, parse-time preparation,
+  incremental box tree mounting, notices, and derived tab finalization.
 - `src/ui/InspectionSourceElement.js`: renders the currently inspected source
   and origin metadata.
 - `src/ui/PlaylistSegmentChooser.js`: chooser UI for DASH/HLS segment
@@ -75,9 +78,10 @@ The main runtime flow is:
    `src/filetype_detection.js`.
 3. DASH and HLS sources are resolved into selectable segment resources before
    inspection continues.
-4. `src/parseAndRenderSegment.js` streams parser events into the box-tree UI.
-5. Once parsing completes, the app derives media info and renders the info,
-   samples, size, and tree-position views from the accumulated top-level boxes.
+4. `src/parseAndRenderSegment.js` streams parser events and forwards parsed UI
+   updates to `src/ui/InspectionResultsView.js`.
+5. `src/ui/InspectionResultsView.js` owns the results shell and derived tabs,
+   including incremental box-tree mounting and post-parse rendering.
 
 Keep the single-active-inspection model intact. New work should continue to
 respect the shared `AbortController`, progress UI, stale-results handling, and
@@ -127,6 +131,11 @@ Keep optional or lazy UI explicit. For example, chooser content, tooltips, or
 tab-specific controls should be created with local nullable state and clear
 creation branches instead of pretending they are permanent shell elements.
 
+Keep results-shell ownership centralized. If work needs to clear, reserve,
+finalize, or mark the inspection results area as stale/loading, route that
+through `src/ui/InspectionResultsView.js` instead of open-coding DOM resets in
+`src/index.js` or `src/parseAndRenderSegment.js`.
+
 Do not use `querySelector` or `querySelectorAll`. Prefer IDs plus
 `requireElementById` for shell elements, `getElementsByClassName` with explicit
 index-based loops for class collections, and direct child traversal for local
@@ -147,8 +156,9 @@ Remote URL inspection is intentionally two-stage:
 - then either show the segment chooser or stream the selected segment into the
   parser
 
-The box tree renders incrementally from parser events. Derived tabs are rendered
-after parsing finishes, using the accumulated top-level boxes.
+The box tree renders incrementally from parser events through
+`InspectionResultsView`. Derived tabs are rendered after parsing finishes, using
+the accumulated top-level boxes.
 
 The samples tab is conditional. It is shown only when post-processed media info
 can expose sample views worth rendering.

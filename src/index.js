@@ -8,6 +8,7 @@ import {
 } from "./extractors/hls/index.js";
 import { probeRemoteSource } from "./filetype_detection.js";
 import parseAndRenderSegment from "./parseAndRenderSegment.js";
+import InspectionResultsView from "./ui/InspectionResultsView.js";
 import {
   clearInspectionSource,
   setInspectionSource,
@@ -35,18 +36,6 @@ initializeFileDrop();
 initializeUrlInput();
 initializeTabNavigation();
 initializeGithubStars();
-
-/**
- * Dim existing results while a newly requested file is being loaded. Once the
- * parser starts rendering the new file, parseAndRenderSegment clears this state.
- * @param {boolean} isLoading
- */
-function setResultsLoading(isLoading) {
-  const results = requireElementById("results", HTMLElement);
-  results.classList.toggle("is-stale-loading", isLoading);
-  results.inert = isLoading;
-  results.setAttribute("aria-busy", isLoading ? "true" : "false");
-}
 
 /**
  * Fetch the mp4 file's URL and run our parser on it.
@@ -273,7 +262,7 @@ function beginInspectionLifecycle() {
   currentSegmentParsingAbortController = new AbortController();
   const controller = currentSegmentParsingAbortController;
   ProgressBar.setCancelAction(() => controller.abort());
-  setResultsLoading(true);
+  InspectionResultsView.setLoading(true);
   controller.signal.addEventListener(
     "abort",
     () => {
@@ -282,7 +271,7 @@ function beginInspectionLifecycle() {
       }
       hideSegmentChooser();
       clearInspectionSource();
-      setResultsLoading(false);
+      InspectionResultsView.setLoading(false);
       ProgressBar.setCancelAction(null);
       currentSegmentParsingAbortController = null;
     },
@@ -299,7 +288,7 @@ function finishInspectionLifecycle(controller) {
     return;
   }
   hideSegmentChooser();
-  setResultsLoading(false);
+  InspectionResultsView.setLoading(false);
   ProgressBar.setCancelAction(null);
   currentSegmentParsingAbortController = null;
 }
@@ -338,6 +327,7 @@ async function inspectRemoteUrl(sourceUrl, controller) {
       ProgressBar.end(
         `DASH manifest loaded. Choose one of ${segmentCount} segments to inspect.`,
       );
+      InspectionResultsView.clear();
       showDashSegmentChooser(sourceUrl, tree, (segmentUrl, byteRange) => {
         inspectChosenSegment(
           segmentUrl,
@@ -385,6 +375,7 @@ async function inspectRemoteUrl(sourceUrl, controller) {
       ProgressBar.end(
         `HLS playlist loaded. Choose one of ${segmentCount} resources to inspect.`,
       );
+      InspectionResultsView.clear();
       showHlsSegmentChooser(sourceUrl, extraction, (segmentUrl, byteRange) => {
         inspectChosenSegment(
           segmentUrl,

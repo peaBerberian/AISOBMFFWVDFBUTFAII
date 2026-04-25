@@ -477,17 +477,17 @@ function parseBrandList(brands) {
   if (!brands || brands.kind !== "array") {
     return [];
   }
-	const brandList = [];
-	for (const brand of brands.items) {
-		if (brand.kind === "struct" || brand.kind === "array") {
-			continue;
-		}
-		const toStr = String(brand.value).trim();
-		if (toStr) {
-			brandList.push(toStr);
-		}
-	}
-	return brandList;
+  const brandList = [];
+  for (const brand of brands.items) {
+    if (brand.kind === "struct" || brand.kind === "array") {
+      continue;
+    }
+    const toStr = String(brand.value).trim();
+    if (toStr) {
+      brandList.push(toStr);
+    }
+  }
+  return brandList;
 }
 
 /**
