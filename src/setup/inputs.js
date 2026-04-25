@@ -1,12 +1,12 @@
-import { parseAndRenderSegment } from "../parseSegment.js";
+import { setInspectionSource } from "../ui/InspectionSourceElement.js";
+import ProgressBar from "../ui/ProgressBar.js";
 import { createAbortableAsyncIterable } from "../utils/abortables.js";
 import { requireElementById } from "../utils/dom.js";
 import {
   beginInspectionLifecycle,
   finishInspectionLifecycle,
 } from "./InspectionLifecycle.js";
-import { setInspectionSource } from "./InspectionSourceElement.js";
-import ProgressBar from "./ProgressBar.js";
+import { parseAndRenderSegment } from "./parseSegment.js";
 
 /**
  * Try to format the given file to the best abstraction for the job.

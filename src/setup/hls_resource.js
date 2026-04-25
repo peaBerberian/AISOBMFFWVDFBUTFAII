@@ -1,12 +1,12 @@
+import InspectionResultsView from "../ui/InspectionResultsView.js";
+import { setInspectionSource } from "../ui/InspectionSourceElement.js";
+import { showHlsSegmentChooser } from "../ui/PlaylistSegmentChooser.js";
+import ProgressBar from "../ui/ProgressBar.js";
 import {
   extractISOBMFFPlaylistMetadata,
   extractISOBMFFPlaylistMetadataFromString,
   resolveMediaPlaylist,
 } from "./extractors/hls/index.js";
-import InspectionResultsView from "./ui/InspectionResultsView.js";
-import { setInspectionSource } from "./ui/InspectionSourceElement.js";
-import { showHlsSegmentChooser } from "./ui/PlaylistSegmentChooser.js";
-import ProgressBar from "./ui/ProgressBar.js";
 
 /**
  * Handle a remote URL that has been identified as an HLS playlist:

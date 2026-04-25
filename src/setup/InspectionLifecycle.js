@@ -1,7 +1,7 @@
-import InspectionResultsView from "./InspectionResultsView.js";
-import { clearInspectionSource } from "./InspectionSourceElement.js";
-import { hideSegmentChooser } from "./PlaylistSegmentChooser.js";
-import ProgressBar from "./ProgressBar.js";
+import InspectionResultsView from "../ui/InspectionResultsView.js";
+import { clearInspectionSource } from "../ui/InspectionSourceElement.js";
+import { hideSegmentChooser } from "../ui/PlaylistSegmentChooser.js";
+import ProgressBar from "../ui/ProgressBar.js";
 
 /**
  * AbortController linked to the current segment/file parsing process.

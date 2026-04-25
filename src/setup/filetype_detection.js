@@ -1,8 +1,8 @@
 import {
   createAbortableAsyncIterable,
   readWithAbort,
-} from "./utils/abortables.js";
-import { concatUint8Arrays, toUint8Array } from "./utils/bytes.js";
+} from "../utils/abortables.js";
+import { concatUint8Arrays, toUint8Array } from "../utils/bytes.js";
 
 // TODO: Add common other file format magic numbers detection with the goal to
 // provide better error message?

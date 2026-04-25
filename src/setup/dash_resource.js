@@ -1,12 +1,12 @@
+import InspectionResultsView from "../ui/InspectionResultsView.js";
+import { setInspectionSource } from "../ui/InspectionSourceElement.js";
+import { showDashSegmentChooser } from "../ui/PlaylistSegmentChooser.js";
+import ProgressBar from "../ui/ProgressBar.js";
 import {
   parseMPDFromString,
   parseMPDFromURL,
   resolveIndexForRepresentation,
 } from "./extractors/dash/index.js";
-import InspectionResultsView from "./ui/InspectionResultsView.js";
-import { setInspectionSource } from "./ui/InspectionSourceElement.js";
-import { showDashSegmentChooser } from "./ui/PlaylistSegmentChooser.js";
-import ProgressBar from "./ui/ProgressBar.js";
 
 /**
  * Handle a remote URL that has been identified as a DASH manifest:

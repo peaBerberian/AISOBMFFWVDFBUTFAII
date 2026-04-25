@@ -1,17 +1,17 @@
+import InspectionResultsView from "../ui/InspectionResultsView.js";
+import { setInspectionSource } from "../ui/InspectionSourceElement.js";
+import { hideSegmentChooser } from "../ui/PlaylistSegmentChooser.js";
+import ProgressBar from "../ui/ProgressBar.js";
+import { createAbortableAsyncIterable } from "../utils/abortables.js";
+import { formatSegmentSourceValue } from "../utils/format.js";
+import {
+  finishInspectionLifecycle,
+  isCurrentInspection,
+} from "./InspectionLifecycle.js";
 import {
   parseAndRenderSegment,
   parseSegmentWithoutRender,
 } from "./parseSegment.js";
-import {
-  finishInspectionLifecycle,
-  isCurrentInspection,
-} from "./ui/InspectionLifecycle.js";
-import InspectionResultsView from "./ui/InspectionResultsView.js";
-import { setInspectionSource } from "./ui/InspectionSourceElement.js";
-import { hideSegmentChooser } from "./ui/PlaylistSegmentChooser.js";
-import ProgressBar from "./ui/ProgressBar.js";
-import { createAbortableAsyncIterable } from "./utils/abortables.js";
-import { formatSegmentSourceValue } from "./utils/format.js";
 
 /**
  * @param {string} url

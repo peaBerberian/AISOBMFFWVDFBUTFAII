@@ -1,6 +1,6 @@
 import { parseEvents } from "isobmff-inspector";
-import InspectionResultsView from "./ui/InspectionResultsView.js";
-import ProgressBar from "./ui/ProgressBar.js";
+import InspectionResultsView from "../ui/InspectionResultsView.js";
+import ProgressBar from "../ui/ProgressBar.js";
 
 const USUAL_FIRST_BOX_TYPES = new Set([
   "ftyp",
@@ -19,7 +19,7 @@ const USUAL_FIRST_BOX_TYPES = new Set([
 
 /**
  * @typedef {{ severity: "warning" | "error", message: string }} ParseNotice
- * @typedef {import("./utils/box_size.js").BoxWithOptionalActualSize} PendingParsedBox
+ * @typedef {import("../utils/box_size.js").BoxWithOptionalActualSize} PendingParsedBox
  */
 
 /**

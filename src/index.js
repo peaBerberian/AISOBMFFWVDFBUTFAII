@@ -1,20 +1,20 @@
-import { handleDashSource } from "./dash_resource.js";
-import { probeRemoteSource } from "./filetype_detection.js";
-import { handleHlsSource } from "./hls_resource.js";
-import {
-  inspectChosenSegment,
-  inspectRemoteSegment,
-} from "./remote_segment.js";
+import { handleDashSource } from "./setup/dash_resource.js";
+import { probeRemoteSource } from "./setup/filetype_detection.js";
+import { handleHlsSource } from "./setup/hls_resource.js";
 import {
   beginInspectionLifecycle,
   finishInspectionLifecycle,
-} from "./ui/InspectionLifecycle.js";
+} from "./setup/InspectionLifecycle.js";
 import {
   initializeFileDrop,
   initializeFileReaderInput,
   initializeUrlInput,
   parseLocalFile,
-} from "./ui/inputs.js";
+} from "./setup/inputs.js";
+import {
+  inspectChosenSegment,
+  inspectRemoteSegment,
+} from "./setup/remote_segment.js";
 import { hasVisibleSegmentChooser } from "./ui/PlaylistSegmentChooser.js";
 import ProgressBar from "./ui/ProgressBar.js";
 import { initializeTabNavigation } from "./ui/tabs/index.js";
