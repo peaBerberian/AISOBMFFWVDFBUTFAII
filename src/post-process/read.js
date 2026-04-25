@@ -73,18 +73,35 @@ const ENCRYPTION_BOX_TYPES = new Set([
 
 /**
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
+ * @param {{
+ *   supplementalBoxes?: Array<import("isobmff-inspector").ParsedBox> | null,
+ * }} [options]
  * @returns {import("./analysis.js").MediaInfo}
  */
-export default function deriveMediaInfo(boxes) {
+export default function deriveMediaInfo(boxes, options = {}) {
+  const supplementalBoxes = options.supplementalBoxes ?? [];
   const ftyp = findFirstBox(boxes, "ftyp");
   const mvhd = findFirstBox(boxes, "mvhd");
   const moov = findFirstBox(boxes, "moov");
+  const supplementalMoov = moov
+    ? null
+    : findFirstBox(supplementalBoxes, "moov");
   const mdatBoxes = findBoxes(boxes, "mdat");
   const moofBoxes = findBoxes(boxes, "moof");
   const mdatSize = sumBoxes(mdatBoxes);
   const totalSize = boxes.reduce((sum, box) => sum + getActualBoxSize(box), 0);
   const metadataSize = Math.max(0, totalSize - mdatSize);
-  const tracks = findBoxes(moov ? [moov] : boxes, "trak").map(deriveTrackInfo);
+  const trackSourceBoxes = moov
+    ? [moov]
+    : supplementalMoov
+      ? [supplementalMoov]
+      : boxes;
+  const trackMetadataSource =
+    moov || !supplementalMoov ? "selected" : "supplemental-init";
+  const includeTrackSampleViews = trackMetadataSource === "selected";
+  const tracks = findBoxes(trackSourceBoxes, "trak").map((trak) =>
+    deriveTrackInfo(trak, trackMetadataSource, includeTrackSampleViews),
+  );
   const trackTimescales = new Map(
     tracks
       .filter((track) => track.id && track.timescale != null)
@@ -93,7 +110,7 @@ export default function deriveMediaInfo(boxes) {
   const trackKinds = new Map(
     tracks.filter((track) => track.id).map((track) => [track.id, track.kind]),
   );
-  const fragmentDefaults = getTrackFragmentDefaults(moov ? [moov] : boxes);
+  const fragmentDefaults = getTrackFragmentDefaults(trackSourceBoxes);
   const fragments = moofBoxes.flatMap((moof) =>
     deriveFragmentInfo(moof, trackTimescales, trackKinds, fragmentDefaults),
   );
@@ -121,6 +138,10 @@ export default function deriveMediaInfo(boxes) {
         fragment.sampleView ? [fragment.sampleView] : [],
       ),
     ],
+    supplementalInitSegment: {
+      used: supplementalMoov !== null,
+      trackCount: supplementalMoov ? tracks.length : 0,
+    },
     hints: [],
   };
   info.hints = deriveHints(info, boxes);
@@ -129,9 +150,11 @@ export default function deriveMediaInfo(boxes) {
 
 /**
  * @param {import("isobmff-inspector").ParsedBox} trak
+ * @param {"selected" | "supplemental-init"} metadataSource
+ * @param {boolean} includeSampleView
  * @returns {import("./analysis.js").TrackInfo}
  */
-function deriveTrackInfo(trak) {
+function deriveTrackInfo(trak, metadataSource, includeSampleView) {
   const tkhd = findFirstBox([trak], "tkhd");
   const mdhd = findFirstBox([trak], "mdhd");
   const hdlr = findFirstBox([trak], "hdlr");
@@ -175,16 +198,18 @@ function deriveTrackInfo(trak) {
     ctts,
     sdtp,
   });
-  const sampleView = createTrackSampleView({
-    trackId: String(getNumberField(tkhd, "track_ID") ?? ""),
-    kind,
-    timescale: getNumberField(mdhd, "timescale"),
-    stts,
-    ctts,
-    stsz,
-    stss,
-    sdtp,
-  });
+  const sampleView = includeSampleView
+    ? createTrackSampleView({
+        trackId: String(getNumberField(tkhd, "track_ID") ?? ""),
+        kind,
+        timescale: getNumberField(mdhd, "timescale"),
+        stts,
+        ctts,
+        stsz,
+        stss,
+        sdtp,
+      })
+    : null;
   const timing = analyzeTrackTiming(
     stts,
     getNumberField(mdhd, "timescale"),
@@ -278,6 +303,7 @@ function deriveTrackInfo(trak) {
     ),
     sampleTimeline,
     sampleView,
+    metadataSource,
     details: details.length ? details : getSampleTimingDetails(stts),
   };
 }
@@ -392,6 +418,11 @@ function deriveHints(info, boxes) {
   if (info.segmentType === "media segment") {
     hints.push(
       "This looks like a media segment; init-segment metadata such as duration, codec setup, and dimensions may be absent.",
+    );
+  }
+  if (info.supplementalInitSegment.used) {
+    hints.push(
+      `Track metadata and timescales were supplemented from an init segment (${numberFormat(info.supplementalInitSegment.trackCount)} track${info.supplementalInitSegment.trackCount === 1 ? "" : "s"}).`,
     );
   }
   if (findFirstBox(boxes, "elst")) {

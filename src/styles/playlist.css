@@ -160,6 +160,28 @@
   white-space: nowrap;
 }
 
+.segment-choice-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.segment-choice-option.is-disabled {
+  color: var(--color-text-tertiary);
+}
+
+.segment-choice-option input {
+  margin: 2px 0 0;
+}
+
+.segment-choice-option-copy {
+  min-width: 0;
+}
+
 .segment-choice-chip {
   min-height: 24px;
   padding: 2px 8px;
@@ -228,7 +250,7 @@
 
 .compact-source[open] .compact-source-toggle {
   color: var(--color-text-secondary);
-	font-weight: bold;
+  font-weight: bold;
 }
 
 .compact-source-value {

@@ -10,6 +10,7 @@ import {
 } from "./extractors/hls/index.js";
 import { probeRemoteSource } from "./filetype_detection.js";
 import parseAndRenderSegment from "./parseAndRenderSegment.js";
+import parseSegmentMetadata from "./parseSegmentMetadata.js";
 import InspectionResultsView from "./ui/InspectionResultsView.js";
 import {
   clearInspectionSource,
@@ -49,26 +50,8 @@ initializeGithubStars();
  */
 async function fetchSegmentAndParse(url, byteRange, signal) {
   try {
-    /** @type HeadersInit */
-    const headers = {};
-    if (byteRange !== undefined) {
-      const [start, end] = byteRange;
-      headers.Range =
-        end !== undefined ? `bytes=${start}-${end}` : `bytes=${start}-`;
-    }
-    const r = await fetch(url, { signal, headers });
-    if (signal.aborted) {
-      return;
-    }
-    if (!r.ok) {
-      InspectionResultsView.clear();
-      const errMsg = `HTTP ${r.status}${r.statusText ? ` ${r.statusText}` : ""}`;
-      throw new Error(`fetch error: ${errMsg}`);
-    }
-    return parseAndRenderSegment(
-      r.body ? createAbortableAsyncIterable(r.body, signal) : r,
-      signal,
-    );
+    const input = await fetchSegmentInput(url, byteRange, signal);
+    return parseAndRenderSegment(input, signal);
   } catch (err) {
     if (!signal.aborted) {
       InspectionResultsView.clear();
@@ -76,6 +59,59 @@ async function fetchSegmentAndParse(url, byteRange, signal) {
       throw new Error(`fetch error: ${message}`);
     }
   }
+}
+
+/**
+ * @param {string} url
+ * @param {[number, number|undefined]|undefined} byteRange
+ * @param {AbortSignal} signal
+ * @returns {Promise<import("isobmff-inspector").ISOBMFFInput>}
+ */
+async function fetchSegmentInput(url, byteRange, signal) {
+  /** @type HeadersInit */
+  const headers = {};
+  if (byteRange !== undefined) {
+    const [start, end] = byteRange;
+    headers.Range =
+      end !== undefined ? `bytes=${start}-${end}` : `bytes=${start}-`;
+  }
+  const r = await fetch(url, { signal, headers });
+  if (signal.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
+  if (!r.ok) {
+    InspectionResultsView.clear();
+    const errMsg = `HTTP ${r.status}${r.statusText ? ` ${r.statusText}` : ""}`;
+    throw new Error(`fetch error: ${errMsg}`);
+  }
+  return r.body ? createAbortableAsyncIterable(r.body, signal) : r;
+}
+
+/**
+ * @param {string} url
+ * @param {[number, number|undefined]|undefined} byteRange
+ * @returns {string}
+ */
+function formatSegmentSourceValue(url, byteRange) {
+  if (byteRange === undefined) {
+    return url;
+  }
+  const [start, end] = byteRange;
+  return `${url} [bytes=${end !== undefined ? `${start}-${end}` : `${start}-`}]`;
+}
+
+/**
+ * @param {{
+ *   url: string,
+ *   byteRange: [number, number|undefined]|undefined,
+ * }} segment
+ * @param {AbortSignal} signal
+ * @returns {Promise<{ boxes: Array<import("isobmff-inspector").ParsedBox> }>}
+ */
+async function loadSupplementalInitMetadata(segment, signal) {
+  const input = await fetchSegmentInput(segment.url, segment.byteRange, signal);
+  const boxes = await parseSegmentMetadata(input, signal);
+  return { boxes };
 }
 
 /**
@@ -338,13 +374,14 @@ async function inspectRemoteUrl(sourceUrl, controller) {
         showDashSegmentChooser(
           sourceUrl,
           tree,
-          (segmentUrl, byteRange) => {
+          (segmentUrl, byteRange, companionInit) => {
             inspectChosenSegment(
               segmentUrl,
               byteRange,
               controller,
               sourceUrl,
               "DASH manifest",
+              companionInit,
             );
           },
           async (representation) => {
@@ -407,13 +444,14 @@ async function inspectRemoteUrl(sourceUrl, controller) {
         showHlsSegmentChooser(
           sourceUrl,
           extraction,
-          (segmentUrl, byteRange) => {
+          (segmentUrl, byteRange, companionInit) => {
             inspectChosenSegment(
               segmentUrl,
               byteRange,
               controller,
               sourceUrl,
               "HLS playlist",
+              companionInit,
             );
           },
           async (result) => {
@@ -471,6 +509,10 @@ async function inspectRemoteUrl(sourceUrl, controller) {
  * @param {AbortController} controller
  * @param {string | null} [originUrl=null]
  * @param {string | null} [originKind=null]
+ * @param {{
+ *   url: string,
+ *   byteRange: [number, number|undefined]|undefined,
+ * } | undefined} [companionInit]
  */
 function inspectChosenSegment(
   segmentUrl,
@@ -478,6 +520,7 @@ function inspectChosenSegment(
   controller,
   originUrl = null,
   originKind = null,
+  companionInit = undefined,
 ) {
   if (
     currentSegmentParsingAbortController !== controller ||
@@ -495,12 +538,37 @@ function inspectChosenSegment(
     selectedValue: segmentUrl,
     originLabel: originUrl && originKind ? `${originKind} source` : undefined,
     originValue: originUrl ?? undefined,
+    extraSources: companionInit
+      ? [
+          {
+            label: "Side-loaded init metadata",
+            value: formatSegmentSourceValue(
+              companionInit.url,
+              companionInit.byteRange,
+            ),
+          },
+        ]
+      : undefined,
   });
   hideSegmentChooser();
 
-  fetchSegmentAndParse(segmentUrl, byteRange, controller.signal).finally(() => {
-    finishInspectionLifecycle(controller);
-  });
+  fetchSegmentInput(segmentUrl, byteRange, controller.signal)
+    .then((input) => {
+      const supplementalMetadataPromise = companionInit
+        ? loadSupplementalInitMetadata(companionInit, controller.signal)
+        : Promise.resolve(null);
+      return parseAndRenderSegment(input, controller.signal, {
+        supplementalMetadataPromise,
+      });
+    })
+    .catch((err) => {
+      if (!controller.signal.aborted) {
+        ProgressBar.fail(err instanceof Error ? err.message : "Unknown Error");
+      }
+    })
+    .finally(() => {
+      finishInspectionLifecycle(controller);
+    });
 }
 
 /**

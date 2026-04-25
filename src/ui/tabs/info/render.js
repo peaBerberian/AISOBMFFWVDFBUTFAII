@@ -8,15 +8,18 @@ import { fmtBytes } from "../utils.js";
 
 /**
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
+ * @param {{
+ *   supplementalBoxes?: Array<import("isobmff-inspector").ParsedBox> | null,
+ * }} [options]
  */
-export default function renderMediaInfo(boxes) {
+export default function renderMediaInfo(boxes, options = {}) {
   const container = requireElementById("media-info", HTMLElement);
   container.innerHTML = "";
   if (!boxes.length) {
     return;
   }
 
-  const info = deriveMediaInfo(boxes);
+  const info = deriveMediaInfo(boxes, options);
   container.appendChild(renderSummary(info));
   container.appendChild(renderGops(info));
   container.appendChild(renderFragments(info.fragments));
@@ -42,6 +45,13 @@ function renderSummary(info) {
     "compatible",
     info.compatibleBrands.length ? info.compatibleBrands.join(", ") : "unknown",
   );
+  if (info.supplementalInitSegment.used) {
+    addStat(
+      summary,
+      "init metadata",
+      `side-loaded (${numberFormat(info.supplementalInitSegment.trackCount)} track${info.supplementalInitSegment.trackCount === 1 ? "" : "s"})`,
+    );
+  }
   addStat(summary, "file size", fmtBytes(info.totalSize));
   addStat(summary, "metadata", fmtBytes(info.metadataSize));
   section.body.appendChild(summary);
@@ -195,6 +205,9 @@ function renderTracks(tracks) {
       addFact(facts, "timing detail", detail);
     }
     addFact(facts, "GOP", track.gop);
+    if (track.metadataSource === "supplemental-init") {
+      addFact(facts, "metadata source", "side-loaded init segment");
+    }
     for (const detail of track.details) {
       addFact(facts, "detail", detail);
     }

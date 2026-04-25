@@ -25,8 +25,17 @@ const USUAL_FIRST_BOX_TYPES = new Set([
 /**
  * @param {import("isobmff-inspector").ISOBMFFInput} input
  * @param {AbortSignal} abortSignal
+ * @param {{
+ *   supplementalMetadataPromise?: Promise<{
+ *     boxes: Array<import("isobmff-inspector").ParsedBox>,
+ *   } | null>,
+ * }} [options]
  */
-export default async function parseAndRenderSegment(input, abortSignal) {
+export default async function parseAndRenderSegment(
+  input,
+  abortSignal,
+  options = {},
+) {
   let boxCount = 0;
   InspectionResultsView.prepareForParsing();
   ProgressBar.updateStatus("parsing…");
@@ -35,6 +44,7 @@ export default async function parseAndRenderSegment(input, abortSignal) {
   let inspectedFirstTopLevelBox = false;
   /** @type {ParseNotice | null} */
   let inputHeuristicNotice = null;
+  let supplementalMetadata = null;
 
   try {
     for await (const event of parseEvents(input)) {
@@ -94,7 +104,22 @@ export default async function parseAndRenderSegment(input, abortSignal) {
       InspectionResultsView.renderNotice(inputHeuristicNotice);
     }
 
-    InspectionResultsView.finalize();
+    if (options.supplementalMetadataPromise) {
+      try {
+        supplementalMetadata = await options.supplementalMetadataPromise;
+      } catch (err) {
+        if (abortSignal.aborted) {
+          return;
+        }
+        const message = err instanceof Error ? err.message : String(err);
+        InspectionResultsView.renderNotice({
+          severity: "warning",
+          message: `Supplemental init metadata could not be loaded: ${message}`,
+        });
+      }
+    }
+
+    InspectionResultsView.finalize(supplementalMetadata);
     completed = true;
   } catch (err) {
     if (abortSignal.aborted) {

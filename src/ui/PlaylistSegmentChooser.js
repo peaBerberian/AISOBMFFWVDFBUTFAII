@@ -9,6 +9,10 @@ const chooserElt = requireElementById("segment-chooser", HTMLElement);
  *   url: string,
  *   byteRange: [number, number|undefined]|undefined;
  *   type?: string,
+ *   companionInit?: {
+ *     url: string,
+ *     byteRange: [number, number|undefined]|undefined,
+ *   },
  * }} SegmentChoice
  *
  * @typedef {{
@@ -27,7 +31,11 @@ const chooserElt = requireElementById("segment-chooser", HTMLElement);
  * @param {import("../extractors/dash/types.js").DashTree} tree
  * @param {(
  *   segmentUrl: string,
- *   byteRange: [number, number|undefined]|undefined
+ *   byteRange: [number, number|undefined]|undefined,
+ *   companionInit?: {
+ *     url: string,
+ *     byteRange: [number, number|undefined]|undefined,
+ *   },
  * ) => void} onInspect
  * @param {(representation: import("../extractors/dash/types.js").RepresentationTree) => Promise<void> | void} [onLoadRepresentation]
  */
@@ -84,6 +92,10 @@ export function showDashSegmentChooser(
             url: segment.url,
             byteRange: segment.byteRange,
             type: segment.type,
+            companionInit:
+              segment.type === "media"
+                ? getDashCompanionInitSegment(representation.segments)
+                : undefined,
           })),
           loadLabel: representation.sidxPending
             ? "Load segment list"
@@ -115,7 +127,11 @@ export function showDashSegmentChooser(
  * @param {import("../extractors/hls/index.js").ExtractionResult} extraction
  * @param {(
  *   segmentUrl: string,
- *   byteRange: [number, number|undefined]|undefined
+ *   byteRange: [number, number|undefined]|undefined,
+ *   companionInit?: {
+ *     url: string,
+ *     byteRange: [number, number|undefined]|undefined,
+ *   },
  * ) => void} onInspect
  * @param {(result: import("../extractors/hls/index.js").PlaylistResult) => Promise<void> | void} [onLoadResult]
  */
@@ -188,7 +204,11 @@ export function hasVisibleSegmentChooser() {
  *   cards: SegmentChoiceCard[],
  *   onInspect: (
  *     segmentUrl: string,
- *     byteRange: [number, number|undefined]|undefined
+ *     byteRange: [number, number|undefined]|undefined,
+ *     companionInit?: {
+ *       url: string,
+ *       byteRange: [number, number|undefined]|undefined,
+ *     },
  *   ) => void
  * }} input
  */
@@ -227,7 +247,11 @@ function renderChooser(input) {
  * @param {SegmentChoiceCard} card
  * @param {(
  *   segmentUrl: string,
- *   byteRange: [number, number|undefined]|undefined
+ *   byteRange: [number, number|undefined]|undefined,
+ *   companionInit?: {
+ *     url: string,
+ *     byteRange: [number, number|undefined]|undefined,
+ *   },
  * ) => void} onInspect
  */
 function createChoiceCard(card, onInspect) {
@@ -310,6 +334,34 @@ function createChoiceCard(card, onInspect) {
   inspectButton.textContent = "Inspect";
   controls.appendChild(inspectButton);
 
+  const hasAnyCompanionInit = card.choices.some((choice) =>
+    shouldChoiceOfferCompanionInit(choice),
+  );
+  let loadCompanionInit = true;
+  /** @type {HTMLLabelElement | null} */
+  let initOption = null;
+  /** @type {HTMLInputElement | null} */
+  let initCheckbox = null;
+  /** @type {HTMLSpanElement | null} */
+  let initOptionText = null;
+  if (hasAnyCompanionInit) {
+    initOption = document.createElement("label");
+    initOption.className = "segment-choice-option";
+    initCheckbox = /** @type {HTMLInputElement} */ (
+      document.createElement("input")
+    );
+    initCheckbox.type = "checkbox";
+    initCheckbox.checked = true;
+    initCheckbox.addEventListener("change", () => {
+      loadCompanionInit = initCheckbox?.checked ?? true;
+    });
+    initOptionText = document.createElement("span");
+    initOptionText.className = "segment-choice-option-copy";
+    initOption.appendChild(initCheckbox);
+    initOption.appendChild(initOptionText);
+    article.appendChild(initOption);
+  }
+
   const shortcuts = document.createElement("div");
   shortcuts.className = "segment-choice-shortcuts";
   article.appendChild(shortcuts);
@@ -335,7 +387,27 @@ function createChoiceCard(card, onInspect) {
     selectedUrl.replaceChildren(
       createCompactSource("Selected URL", choice.url),
     );
+    syncInitOption(choice);
     updateShortcutState(shortcuts, selectedIndex);
+  }
+
+  /**
+   * @param {SegmentChoice} choice
+   */
+  function syncInitOption(choice) {
+    if (!initOption || !initCheckbox || !initOptionText) {
+      return;
+    }
+    const hasCompanionInit = shouldChoiceOfferCompanionInit(choice);
+    initCheckbox.disabled = !hasCompanionInit;
+    initCheckbox.checked =
+      choice.type === "init"
+        ? true
+        : hasCompanionInit
+          ? loadCompanionInit
+          : false;
+    initOption.classList.toggle("is-disabled", !hasCompanionInit);
+    initOptionText.textContent = "Sideload init metadata for better analysis";
   }
 
   addShortcutButton(shortcuts, "First", 0, () => {
@@ -373,9 +445,13 @@ function createChoiceCard(card, onInspect) {
     updateSelection((Number(indexInput.value) || 1) - 1);
   });
   inspectButton.addEventListener("click", () => {
+    const choice = card.choices[selectedIndex];
     onInspect(
-      card.choices[selectedIndex].url,
-      card.choices[selectedIndex].byteRange,
+      choice.url,
+      choice.byteRange,
+      shouldChoiceOfferCompanionInit(choice) && loadCompanionInit
+        ? choice.companionInit
+        : undefined,
     );
   });
 
@@ -424,6 +500,12 @@ function collectHlsChoices(result) {
       url: segment.url,
       byteRange: segment.byteRange ?? undefined,
       type: "media",
+      companionInit: segment.map
+        ? {
+            url: segment.map.url,
+            byteRange: segment.map.byteRange ?? undefined,
+          }
+        : undefined,
     });
   }
 
@@ -530,6 +612,27 @@ function formatHlsSegmentLabel(segment, segmentIndex) {
     formatUrlLabel(segment.url),
   ].filter(Boolean);
   return details.join(" · ");
+}
+
+/**
+ * @param {import("../extractors/dash/types.js").SegmentItem[]} segments
+ */
+function getDashCompanionInitSegment(segments) {
+  const initSegment = segments.find((segment) => segment.type === "init");
+  if (!initSegment) {
+    return undefined;
+  }
+  return {
+    url: initSegment.url,
+    byteRange: initSegment.byteRange,
+  };
+}
+
+/**
+ * @param {SegmentChoice} choice
+ */
+function shouldChoiceOfferCompanionInit(choice) {
+  return choice.type === "media" && choice.companionInit !== undefined;
 }
 
 /**

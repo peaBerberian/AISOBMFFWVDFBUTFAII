@@ -9,6 +9,7 @@ const rootElt = requireElementById("inspection-source", HTMLElement);
  *   selectedValue: string,
  *   originLabel?: string,
  *   originValue?: string,
+ *   extraSources?: Array<{ label: string, value: string }>,
  * }} input
  */
 export function setInspectionSource(input) {
@@ -21,6 +22,15 @@ export function setInspectionSource(input) {
     rootElt.appendChild(
       createInspectionSourceItem(input.originLabel, input.originValue),
     );
+  }
+
+  if (input.extraSources) {
+    for (let i = 0; i < input.extraSources.length; i++) {
+      const source = input.extraSources[i];
+      rootElt.appendChild(
+        createInspectionSourceItem(source.label, source.value),
+      );
+    }
   }
 
   rootElt.style.display = "flex";

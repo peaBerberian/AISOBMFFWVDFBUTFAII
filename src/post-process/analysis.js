@@ -31,6 +31,10 @@ import { isSyncSampleFlags } from "./sample-utils.js";
  *   tracks: TrackInfo[],
  *   fragments: FragmentInfo[],
  *   sampleViews: SampleView[],
+ *   supplementalInitSegment: {
+ *     used: boolean,
+ *     trackCount: number,
+ *   },
  *   hints: string[],
  * }} MediaInfo
  *
@@ -54,6 +58,7 @@ import { isSyncSampleFlags } from "./sample-utils.js";
  *   frameArrangement: string | null,
  *   sampleTimeline: SampleTimeline | null,
  *   sampleView: SampleView | null,
+ *   metadataSource: "selected" | "supplemental-init",
  *   details: string[],
  * }} TrackInfo
  *

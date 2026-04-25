@@ -53,16 +53,19 @@ const SAMPLE_COLUMNS = [
 
 /**
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
+ * @param {{
+ *   supplementalBoxes?: Array<import("isobmff-inspector").ParsedBox> | null,
+ * }} [options]
  * @returns {boolean}
  */
-export default function renderSampleView(boxes) {
+export default function renderSampleView(boxes, options = {}) {
   const container = requireElementById("sample-view", HTMLElement);
   container.innerHTML = "";
   if (!boxes.length) {
     return false;
   }
 
-  const info = deriveMediaInfo(boxes);
+  const info = deriveMediaInfo(boxes, options);
   if (!info.sampleViews.length) {
     return false;
   }
@@ -260,6 +263,7 @@ export default function renderSampleView(boxes) {
 
     renderSummary(
       summary,
+      info,
       state.view,
       rangeEnd,
       state.sortKey,
@@ -439,6 +443,7 @@ export default function renderSampleView(boxes) {
 
 /**
  * @param {HTMLElement} container
+ * @param {import("../../post-process/index.js").MediaInfo} info
  * @param {import("../../post-process/index.js").SampleView} view
  * @param {number} rangeEnd
  * @param {SampleSortKey} sortKey
@@ -448,6 +453,7 @@ export default function renderSampleView(boxes) {
  */
 function renderSummary(
   container,
+  info,
   view,
   rangeEnd,
   sortKey,
@@ -476,6 +482,11 @@ function renderSummary(
     stats.appendChild(
       createSummaryStat("timescale", `${numberFormat(view.timescale)} ticks/s`),
     );
+    if (info.supplementalInitSegment.used && view.kind === "fragment") {
+      stats.appendChild(
+        createSummaryStat("init metadata", "side-loaded for timing context"),
+      );
+    }
   } else if (
     tickContexts.dts.sharedPrefix ||
     tickContexts.pts.sharedPrefix ||

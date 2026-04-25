@@ -147,9 +147,17 @@ class InspectionResultsViewClass {
     this.#resultNotices.appendChild(noticeEl);
   }
 
-  finalize() {
-    renderMediaInfo(this.#topLevelBoxes);
-    const hasSampleView = renderSampleView(this.#topLevelBoxes);
+  /**
+   * @param {{
+   *   boxes: Array<import("isobmff-inspector").ParsedBox>,
+   * } | null} [supplementalMetadata]
+   */
+  finalize(supplementalMetadata = null) {
+    const options = supplementalMetadata
+      ? { supplementalBoxes: supplementalMetadata.boxes }
+      : {};
+    renderMediaInfo(this.#topLevelBoxes, options);
+    const hasSampleView = renderSampleView(this.#topLevelBoxes, options);
     this.#sampleTabButton.hidden = !hasSampleView;
     this.#sampleTabPanel.hidden = !hasSampleView;
     renderSizeChart(this.#topLevelBoxes);
