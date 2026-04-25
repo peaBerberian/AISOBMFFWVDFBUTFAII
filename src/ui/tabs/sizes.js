@@ -306,6 +306,32 @@ function createScaleButton(label, scale, ariaLabel) {
 }
 
 /**
+ * @param {SizeSortKey} key
+ * @returns {string}
+ */
+function getLegendColumnWidth(key) {
+  if (key === "order") {
+    return "38px";
+  }
+  if (key === "rank") {
+    return "52px";
+  }
+  if (key === "type") {
+    return "66px";
+  }
+  if (key === "depth") {
+    return "92px";
+  }
+  if (key === "container") {
+    return "70px";
+  }
+  if (key === "size") {
+    return "90px";
+  }
+  return "";
+}
+
+/**
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
  */
 export default function renderSizeChart(boxes) {
@@ -471,10 +497,17 @@ export default function renderSizeChart(boxes) {
   // Legend rows
   const tableSection = createSizeSection("box size table");
   container.appendChild(tableSection.section);
-  const legend = el("div", "size-legend");
-  legend.setAttribute("role", "grid");
+  const legendWrap = el("div", "size-legend-wrap");
+  const legend = /** @type {HTMLTableElement} */ (el("table", "size-legend"));
   legend.setAttribute("aria-label", "Box sizes");
-  tableSection.body.appendChild(legend);
+  const legendColgroup = document.createElement("colgroup");
+  const legendHead = document.createElement("thead");
+  const legendBody = document.createElement("tbody");
+  legend.appendChild(legendColgroup);
+  legend.appendChild(legendHead);
+  legend.appendChild(legendBody);
+  legendWrap.appendChild(legend);
+  tableSection.body.appendChild(legendWrap);
 
   /**
    * @param {SizeRow | null} row
@@ -756,19 +789,29 @@ export default function renderSizeChart(boxes) {
   }
 
   function renderLegend() {
-    legend.innerHTML = "";
+    legendColgroup.innerHTML = "";
+    legendHead.innerHTML = "";
+    legendBody.innerHTML = "";
     legendRowElements.length = 0;
+    for (const column of columns) {
+      const col = document.createElement("col");
+      const width = getLegendColumnWidth(column.key);
+      if (width) {
+        col.style.width = width;
+      }
+      legendColgroup.appendChild(col);
+    }
     const header = el(
-      "div",
+      "tr",
       `size-row size-row-head${showNonMdatShare ? "" : " size-row-no-excluded"}`,
     );
-    header.setAttribute("role", "row");
     for (const column of columns) {
+      const th = document.createElement("th");
+      th.scope = "col";
       const button = /** @type {HTMLButtonElement} */ (
         el("button", `size-head-btn size-head-${column.key}`)
       );
       button.type = "button";
-      button.setAttribute("role", "columnheader");
       button.title = column.title;
       button.dataset.sort = column.key;
       button.textContent =
@@ -790,20 +833,20 @@ export default function renderSizeChart(boxes) {
         applySort();
         renderLegend();
       });
-      header.appendChild(button);
+      th.appendChild(button);
+      header.appendChild(th);
     }
-    legend.appendChild(header);
+    legendHead.appendChild(header);
 
     for (const rowData of visibleRows) {
       const { box: b, depth, color, path } = rowData;
       const row = el(
-        "div",
+        "tr",
         `size-row${showNonMdatShare ? "" : " size-row-no-excluded"}${
           isActiveMapRow(rowData) ? " active" : ""
         }`,
       );
       row.tabIndex = 0;
-      row.setAttribute("role", "row");
       row.setAttribute("aria-label", getRowDetail(rowData, showNonMdatShare));
       row.setAttribute(
         "aria-selected",
@@ -820,30 +863,31 @@ export default function renderSizeChart(boxes) {
         `${Math.max(0, Math.min(100, rowData.nonMdatPct))}%`,
       );
       row.innerHTML = `
-      <span class="size-order">${rowData.order}</span>
-      <span class="size-rank">${rowData.rank}</span>
-      <span class="size-type">${esc(b.type)}</span>
-      <span class="size-depth">${depth === 0 ? "top-level" : `child level ${depth}`}</span>
-      <span class="size-container">${rowData.container ? "yes" : "no"}</span>
-      <span class="size-bytes">${esc(fmtBytes(rowData.size))}</span>
-      <div class="size-scale-cell size-scale-file">
-        <span class="size-scale-kind">file share</span>
-        <span class="size-pct">${fmtPct(rowData.filePct)}</span>
-        <div class="size-track size-track-file"><div class="size-fill"></div></div>
-      </div>
+      <td class="size-order">${rowData.order}</td>
+      <td class="size-rank">${rowData.rank}</td>
+      <td class="size-type">${esc(b.type)}</td>
+      <td class="size-depth">${depth === 0 ? "top-level" : `child level ${depth}`}</td>
+      <td class="size-container">${rowData.container ? "yes" : "no"}</td>
+      <td class="size-bytes">${esc(fmtBytes(rowData.size))}</td>
+      <td class="size-scale-cell">
+        <div class="size-scale-layout size-scale-file">
+          <span class="size-scale-kind">file share</span>
+          <span class="size-pct">${fmtPct(rowData.filePct)}</span>
+          <div class="size-track size-track-file"><div class="size-fill"></div></div>
+        </div>
+      </td>
       ${
         showNonMdatShare
-          ? `<div class="size-scale-cell size-scale-non-mdat${rowData.isNonMdatExcluded ? " size-scale-excluded" : ""}">
-        <span class="size-scale-kind">excluding mdat</span>
-        <span class="size-pct">${rowData.isNonMdatExcluded ? "excluded" : fmtPct(rowData.nonMdatPct)}</span>
-        <div class="size-track size-track-non-mdat"><div class="size-fill"></div></div>
-      </div>`
+          ? `<td class="size-scale-cell">
+        <div class="size-scale-layout size-scale-non-mdat${rowData.isNonMdatExcluded ? " size-scale-excluded" : ""}">
+          <span class="size-scale-kind">excluding mdat</span>
+          <span class="size-pct">${rowData.isNonMdatExcluded ? "excluded" : fmtPct(rowData.nonMdatPct)}</span>
+          <div class="size-track size-track-non-mdat"><div class="size-fill"></div></div>
+        </div>
+      </td>`
           : ""
       }
     `;
-      for (const cell of Array.from(row.children)) {
-        cell.setAttribute("role", "gridcell");
-      }
       row.addEventListener("click", () => setActiveMapRow(rowData));
       row.addEventListener("mouseenter", () => setPreviewMapRow(rowData));
       row.addEventListener("mouseleave", () => setPreviewMapRow(null));
@@ -856,7 +900,7 @@ export default function renderSizeChart(boxes) {
         evt.preventDefault();
         setActiveMapRow(rowData);
       });
-      legend.appendChild(row);
+      legendBody.appendChild(row);
       legendRowElements.push({ row: rowData, element: row });
     }
     syncBoxHighlights();
