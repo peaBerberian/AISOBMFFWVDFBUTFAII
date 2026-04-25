@@ -1,17 +1,5 @@
-/**
- * Convert a setTimeout to a Promise.
- *
- * You can use it to have a much more readable blocking code with async/await
- * in some asynchronous tests.
- *
- * @param {number} timeInMs
- * @returns {Promise<void>}
- */
-export function sleep(timeInMs) {
-  return new Promise((res) => {
-    setTimeout(res, timeInMs);
-  });
-}
+import { toUint8Array } from "./bytes";
+import { sleep } from "./sleep";
 
 /**
  * Make an async iterable from a Stream, while also letting the event loop spin
@@ -44,7 +32,7 @@ export function createAbortableAsyncIterable(stream, signal) {
           if (result.done) {
             break;
           }
-          yield byteChunkToUint8Array(result.value);
+          yield toUint8Array(result.value);
 
           // Adaptive sleep based on work intensity
           const now = performance.now();
@@ -77,27 +65,12 @@ export function createAbortableAsyncIterable(stream, signal) {
 }
 
 /**
- * Convert `isobmff-inspector`'s input into an `Uint8Array`.
- * @param {import("isobmff-inspector").ISOBMFFByteChunk} chunk
- * @returns {Uint8Array}
- */
-function byteChunkToUint8Array(chunk) {
-  if (chunk instanceof Uint8Array) {
-    return chunk;
-  }
-  if (chunk instanceof ArrayBuffer) {
-    return new Uint8Array(chunk);
-  }
-  return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
-}
-
-/**
  * @template T
  * @param {ReadableStreamDefaultReader<T>} reader
  * @param {AbortSignal} signal
  * @returns {Promise<ReadableStreamReadResult<T>>}
  */
-function readWithAbort(reader, signal) {
+export function readWithAbort(reader, signal) {
   throwIfAborted(signal);
   return new Promise((resolve, reject) => {
     const cleanup = () => {
@@ -127,18 +100,11 @@ function readWithAbort(reader, signal) {
 /**
  * @param {AbortSignal} signal
  */
-function throwIfAborted(signal) {
+export function throwIfAborted(signal) {
   if (signal.aborted) {
     throw (
       signal.reason ??
       new DOMException("The operation was aborted.", "AbortError")
     );
   }
-}
-
-/**
- * @param {number} value
- */
-export function numberFormat(value) {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }

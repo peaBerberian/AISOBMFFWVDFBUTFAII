@@ -1,13 +1,15 @@
-import { el, requireElementById } from "../dom.js";
-import deriveMediaInfo, { getSampleKindTitle } from "../media/index.js";
-import { numberFormat } from "../utils.js";
+import deriveMediaInfo, {
+  getSampleKindTitle,
+} from "../../post-process/index.js";
+import { el, requireElementById } from "../../utils/dom.js";
+import { numberFormat } from "../../utils/format.js";
 import { fmtBytes } from "./utils.js";
 
 const DEFAULT_SAMPLE_COUNT = 200;
 const MAX_RENDERED_SAMPLE_COUNT = 5000;
 /**
  * @typedef {keyof Pick<
- *   import("../media/index.js").SampleRow,
+ *   import("../../post-process/index.js").SampleRow,
  *   | "index"
  *   | "dts"
  *   | "pts"
@@ -51,12 +53,12 @@ export default function renderSampleView(boxes) {
   }
 
   /** @type {{
-   *   view: import("../media/index.js").SampleView,
+   *   view: import("../../post-process/index.js").SampleView,
    *   start: number,
    *   count: number,
    *   sortKey: SampleSortKey,
    *   sortDirection: "asc" | "desc",
-   *   renderedRows: import("../media/index.js").SampleRow[],
+   *   renderedRows: import("../../post-process/index.js").SampleRow[],
    * }} */
   const state = {
     view: info.sampleViews[0],
@@ -238,7 +240,7 @@ export default function renderSampleView(boxes) {
 }
 
 /**
- * @param {import("../media/index.js").SampleRow} row
+ * @param {import("../../post-process/index.js").SampleRow} row
  * @param {number | null} timescale
  * @param {UnknownTickContexts} tickContexts
  */
@@ -394,7 +396,7 @@ function formatFullInteger(value) {
  */
 
 /**
- * @param {import("../media/index.js").SampleRow[]} rows
+ * @param {import("../../post-process/index.js").SampleRow[]} rows
  * @returns {UnknownTickContexts}
  */
 function createUnknownTickContexts(rows) {
@@ -483,11 +485,11 @@ function getColumnLabel(key) {
 }
 
 /**
- * @param {import("../media/index.js").SampleRow[]} rows
+ * @param {import("../../post-process/index.js").SampleRow[]} rows
  * @param {SampleSortKey} sortKey
  * @param {"asc" | "desc"} sortDirection
- * @param {import("../media/index.js").SampleRow[]} previousRows
- * @returns {import("../media/index.js").SampleRow[]}
+ * @param {import("../../post-process/index.js").SampleRow[]} previousRows
+ * @returns {import("../../post-process/index.js").SampleRow[]}
  */
 function sortRows(rows, sortKey, sortDirection, previousRows) {
   const previousOrder = new Map(
@@ -538,7 +540,7 @@ function compareSampleValues(left, right) {
 }
 
 /**
- * @param {import("../media/index.js").SampleRow} row
+ * @param {import("../../post-process/index.js").SampleRow} row
  */
 function getSampleRowId(row) {
   return String(row.index);

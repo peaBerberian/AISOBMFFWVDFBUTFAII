@@ -2,8 +2,8 @@ import {
   getActualBoxSize,
   getAdvertisedBoxSize,
   hasDistinctActualBoxSize,
-} from "../../box_size.js";
-import { el, esc } from "../../dom.js";
+} from "../../../utils/box_size.js";
+import { el, esc } from "../../../utils/dom.js";
 import { fmtBytes } from "../utils.js";
 import {
   getPsshPreviewField,
@@ -15,7 +15,7 @@ const AUTO_OPEN_FIELD_LIMIT = 80;
 const COLLAPSIBLE_TEXT_LIMIT = 160;
 const VALUE_RENDER_BATCH_SIZE = 200;
 /**
- * @typedef {import("../../box_size.js").BoxWithOptionalActualSize} RenderedBox
+ * @typedef {import("../../../utils/box_size.js").BoxWithOptionalActualSize} RenderedBox
  */
 /**
  * Some Box's details, containing their parsed content, are collapsed by default

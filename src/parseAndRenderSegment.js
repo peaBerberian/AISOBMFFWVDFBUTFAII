@@ -1,6 +1,5 @@
 import { parseEvents } from "isobmff-inspector";
-import { requireElementById } from "./dom.js";
-import ProgressBar from "./ProgressBar.js";
+import ProgressBar from "./ui/ProgressBar.js";
 import {
   BoxTreeNodeView,
   renderMediaInfo,
@@ -8,7 +7,8 @@ import {
   renderSizeChart,
   renderTreePositionMap,
   switchToTab,
-} from "./tabs/index.js";
+} from "./ui/tabs/index.js";
+import { requireElementById } from "./utils/dom.js";
 
 const AUTO_OPEN_BOX_LIMIT = 200;
 const USUAL_FIRST_BOX_TYPES = new Set([
@@ -31,14 +31,14 @@ let currentFileAbortCtrl = new AbortController();
 
 /**
  * @typedef {{ severity: "warning" | "error", message: string }} ParseNotice
- * @typedef {import("./box_size.js").BoxWithOptionalActualSize} PendingParsedBox
+ * @typedef {import("./utils/box_size.js").BoxWithOptionalActualSize} PendingParsedBox
  */
 
 /**
  * @param {import("isobmff-inspector").ISOBMFFInput} input
  * @param {AbortSignal} abortSignal
  */
-export async function parseAndRender(input, abortSignal) {
+export default async function parseAndRenderSegment(input, abortSignal) {
   // Walk an already-built DOM tree of <details>/<div> nodes and collect the
   // top-level box sizes for the size chart. We re-use the full parsed array
   // that accumulates during streaming.
@@ -80,7 +80,7 @@ export async function parseAndRender(input, abortSignal) {
   ProgressBar.start("parsing…");
   ProgressBar.startEasing();
 
-  /** @type {Array<import("./tabs/index.js").BoxTreeNodeView>} */
+  /** @type {Array<import("./ui/tabs/index.js").BoxTreeNodeView>} */
   const stack = [];
   let completed = false;
   let renderedBoxCount = 0;

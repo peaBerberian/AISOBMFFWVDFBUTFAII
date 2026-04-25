@@ -1,5 +1,5 @@
-import { requireElementById } from "./dom.js";
-import { createCompactSource } from "./sourceDisplay.js";
+import { requireElementById } from "../utils/dom.js";
+import { createCompactSource } from "../utils/source-utils.js";
 
 const rootElt = requireElementById("inspection-source", HTMLElement);
 

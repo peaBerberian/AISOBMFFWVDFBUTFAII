@@ -2,8 +2,8 @@ import {
   getActualBoxSize,
   getAdvertisedBoxSize,
   hasDistinctActualBoxSize,
-} from "../box_size.js";
-import { el, esc, requireElementById } from "../dom.js";
+} from "../../utils/box_size.js";
+import { el, esc, requireElementById } from "../../utils/dom.js";
 import { fmtBytes } from "./utils.js";
 
 const CHART_COLORS = [

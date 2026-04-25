@@ -2,8 +2,8 @@ import {
   getActualBoxSize,
   getAdvertisedBoxSize,
   hasDistinctActualBoxSize,
-} from "../../box_size.js";
-import { el } from "../../dom.js";
+} from "../../../utils/box_size.js";
+import { el } from "../../../utils/dom.js";
 import { fmtBytes } from "../utils.js";
 import { getBoxNodeKey, openBoxBody } from "./BoxTreeNodeView.js";
 

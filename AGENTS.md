@@ -105,8 +105,8 @@ turn streaming work into one large synchronous render.
 
 Parsing starts on local file selection or URL submit. Starting a new parse
 aborts the previous one, dims stale results, resets to the box tree tab, and
-shows progress. `parseAndRender` reveals tabs only once rendering can display
-real results.
+shows progress. `parseAndRenderSegment` reveals tabs only once rendering can
+display real results.
 
 The box tree is rendered incrementally from parser events. Top-level boxes are
 also accumulated for the size chart. The size chart renders after parsing

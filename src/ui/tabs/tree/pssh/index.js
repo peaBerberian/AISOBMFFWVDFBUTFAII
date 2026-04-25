@@ -1,4 +1,4 @@
-import { el } from "../../../dom.js";
+import { el } from "../../../../utils/dom.js";
 import { getPsshPreviewField, getPsshSystemIdLabel } from "./decode.js";
 
 export { getPsshPreviewField, getPsshSystemIdLabel };

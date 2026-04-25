@@ -1,5 +1,5 @@
-import { getActualBoxSize } from "../box_size.js";
-import { numberFormat } from "../utils.js";
+import { getActualBoxSize } from "../utils/box_size.js";
+import { numberFormat } from "../utils/format.js";
 import {
   analyzeFragmentTiming,
   analyzeSampleSizes,

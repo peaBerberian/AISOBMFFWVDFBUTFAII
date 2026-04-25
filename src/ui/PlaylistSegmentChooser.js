@@ -1,5 +1,5 @@
-import { requireElementById } from "./dom.js";
-import { createCompactSource } from "./sourceDisplay.js";
+import { requireElementById } from "../utils/dom.js";
+import { createCompactSource } from "../utils/source-utils.js";
 
 const chooserElt = requireElementById("segment-chooser", HTMLElement);
 
@@ -21,7 +21,7 @@ const chooserElt = requireElementById("segment-chooser", HTMLElement);
 
 /**
  * @param {string} sourceUrl
- * @param {import("./extractors/dash/types.js").DashTree} tree
+ * @param {import("../extractors/dash/types.js").DashTree} tree
  * @param {(
  *   segmentUrl: string,
  *   byteRange: [number, number|undefined]|undefined
@@ -83,7 +83,7 @@ export function showDashSegmentChooser(sourceUrl, tree, onInspect) {
 
 /**
  * @param {string} sourceUrl
- * @param {import("./extractors/HlsUrlExtractor.js").ExtractionResult} extraction
+ * @param {import("../extractors/hls/index.js").ExtractionResult} extraction
  * @param {(
  *   segmentUrl: string,
  *   byteRange: [number, number|undefined]|undefined
@@ -319,7 +319,7 @@ function createChoiceCard(card, onInspect) {
 }
 
 /**
- * @param {import("./extractors/HlsUrlExtractor.js").PlaylistResult} result
+ * @param {import("../extractors/hls/index.js").PlaylistResult} result
  * @returns {SegmentChoice[]}
  */
 function collectHlsChoices(result) {
@@ -363,7 +363,7 @@ function collectHlsChoices(result) {
 }
 
 /**
- * @param {import("./extractors/HlsUrlExtractor.js").PlaylistResult} result
+ * @param {import("../extractors/hls/index.js").PlaylistResult} result
  * @param {number} resultIndex
  */
 function formatHlsTitle(result, resultIndex) {
@@ -387,7 +387,7 @@ function formatHlsTitle(result, resultIndex) {
 }
 
 /**
- * @param {import("./extractors/HlsUrlExtractor.js").PlaylistResult} result
+ * @param {import("../extractors/hls/index.js").PlaylistResult} result
  * @returns {Array<[string, string]>}
  */
 function getHlsFields(result) {
@@ -417,7 +417,7 @@ function getHlsFields(result) {
 }
 
 /**
- * @param {import("./extractors/dash/types.js").RepresentationTree} representation
+ * @param {import("../extractors/dash/types.js").RepresentationTree} representation
  * @param {number} representationIndex
  */
 function formatDashTitle(representation, representationIndex) {
@@ -430,7 +430,7 @@ function formatDashTitle(representation, representationIndex) {
 }
 
 /**
- * @param {import("./extractors/dash/types.js").SegmentItem} segment
+ * @param {import("../extractors/dash/types.js").SegmentItem} segment
  * @param {number} segmentIndex
  */
 function formatDashSegmentLabel(segment, segmentIndex) {
@@ -438,7 +438,7 @@ function formatDashSegmentLabel(segment, segmentIndex) {
 }
 
 /**
- * @param {import("./extractors/HlsUrlExtractor.js").ISOBMFFSegment} segment
+ * @param {import("../extractors/hls/index.js").ISOBMFFSegment} segment
  * @param {number} segmentIndex
  */
 function formatHlsSegmentLabel(segment, segmentIndex) {

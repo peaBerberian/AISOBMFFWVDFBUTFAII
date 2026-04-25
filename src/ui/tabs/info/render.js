@@ -1,9 +1,9 @@
-import { el, requireElementById } from "../../dom.js";
 import deriveMediaInfo, {
   getSampleKindLabel,
   getSampleKindTitle,
-} from "../../media/index.js";
-import { numberFormat } from "../../utils.js";
+} from "../../../post-process/index.js";
+import { el, requireElementById } from "../../../utils/dom.js";
+import { numberFormat } from "../../../utils/format.js";
 import { fmtBytes } from "../utils.js";
 
 /**
@@ -26,7 +26,7 @@ export default function renderMediaInfo(boxes) {
 }
 
 /**
- * @param {import("../../media/index.js").MediaInfo} info
+ * @param {import("../../../post-process/index.js").MediaInfo} info
  */
 function renderSummary(info) {
   const section = createSection("summary");
@@ -49,7 +49,7 @@ function renderSummary(info) {
 }
 
 /**
- * @param {import("../../media/index.js").MediaInfo} info
+ * @param {import("../../../post-process/index.js").MediaInfo} info
  */
 function renderGops(info) {
   const allGops = [
@@ -109,7 +109,7 @@ function renderGops(info) {
 }
 
 /**
- * @param {import("../../media/index.js").FragmentInfo[]} fragments
+ * @param {import("../../../post-process/index.js").FragmentInfo[]} fragments
  */
 function renderFragments(fragments) {
   if (!fragments.length) {
@@ -158,7 +158,7 @@ function renderFragments(fragments) {
 }
 
 /**
- * @param {import("../../media/index.js").TrackInfo[]} tracks
+ * @param {import("../../../post-process/index.js").TrackInfo[]} tracks
  */
 function renderTracks(tracks) {
   if (!tracks.length) {
@@ -379,7 +379,7 @@ function formatIssueLocation(path, box) {
 }
 
 /**
- * @param {import("../../media/index.js").GopRun[]} gops
+ * @param {import("../../../post-process/index.js").GopRun[]} gops
  */
 function renderGopBar(gops) {
   const total = gops.reduce((sum, gop) => sum + gop.sampleCount, 0) || 1;
@@ -400,7 +400,7 @@ function renderGopBar(gops) {
 }
 
 /**
- * @param {import("../../media/index.js").SampleTimeline} timeline
+ * @param {import("../../../post-process/index.js").SampleTimeline} timeline
  */
 function renderSampleTimeline(timeline) {
   if (!hasKnownSampleTimelineSignal(timeline)) {
@@ -422,7 +422,7 @@ function renderSampleTimeline(timeline) {
   wrap.appendChild(strip);
 
   const legend = el("div", "info-sample-legend");
-  for (const kind of /** @type {import("../../media/index.js").SampleClass[]} */ ([
+  for (const kind of /** @type {import("../../../post-process/index.js").SampleClass[]} */ ([
     "sync",
     "reordered",
     "discardable",
@@ -447,7 +447,7 @@ function renderSampleTimeline(timeline) {
 }
 
 /**
- * @param {import("../../media/index.js").SampleTimeline} timeline
+ * @param {import("../../../post-process/index.js").SampleTimeline} timeline
  */
 function hasKnownSampleTimelineSignal(timeline) {
   return Object.entries(timeline.counts).some(
@@ -456,7 +456,7 @@ function hasKnownSampleTimelineSignal(timeline) {
 }
 
 /**
- * @param {import("../../media/index.js").SampleTimeline} timeline
+ * @param {import("../../../post-process/index.js").SampleTimeline} timeline
  */
 function getSampleTimelineSummary(timeline) {
   const parts = [

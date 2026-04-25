@@ -1,20 +1,27 @@
-import { requireElementById } from "./dom.js";
-import { extractSegmentsFromURL } from "./extractors/dash/index.js";
-import { extractISOBMFFSegments } from "./extractors/HlsUrlExtractor.js";
+import {
+  extractSegmentsFromString,
+  extractSegmentsFromURL,
+} from "./extractors/dash/index.js";
+import {
+  extractISOBMFFSegments,
+  extractISOBMFFSegmentsFromString,
+} from "./extractors/hls/index.js";
+import { probeRemoteSource } from "./filetype_detection.js";
+import parseAndRenderSegment from "./parseAndRenderSegment.js";
 import {
   clearInspectionSource,
   setInspectionSource,
-} from "./inspectionSource.js";
-import ProgressBar from "./ProgressBar.js";
-import { parseAndRender } from "./parse.js";
+} from "./ui/InspectionSourceElement.js";
 import {
   hasVisibleSegmentChooser,
   hideSegmentChooser,
   showDashSegmentChooser,
   showHlsSegmentChooser,
-} from "./playlistSelection.js";
-import { initializeTabNavigation } from "./tabs/index.js";
-import { createAbortableAsyncIterable } from "./utils.js";
+} from "./ui/PlaylistSegmentChooser.js";
+import ProgressBar from "./ui/ProgressBar.js";
+import { initializeTabNavigation } from "./ui/tabs/index.js";
+import { createAbortableAsyncIterable } from "./utils/abortables.js";
+import { requireElementById } from "./utils/dom.js";
 
 /**
  * AbortController linked to the current segment/file parsing process.
@@ -31,7 +38,7 @@ initializeGithubStars();
 
 /**
  * Dim existing results while a newly requested file is being loaded. Once the
- * parser starts rendering the new file, parseAndRender clears this state.
+ * parser starts rendering the new file, parseAndRenderSegment clears this state.
  * @param {boolean} isLoading
  */
 function setResultsLoading(isLoading) {
@@ -69,7 +76,7 @@ async function fetchSegmentAndParse(url, byteRange, signal) {
       ProgressBar.fail(`fetch error: ${errMsg}`);
       return;
     }
-    return parseAndRender(
+    return parseAndRenderSegment(
       r.body ? createAbortableAsyncIterable(r.body, signal) : r,
       signal,
     );
@@ -108,7 +115,7 @@ function parseLocalFile(file) {
     selectedLabel: "Local file",
     selectedValue: namedFile.name || "Unnamed file",
   });
-  parseAndRender(formatFileInput(file, signal), signal).finally(() => {
+  parseAndRenderSegment(formatFileInput(file, signal), signal).finally(() => {
     finishInspectionLifecycle(controller);
   });
 }
@@ -303,7 +310,11 @@ function finishInspectionLifecycle(controller) {
  */
 async function inspectRemoteUrl(sourceUrl, controller) {
   const signal = controller.signal;
-  const sourceKind = getRemoteSourceKind(sourceUrl);
+  const probe = await probeRemoteSource(sourceUrl, signal);
+  if (signal.aborted) {
+    return;
+  }
+  const sourceKind = probe.kind;
   if (sourceKind === "dash") {
     setInspectionSource({
       selectedLabel: "DASH manifest",
@@ -312,7 +323,10 @@ async function inspectRemoteUrl(sourceUrl, controller) {
     ProgressBar.start("loading DASH manifest…");
     ProgressBar.startEasing();
     try {
-      const tree = await extractSegmentsFromURL(sourceUrl, signal);
+      const tree =
+        probe.text !== null
+          ? await extractSegmentsFromString(probe.text, sourceUrl, signal)
+          : await extractSegmentsFromURL(sourceUrl, signal);
       if (signal.aborted) {
         return;
       }
@@ -353,7 +367,14 @@ async function inspectRemoteUrl(sourceUrl, controller) {
     ProgressBar.start("loading HLS playlist…");
     ProgressBar.startEasing();
     try {
-      const extraction = await extractISOBMFFSegments(sourceUrl, signal);
+      const extraction =
+        probe.text !== null
+          ? await extractISOBMFFSegmentsFromString(
+              probe.text,
+              sourceUrl,
+              signal,
+            )
+          : await extractISOBMFFSegments(sourceUrl, signal);
       if (signal.aborted) {
         return;
       }
@@ -390,6 +411,12 @@ async function inspectRemoteUrl(sourceUrl, controller) {
     selectedLabel: "Remote resource",
     selectedValue: sourceUrl,
   });
+  if (probe.stream !== null) {
+    ProgressBar.start("fetching…");
+    ProgressBar.startEasing();
+    await parseAndRenderSegment(probe.stream, signal);
+    return;
+  }
   await fetchSegmentAndParse(sourceUrl, undefined, signal);
 }
 
@@ -428,26 +455,6 @@ function inspectChosenSegment(
 }
 
 /**
- * @param {string} sourceUrl
- * @returns {"dash" | "hls" | "segment"}
- */
-function getRemoteSourceKind(sourceUrl) {
-  try {
-    const parsed = new URL(sourceUrl, window.location.href);
-    const pathname = parsed.pathname.toLowerCase();
-    if (pathname.endsWith(".mpd")) {
-      return "dash";
-    }
-    if (pathname.endsWith(".m3u8") || pathname.endsWith(".m3u")) {
-      return "hls";
-    }
-  } catch {
-    // Leave malformed values to fetch for the existing error path.
-  }
-  return "segment";
-}
-
-/**
  * @param {import("./extractors/dash/types.js").DashTree} tree
  */
 function countDashSegments(tree) {
@@ -474,7 +481,7 @@ function countDashSegments(tree) {
 }
 
 /**
- * @param {import("./extractors/HlsUrlExtractor.js").ExtractionResult} extraction
+ * @param {import("./extractors/hls/index.js").ExtractionResult} extraction
  */
 function countHlsSegments(extraction) {
   let count = 0;

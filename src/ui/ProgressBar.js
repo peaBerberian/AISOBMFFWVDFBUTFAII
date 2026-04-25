@@ -1,4 +1,4 @@
-import { requireElementById } from "./dom.js";
+import { requireElementById } from "../utils/dom.js";
 
 const progressBarWrapperElt = requireElementById(
   "progress-bar-wrap",

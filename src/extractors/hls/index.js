@@ -583,6 +583,23 @@ const parseMasterPlaylist = (text, baseUrl) => {
 export const extractISOBMFFSegments = async (playlistUrl, signal) => {
   // ── 1. Fetch root playlist ────────────────────────────────────────────────
   const rootText = await fetchPlaylist(playlistUrl, signal);
+  return extractISOBMFFSegmentsFromString(rootText, playlistUrl, signal);
+};
+
+/**
+ * Parse an M3U / M3U8 playlist from raw text and return all ISOBMFF segment
+ * URLs grouped by Variant / Media rendition.
+ *
+ * @param {string} rootText
+ * @param {string} playlistUrl
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<ExtractionResult>}
+ */
+export const extractISOBMFFSegmentsFromString = async (
+  rootText,
+  playlistUrl,
+  signal,
+) => {
   const kind = detectPlaylistKind(rootText);
 
   // ── 2. Plain M3U ─────────────────────────────────────────────────────────

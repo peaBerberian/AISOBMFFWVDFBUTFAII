@@ -1,4 +1,4 @@
-import { numberFormat } from "../utils.js";
+import { numberFormat } from "../utils/format.js";
 import { getTrackSampleSizeSource } from "./analysis.js";
 import {
   getFieldPrimitive,
