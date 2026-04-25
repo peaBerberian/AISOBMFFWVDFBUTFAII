@@ -103,7 +103,7 @@ export default function deriveMediaInfo(boxes) {
   const info = {
     segmentType: getSegmentType({ boxes, moov, moofBoxes }),
     majorBrand: getStringField(ftyp, "major_brand"),
-    compatibleBrands: parseBrandList(getStringField(ftyp, "compatible_brands")),
+    compatibleBrands: parseBrandList(getField(ftyp, "compatible_brands")),
     durationLabel: duration?.label ?? "unknown",
     trackCount: tracks.length,
     isFragmented,
@@ -470,16 +470,24 @@ function getFastStart(boxes) {
 }
 
 /**
- * @param {string | null} brands
+ * @param {import("isobmff-inspector").ParsedBoxValue|null} brands
+ * @returns {string[]}
  */
 function parseBrandList(brands) {
-  if (!brands) {
+  if (!brands || brands.kind !== "array") {
     return [];
   }
-  return brands
-    .split(",")
-    .map((brand) => brand.trim())
-    .filter(Boolean);
+	const brandList = [];
+	for (const brand of brands.items) {
+		if (brand.kind === "struct" || brand.kind === "array") {
+			continue;
+		}
+		const toStr = String(brand.value).trim();
+		if (toStr) {
+			brandList.push(toStr);
+		}
+	}
+	return brandList;
 }
 
 /**
