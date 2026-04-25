@@ -335,8 +335,7 @@ async function inspectRemoteUrl(sourceUrl, controller) {
         ProgressBar.fail("No ISOBMFF segments found in DASH manifest.");
         return;
       }
-      ProgressBar.setProgress(
-        1,
+      ProgressBar.end(
         `DASH manifest loaded. Choose one of ${segmentCount} segments to inspect.`,
       );
       showDashSegmentChooser(sourceUrl, tree, (segmentUrl, byteRange) => {
@@ -383,8 +382,7 @@ async function inspectRemoteUrl(sourceUrl, controller) {
         ProgressBar.fail("No ISOBMFF segments found in HLS playlist.");
         return;
       }
-      ProgressBar.setProgress(
-        1,
+      ProgressBar.end(
         `HLS playlist loaded. Choose one of ${segmentCount} resources to inspect.`,
       );
       showHlsSegmentChooser(sourceUrl, extraction, (segmentUrl, byteRange) => {
