@@ -443,7 +443,7 @@ export default function renderSampleView(boxes, options = {}) {
 
 /**
  * @param {HTMLElement} container
- * @param {import("../../post-process/index.js").MediaInfo} info
+ * @param {import("../../post-process/index.js").MediaInfo} _info
  * @param {import("../../post-process/index.js").SampleView} view
  * @param {number} rangeEnd
  * @param {SampleSortKey} sortKey
@@ -453,7 +453,7 @@ export default function renderSampleView(boxes, options = {}) {
  */
 function renderSummary(
   container,
-  info,
+  _info,
   view,
   rangeEnd,
   sortKey,
@@ -482,11 +482,12 @@ function renderSummary(
     stats.appendChild(
       createSummaryStat("timescale", `${numberFormat(view.timescale)} ticks/s`),
     );
-    if (info.supplementalInitSegment.used && view.kind === "fragment") {
-      stats.appendChild(
-        createSummaryStat("init metadata", "side-loaded for timing context"),
-      );
-    }
+    // Maybe to add?
+    // if (info.supplementalInitSegment.used && view.kind === "fragment") {
+    //   stats.appendChild(
+    //     createSummaryStat("init metadata", "side-loaded for timing context"),
+    //   );
+    // }
   } else if (
     tickContexts.dts.sharedPrefix ||
     tickContexts.pts.sharedPrefix ||
@@ -504,6 +505,7 @@ function renderSummary(
  * @param {string} value
  */
 function createSummaryStat(label, value) {
+  // TODO: add hint with value?
   const stat = el("div", "samples-stat");
   const title = el("span", "samples-stat-label");
   title.textContent = label;
@@ -607,7 +609,7 @@ function formatSeconds(value) {
   if (Math.abs(value) < 1) {
     return `${(value * 1000).toFixed(3)} ms`;
   }
-  return `${value.toFixed(Math.abs(value) < 10 ? 3 : 1)} s`;
+  return `${value.toFixed(3)} s`;
 }
 
 /**
