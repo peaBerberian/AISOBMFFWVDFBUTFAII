@@ -40,6 +40,7 @@ class ProgressBarClass {
   #easingRaf = null;
   /** @type {number} */
   #percent = 0;
+  #isStarted = false;
 
   constructor() {
     cancelButtonElt.addEventListener("click", () => {
@@ -77,7 +78,7 @@ class ProgressBarClass {
   }
 
   /**
-   * @param {string} msg
+   * @param {string|undefined} msg
    */
   start(msg) {
     this.#clearPendingAnimation();
@@ -98,8 +99,14 @@ class ProgressBarClass {
     } else {
       this.#hideCancelButton();
     }
-    statusLineElt.textContent = msg;
-    statusLineElt.style.visibility = "visible";
+    this.#isStarted = true;
+    if (msg !== undefined) {
+      statusLineElt.textContent = msg;
+      statusLineElt.style.visibility = "visible";
+    } else {
+      statusLineElt.textContent = "";
+      statusLineElt.style.visibility = "hidden";
+    }
     progressBarWrapperElt.style.backgroundColor =
       "var(--color-border-tertiary)";
     this.#percent = 0;
@@ -144,6 +151,10 @@ class ProgressBarClass {
    * @param {string} msg
    */
   updateStatus(msg) {
+    if (!this.#isStarted) {
+      this.start(msg);
+      return;
+    }
     statusLineElt.textContent = msg;
     statusLineElt.style.visibility = msg ? "visible" : "hidden";
   }
@@ -182,6 +193,7 @@ class ProgressBarClass {
     );
     this.#percent = 100;
     this.#setProgressSemantics(true, this.#percent);
+    this.#isStarted = false;
     progressBarElt.style.width = "100%";
     progressBarWrapperElt.style.backgroundColor =
       "var(--color-border-tertiary)";
@@ -200,6 +212,7 @@ class ProgressBarClass {
     this.#setToastState("is-success");
     this.#percent = 100;
     this.#setProgressSemantics(true, this.#percent);
+    this.#isStarted = false;
     progressBarElt.style.width = "100%";
     progressBarElt.style.backgroundColor = color;
     statusLineElt.textContent = msg;

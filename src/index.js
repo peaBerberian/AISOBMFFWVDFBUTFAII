@@ -48,8 +48,6 @@ initializeGithubStars();
  * @returns {Promise<void>}
  */
 async function fetchSegmentAndParse(url, byteRange, signal) {
-  ProgressBar.start("fetching…");
-  ProgressBar.startEasing();
   try {
     /** @type HeadersInit */
     const headers = {};
@@ -65,8 +63,7 @@ async function fetchSegmentAndParse(url, byteRange, signal) {
     if (!r.ok) {
       InspectionResultsView.clear();
       const errMsg = `HTTP ${r.status}${r.statusText ? ` ${r.statusText}` : ""}`;
-      ProgressBar.fail(`fetch error: ${errMsg}`);
-      return;
+      throw new Error(`fetch error: ${errMsg}`);
     }
     return parseAndRenderSegment(
       r.body ? createAbortableAsyncIterable(r.body, signal) : r,
@@ -76,8 +73,7 @@ async function fetchSegmentAndParse(url, byteRange, signal) {
     if (!signal.aborted) {
       InspectionResultsView.clear();
       const message = err instanceof Error ? err.message : err;
-      ProgressBar.fail(`fetch error: ${message}`);
-      throw err;
+      throw new Error(`fetch error: ${message}`);
     }
   }
 }
@@ -104,6 +100,9 @@ function parseLocalFile(file) {
   const controller = beginInspectionLifecycle();
   const signal = controller.signal;
   const namedFile = /** @type {{ name?: string }} */ (file);
+
+  ProgressBar.start("Loading local file...");
+  ProgressBar.startEasing();
   setInspectionSource({
     selectedLabel: "Local file",
     selectedValue: namedFile.name || "Unnamed file",
@@ -304,6 +303,8 @@ function finishInspectionLifecycle(controller) {
  */
 async function inspectRemoteUrl(sourceUrl, controller) {
   const signal = controller.signal;
+  ProgressBar.start("Probing remote source…");
+  ProgressBar.startEasing();
   const probe = await probeRemoteSource(sourceUrl, signal);
   if (signal.aborted) {
     return;
@@ -314,8 +315,7 @@ async function inspectRemoteUrl(sourceUrl, controller) {
       selectedLabel: "DASH manifest",
       selectedValue: sourceUrl,
     });
-    ProgressBar.start("loading DASH manifest…");
-    ProgressBar.startEasing();
+    ProgressBar.updateStatus("Loading DASH manifest…");
     try {
       const tree =
         probe.text !== null
@@ -348,7 +348,7 @@ async function inspectRemoteUrl(sourceUrl, controller) {
             );
           },
           async (representation) => {
-            ProgressBar.start("loading DASH segment list...");
+            ProgressBar.start("Loading DASH segment list...");
             ProgressBar.startEasing();
             try {
               await resolveIndexForRepresentation(representation, signal);
@@ -368,16 +368,15 @@ async function inspectRemoteUrl(sourceUrl, controller) {
         );
       };
       renderDashChooser();
-      return;
     } catch (err) {
       if (!signal.aborted) {
         InspectionResultsView.clear();
         const message = err instanceof Error ? err.message : err;
-        ProgressBar.fail(`manifest error: ${message}`);
+        ProgressBar.fail(`Manifest error: ${message}`);
         throw err;
       }
-      return;
     }
+    return;
   }
 
   if (sourceKind === "hls") {
@@ -385,8 +384,7 @@ async function inspectRemoteUrl(sourceUrl, controller) {
       selectedLabel: "HLS playlist",
       selectedValue: sourceUrl,
     });
-    ProgressBar.start("loading HLS playlist…");
-    ProgressBar.startEasing();
+    ProgressBar.updateStatus("Loading HLS playlist…");
     try {
       const extraction =
         probe.text !== null
@@ -419,7 +417,7 @@ async function inspectRemoteUrl(sourceUrl, controller) {
             );
           },
           async (result) => {
-            ProgressBar.start("loading HLS segment list...");
+            ProgressBar.start("Loading HLS segment list...");
             ProgressBar.startEasing();
             try {
               await resolveMediaPlaylist(result, signal);
@@ -439,7 +437,6 @@ async function inspectRemoteUrl(sourceUrl, controller) {
         );
       };
       renderHlsChooser();
-      return;
     } catch (err) {
       if (!signal.aborted) {
         InspectionResultsView.clear();
@@ -447,8 +444,8 @@ async function inspectRemoteUrl(sourceUrl, controller) {
         ProgressBar.fail(`playlist error: ${message}`);
         throw err;
       }
-      return;
     }
+    return;
   }
 
   setInspectionSource({
@@ -456,12 +453,16 @@ async function inspectRemoteUrl(sourceUrl, controller) {
     selectedValue: sourceUrl,
   });
   if (probe.stream !== null) {
-    ProgressBar.start("fetching…");
-    ProgressBar.startEasing();
+    ProgressBar.updateStatus("fetching…");
     await parseAndRenderSegment(probe.stream, signal);
     return;
   }
-  await fetchSegmentAndParse(sourceUrl, undefined, signal);
+  ProgressBar.updateStatus("fetching…");
+  try {
+    await fetchSegmentAndParse(sourceUrl, undefined, signal);
+  } catch (err) {
+    ProgressBar.fail(err instanceof Error ? err.message : "Unknown Error");
+  }
 }
 
 /**
@@ -485,6 +486,9 @@ function inspectChosenSegment(
     return;
   }
 
+  ProgressBar.start("Fetching segment...");
+  ProgressBar.startEasing();
+
   // TODO: Insert byte-range here?
   setInspectionSource({
     selectedLabel: "Selected segment URL",
@@ -493,6 +497,7 @@ function inspectChosenSegment(
     originValue: originUrl ?? undefined,
   });
   hideSegmentChooser();
+
   fetchSegmentAndParse(segmentUrl, byteRange, controller.signal).finally(() => {
     finishInspectionLifecycle(controller);
   });

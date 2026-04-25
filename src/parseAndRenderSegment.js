@@ -29,9 +29,7 @@ const USUAL_FIRST_BOX_TYPES = new Set([
 export default async function parseAndRenderSegment(input, abortSignal) {
   let boxCount = 0;
   InspectionResultsView.prepareForParsing();
-
-  ProgressBar.start("parsing…");
-  ProgressBar.startEasing();
+  ProgressBar.updateStatus("parsing…");
 
   let completed = false;
   let inspectedFirstTopLevelBox = false;
