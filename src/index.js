@@ -63,6 +63,7 @@ async function fetchSegmentAndParse(url, byteRange, signal) {
       return;
     }
     if (!r.ok) {
+      InspectionResultsView.clear();
       const errMsg = `HTTP ${r.status}${r.statusText ? ` ${r.statusText}` : ""}`;
       ProgressBar.fail(`fetch error: ${errMsg}`);
       return;
@@ -73,6 +74,7 @@ async function fetchSegmentAndParse(url, byteRange, signal) {
     );
   } catch (err) {
     if (!signal.aborted) {
+      InspectionResultsView.clear();
       const message = err instanceof Error ? err.message : err;
       ProgressBar.fail(`fetch error: ${message}`);
       throw err;
@@ -263,7 +265,7 @@ function beginInspectionLifecycle() {
   hideSegmentChooser();
   currentSegmentParsingAbortController = new AbortController();
   const controller = currentSegmentParsingAbortController;
-  ProgressBar.setCancelAction(() => controller.abort());
+  ProgressBar.bindAbortController(controller);
   InspectionResultsView.setLoading(true);
   controller.signal.addEventListener(
     "abort",
@@ -273,8 +275,9 @@ function beginInspectionLifecycle() {
       }
       hideSegmentChooser();
       clearInspectionSource();
+      InspectionResultsView.clear();
       InspectionResultsView.setLoading(false);
-      ProgressBar.setCancelAction(null);
+      ProgressBar.bindAbortController(null);
       currentSegmentParsingAbortController = null;
     },
     { once: true },
@@ -291,7 +294,7 @@ function finishInspectionLifecycle(controller) {
   }
   hideSegmentChooser();
   InspectionResultsView.setLoading(false);
-  ProgressBar.setCancelAction(null);
+  ProgressBar.bindAbortController(null);
   currentSegmentParsingAbortController = null;
 }
 
@@ -323,6 +326,7 @@ async function inspectRemoteUrl(sourceUrl, controller) {
       }
       const representationCount = countDashChoices(tree);
       if (representationCount === 0) {
+        InspectionResultsView.clear();
         ProgressBar.fail("No ISOBMFF segments found in DASH manifest.");
         return;
       }
@@ -367,6 +371,7 @@ async function inspectRemoteUrl(sourceUrl, controller) {
       return;
     } catch (err) {
       if (!signal.aborted) {
+        InspectionResultsView.clear();
         const message = err instanceof Error ? err.message : err;
         ProgressBar.fail(`manifest error: ${message}`);
         throw err;
@@ -392,6 +397,7 @@ async function inspectRemoteUrl(sourceUrl, controller) {
       }
       const resultCount = countHlsChoices(extraction);
       if (resultCount === 0) {
+        InspectionResultsView.clear();
         ProgressBar.fail("No ISOBMFF segments found in HLS playlist.");
         return;
       }
@@ -436,6 +442,7 @@ async function inspectRemoteUrl(sourceUrl, controller) {
       return;
     } catch (err) {
       if (!signal.aborted) {
+        InspectionResultsView.clear();
         const message = err instanceof Error ? err.message : err;
         ProgressBar.fail(`playlist error: ${message}`);
         throw err;

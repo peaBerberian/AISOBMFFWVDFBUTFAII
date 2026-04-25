@@ -102,6 +102,7 @@ export default async function parseAndRenderSegment(input, abortSignal) {
     if (abortSignal.aborted) {
       return;
     }
+    InspectionResultsView.clear();
     InspectionResultsView.fail();
     const message = err instanceof Error ? err.message : err;
     ProgressBar.fail(`parse error: ${message}`);

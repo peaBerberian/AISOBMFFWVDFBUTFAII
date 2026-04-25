@@ -32,8 +32,10 @@ class ProgressBarClass {
   #resetTimeout = null;
   /** @type {ReturnType<typeof setTimeout> | null} */
   #cancelButtonTimeout = null;
+  /** @type {AbortController | null} */
+  #abortController = null;
   /** @type {(() => void) | null} */
-  #cancelAction = null;
+  #abortCleanup = null;
   /** @type {ReturnType<typeof requestAnimationFrame> | null} */
   #easingRaf = null;
   /** @type {number} */
@@ -41,20 +43,37 @@ class ProgressBarClass {
 
   constructor() {
     cancelButtonElt.addEventListener("click", () => {
-      if (!this.#cancelAction) {
+      if (!this.#abortController || this.#abortController.signal.aborted) {
         return;
       }
       cancelButtonElt.disabled = true;
-      this.#cancelAction();
+      this.#abortController.abort();
       this.cancel("Operation canceled.");
     });
   }
 
   /**
-   * @param {(() => void) | null} cancelAction
+   * @param {AbortController | null} abortController
    */
-  setCancelAction(cancelAction) {
-    this.#cancelAction = cancelAction;
+  bindAbortController(abortController) {
+    this.#detachAbortController();
+    this.#abortController = abortController;
+    if (!abortController) {
+      return;
+    }
+    const handleAbort = () => {
+      if (this.#abortController !== abortController) {
+        return;
+      }
+      this.#detachAbortController();
+      this.#hideCancelButton();
+    };
+    abortController.signal.addEventListener("abort", handleAbort, {
+      once: true,
+    });
+    this.#abortCleanup = () => {
+      abortController.signal.removeEventListener("abort", handleAbort);
+    };
   }
 
   /**
@@ -62,18 +81,22 @@ class ProgressBarClass {
    */
   start(msg) {
     this.#clearPendingAnimation();
-    this.#hideCancelButton();
     this.#setToastState("is-active");
-    if (this.#cancelAction !== null) {
-      this.#cancelButtonTimeout = setTimeout(() => {
-        if (!this.#cancelAction) {
-          return;
-        }
-        cancelButtonElt.disabled = false;
-        cancelButtonElt.removeAttribute("aria-hidden");
-        cancelButtonElt.removeAttribute("tabindex");
-        cancelButtonElt.classList.add("is-visible");
-      }, 300);
+    if (this.#abortController && !this.#abortController.signal.aborted) {
+      if (!cancelButtonElt.classList.contains("is-visible")) {
+        this.#hideCancelButton();
+        this.#cancelButtonTimeout = setTimeout(() => {
+          if (!this.#abortController || this.#abortController.signal.aborted) {
+            return;
+          }
+          cancelButtonElt.disabled = false;
+          cancelButtonElt.removeAttribute("aria-hidden");
+          cancelButtonElt.removeAttribute("tabindex");
+          cancelButtonElt.classList.add("is-visible");
+        }, 300);
+      }
+    } else {
+      this.#hideCancelButton();
     }
     statusLineElt.textContent = msg;
     statusLineElt.style.visibility = "visible";
@@ -153,7 +176,7 @@ class ProgressBarClass {
   #settle(msg, color) {
     this.#clearPendingAnimation();
     this.#hideCancelButton();
-    this.#cancelAction = null;
+    this.#detachAbortController();
     this.#setToastState(
       color === "var(--color-accent-orange)" ? "is-error" : "is-warning",
     );
@@ -174,7 +197,6 @@ class ProgressBarClass {
   #finish(msg, color) {
     this.#clearPendingAnimation();
     this.#hideCancelButton();
-    this.#cancelAction = null;
     this.#setToastState("is-success");
     this.#percent = 100;
     this.#setProgressSemantics(true, this.#percent);
@@ -246,6 +268,12 @@ class ProgressBarClass {
     cancelButtonElt.disabled = false;
     cancelButtonElt.setAttribute("aria-hidden", "true");
     cancelButtonElt.setAttribute("tabindex", "-1");
+  }
+
+  #detachAbortController() {
+    this.#abortCleanup?.();
+    this.#abortCleanup = null;
+    this.#abortController = null;
   }
 
   /**
