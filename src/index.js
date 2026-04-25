@@ -41,27 +41,6 @@ initializeTabNavigation();
 initializeGithubStars();
 
 /**
- * Fetch the mp4 file's URL and run our parser on it.
- * Can be aborted at any time with the given `AbortSignal`.
- * @param {string} url
- * @param {[number, number|undefined]|undefined} byteRange
- * @param {AbortSignal} signal
- * @returns {Promise<void>}
- */
-async function fetchSegmentAndParse(url, byteRange, signal) {
-  try {
-    const input = await fetchSegmentInput(url, byteRange, signal);
-    return parseAndRenderSegment(input, signal);
-  } catch (err) {
-    if (!signal.aborted) {
-      InspectionResultsView.clear();
-      const message = err instanceof Error ? err.message : err;
-      throw new Error(`fetch error: ${message}`);
-    }
-  }
-}
-
-/**
  * @param {string} url
  * @param {[number, number|undefined]|undefined} byteRange
  * @param {AbortSignal} signal
@@ -245,15 +224,19 @@ function initializeUrlInput() {
 
     /**
      * @param {string} url
+     * @param {{
+     *   url: string,
+     *   byteRange: [number, number|undefined]|undefined,
+     * } | undefined} [companionInit]
      */
-    function inspectUrl(url) {
+    function inspectUrl(url, companionInit = undefined) {
       const trimmedUrl = url.trim();
       if (!trimmedUrl) {
         return;
       }
       urlInput.value = trimmedUrl;
       const controller = beginInspectionLifecycle();
-      inspectRemoteUrl(trimmedUrl, controller).finally(() => {
+      inspectRemoteUrl(trimmedUrl, controller, companionInit).finally(() => {
         if (!hasVisibleSegmentChooser()) {
           finishInspectionLifecycle(controller);
         }
@@ -282,7 +265,16 @@ function initializeUrlInput() {
         if (!(button instanceof HTMLElement)) {
           return;
         }
-        inspectUrl(button.dataset.exampleUrl ?? "");
+        const companionInitUrl = button.dataset.exampleCompanionInitUrl?.trim();
+        inspectUrl(
+          button.dataset.exampleUrl ?? "",
+          companionInitUrl
+            ? {
+                url: companionInitUrl,
+                byteRange: undefined,
+              }
+            : undefined,
+        );
       });
     }
   } else {
@@ -336,8 +328,16 @@ function finishInspectionLifecycle(controller) {
 /**
  * @param {string} sourceUrl
  * @param {AbortController} controller
+ * @param {{
+ *   url: string,
+ *   byteRange: [number, number|undefined]|undefined,
+ * } | undefined} [companionInit]
  */
-async function inspectRemoteUrl(sourceUrl, controller) {
+async function inspectRemoteUrl(
+  sourceUrl,
+  controller,
+  companionInit = undefined,
+) {
   const signal = controller.signal;
   ProgressBar.start("Probing remote source…");
   ProgressBar.startEasing();
@@ -486,21 +486,107 @@ async function inspectRemoteUrl(sourceUrl, controller) {
     return;
   }
 
-  setInspectionSource({
+  return inspectRemoteSegment(sourceUrl, undefined, controller, {
     selectedLabel: "Remote resource",
     selectedValue: sourceUrl,
+    extraSources: companionInit
+      ? [
+          {
+            label: "Side-loaded init metadata",
+            value: formatSegmentSourceValue(
+              companionInit.url,
+              companionInit.byteRange,
+            ),
+          },
+        ]
+      : undefined,
+    companionInit,
+    input: probe.stream ?? undefined,
+    startMessage: companionInit ? "Fetching segment..." : undefined,
+    statusMessage: "fetching…",
   });
-  if (probe.stream !== null) {
-    ProgressBar.updateStatus("fetching…");
-    await parseAndRenderSegment(probe.stream, signal);
-    return;
+}
+
+/**
+ * @param {string} segmentUrl
+ * @param {[number, number|undefined]|undefined} byteRange
+ * @param {AbortController} controller
+ * @param {{
+ *   selectedLabel: string,
+ *   selectedValue: string,
+ *   originLabel?: string | undefined,
+ *   originValue?: string | undefined,
+ *   extraSources?: Array<{ label: string, value: string }> | undefined,
+ *   companionInit?: {
+ *     url: string,
+ *     byteRange: [number, number|undefined]|undefined,
+ *   } | undefined,
+ *   input?: import("isobmff-inspector").ISOBMFFInput | undefined,
+ *   startMessage?: string | undefined,
+ *   statusMessage?: string | undefined,
+ * }} options
+ */
+function inspectRemoteSegment(
+  segmentUrl,
+  byteRange,
+  controller,
+  {
+    selectedLabel,
+    selectedValue,
+    originLabel,
+    originValue,
+    extraSources,
+    companionInit = undefined,
+    input = undefined,
+    startMessage = "Fetching segment...",
+    statusMessage = undefined,
+  },
+) {
+  if (
+    currentSegmentParsingAbortController !== controller ||
+    controller.signal.aborted
+  ) {
+    return Promise.resolve();
   }
-  ProgressBar.updateStatus("fetching…");
-  try {
-    await fetchSegmentAndParse(sourceUrl, undefined, signal);
-  } catch (err) {
-    ProgressBar.fail(err instanceof Error ? err.message : "Unknown Error");
+
+  if (startMessage !== undefined) {
+    ProgressBar.start(startMessage);
+    ProgressBar.startEasing();
+  } else if (statusMessage !== undefined) {
+    ProgressBar.updateStatus(statusMessage);
   }
+
+  setInspectionSource({
+    selectedLabel,
+    selectedValue,
+    originLabel,
+    originValue,
+    extraSources,
+  });
+  hideSegmentChooser();
+
+  const inputPromise =
+    input !== undefined
+      ? Promise.resolve(input)
+      : fetchSegmentInput(segmentUrl, byteRange, controller.signal);
+
+  return inputPromise
+    .then((segmentInput) => {
+      const supplementalMetadataPromise = companionInit
+        ? loadSupplementalInitMetadata(companionInit, controller.signal)
+        : Promise.resolve(null);
+      return parseAndRenderSegment(segmentInput, controller.signal, {
+        supplementalMetadataPromise,
+      });
+    })
+    .catch((err) => {
+      if (!controller.signal.aborted) {
+        ProgressBar.fail(err instanceof Error ? err.message : "Unknown Error");
+      }
+    })
+    .finally(() => {
+      finishInspectionLifecycle(controller);
+    });
 }
 
 /**
@@ -522,18 +608,7 @@ function inspectChosenSegment(
   originKind = null,
   companionInit = undefined,
 ) {
-  if (
-    currentSegmentParsingAbortController !== controller ||
-    controller.signal.aborted
-  ) {
-    return;
-  }
-
-  ProgressBar.start("Fetching segment...");
-  ProgressBar.startEasing();
-
-  // TODO: Insert byte-range here?
-  setInspectionSource({
+  return inspectRemoteSegment(segmentUrl, byteRange, controller, {
     selectedLabel: "Selected segment URL",
     selectedValue: segmentUrl,
     originLabel: originUrl && originKind ? `${originKind} source` : undefined,
@@ -549,26 +624,9 @@ function inspectChosenSegment(
           },
         ]
       : undefined,
+    companionInit,
+    startMessage: "Fetching segment...",
   });
-  hideSegmentChooser();
-
-  fetchSegmentInput(segmentUrl, byteRange, controller.signal)
-    .then((input) => {
-      const supplementalMetadataPromise = companionInit
-        ? loadSupplementalInitMetadata(companionInit, controller.signal)
-        : Promise.resolve(null);
-      return parseAndRenderSegment(input, controller.signal, {
-        supplementalMetadataPromise,
-      });
-    })
-    .catch((err) => {
-      if (!controller.signal.aborted) {
-        ProgressBar.fail(err instanceof Error ? err.message : "Unknown Error");
-      }
-    })
-    .finally(() => {
-      finishInspectionLifecycle(controller);
-    });
 }
 
 /**
