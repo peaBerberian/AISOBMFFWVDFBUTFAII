@@ -29,24 +29,24 @@ const SAMPLE_COLUMNS = [
   { key: "pts", label: "pts", width: "18ch" },
   { key: "duration", label: "duration", width: "18ch" },
   { key: "size", label: "size", width: "12ch" },
-  { key: "isSync", label: "sync", shortLabel: "sync", width: "6ch" },
+  { key: "isSync", label: "sync", shortLabel: "sync", width: "9ch" },
   {
     key: "sampleDependsOn",
     label: "depends on",
     shortLabel: "dep",
-    width: "7ch",
+    width: "8ch",
   },
   {
     key: "sampleIsDependedOn",
     label: "depended on",
     shortLabel: "used",
-    width: "7ch",
+    width: "9ch",
   },
   {
     key: "sampleHasRedundancy",
     label: "redundancy",
     shortLabel: "red",
-    width: "7ch",
+    width: "8ch",
   },
   { key: "kind", label: "class", width: "14ch" },
 ];
