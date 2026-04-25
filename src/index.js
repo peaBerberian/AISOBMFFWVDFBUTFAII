@@ -8,7 +8,10 @@ import {
   extractISOBMFFPlaylistMetadataFromString,
   resolveMediaPlaylist,
 } from "./extractors/hls/index.js";
-import { probeRemoteSource } from "./filetype_detection.js";
+import {
+  detectKnownUnsupportedLocalFile,
+  probeRemoteSource,
+} from "./filetype_detection.js";
 import parseAndRenderSegment from "./parseAndRenderSegment.js";
 import InspectionResultsView from "./ui/InspectionResultsView.js";
 import {
@@ -98,7 +101,7 @@ function formatFileInput(file, signal) {
  * Parse a local file while preserving the app's single active parse lifecycle.
  * @param {Blob} file
  */
-function parseLocalFile(file) {
+async function parseLocalFile(file) {
   const controller = beginInspectionLifecycle();
   const signal = controller.signal;
   const namedFile = /** @type {{ name?: string }} */ (file);
@@ -106,9 +109,30 @@ function parseLocalFile(file) {
     selectedLabel: "Local file",
     selectedValue: namedFile.name || "Unnamed file",
   });
-  parseAndRenderSegment(formatFileInput(file, signal), signal).finally(() => {
+  try {
+    const unsupportedFormat = await detectKnownUnsupportedLocalFile(
+      file,
+      signal,
+    );
+    if (signal.aborted) {
+      return;
+    }
+    if (unsupportedFormat !== null) {
+      ProgressBar.fail(
+        `file error: detected ${unsupportedFormat}, not an ISOBMFF file`,
+      );
+      return;
+    }
+    await parseAndRenderSegment(formatFileInput(file, signal), signal);
+  } catch (err) {
+    if (!signal.aborted) {
+      const message = err instanceof Error ? err.message : err;
+      ProgressBar.fail(`file error: ${message}`);
+      throw err;
+    }
+  } finally {
     finishInspectionLifecycle(controller);
-  });
+  }
 }
 
 function initializeFileReaderInput() {
@@ -301,7 +325,17 @@ function finishInspectionLifecycle(controller) {
  */
 async function inspectRemoteUrl(sourceUrl, controller) {
   const signal = controller.signal;
-  const probe = await probeRemoteSource(sourceUrl, signal);
+  let probe;
+  try {
+    probe = await probeRemoteSource(sourceUrl, signal);
+  } catch (err) {
+    if (!signal.aborted) {
+      const message = err instanceof Error ? err.message : err;
+      ProgressBar.fail(`fetch error: ${message}`);
+      throw err;
+    }
+    return;
+  }
   if (signal.aborted) {
     return;
   }

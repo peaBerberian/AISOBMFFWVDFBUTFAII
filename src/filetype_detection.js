@@ -4,11 +4,6 @@ import {
 } from "./utils/abortables.js";
 import { concatUint8Arrays, toUint8Array } from "./utils/bytes.js";
 
-// TODO: Add common other file format magic numbers detection with the goal to
-// provide better error message?
-// Thinking especially here about: mpeg2-ts, mkv, webm, plain subtitles and a
-// few image formats
-
 const REMOTE_PROBE_BYTE_COUNT = 4096;
 const DASH_CONTENT_TYPES = ["application/dash+xml", "video/vnd.mpeg.dash.mpd"];
 const HLS_CONTENT_TYPES = [
@@ -69,6 +64,7 @@ export async function probeRemoteSource(sourceUrl, signal) {
     prefix.text,
     sourceUrl,
   );
+  const unsupportedFormat = detectKnownUnsupportedFormat(prefix.bytes);
 
   if (kind === "dash" || kind === "hls") {
     return {
@@ -76,6 +72,11 @@ export async function probeRemoteSource(sourceUrl, signal) {
       text: await responseWithPrefixToText(prefix.bytes, prefix.reader, signal),
       stream: null,
     };
+  }
+  if (unsupportedFormat !== null) {
+    throw new Error(
+      `Detected ${unsupportedFormat}, which is not an ISOBMFF resource supported by this app.`,
+    );
   }
 
   return {
@@ -190,6 +191,16 @@ function detectRemoteSourceKind(contentType, bytes, prefixText, sourceUrl) {
 }
 
 /**
+ * @param {Blob} file
+ * @param {AbortSignal} signal
+ * @returns {Promise<string | null>}
+ */
+export async function detectKnownUnsupportedLocalFile(file, signal) {
+  const prefix = await readBlobPrefix(file, REMOTE_PROBE_BYTE_COUNT, signal);
+  return detectKnownUnsupportedFormat(prefix.bytes);
+}
+
+/**
  * @param {string} text
  */
 function looksLikeDashManifest(text) {
@@ -225,6 +236,141 @@ function looksLikeISOBMFF(bytes) {
     return false;
   }
   return ISOBMFF_BOX_TYPES.has(boxType);
+}
+
+/**
+ * @param {Blob} blob
+ * @param {number} maxBytes
+ * @param {AbortSignal} signal
+ * @returns {Promise<{ bytes: Uint8Array }>}
+ */
+async function readBlobPrefix(blob, maxBytes, signal) {
+  if (signal.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
+  const chunk = blob.slice(0, maxBytes);
+  const buffer = await chunk.arrayBuffer();
+  if (signal.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
+  return {
+    bytes: new Uint8Array(buffer),
+  };
+}
+
+/**
+ * @param {Uint8Array} bytes
+ * @returns {string | null}
+ */
+function detectKnownUnsupportedFormat(bytes) {
+  if (looksLikePng(bytes)) {
+    return "a PNG image";
+  }
+  if (looksLikeJpeg(bytes)) {
+    return "a JPEG image";
+  }
+  if (looksLikePdf(bytes)) {
+    return "a PDF document";
+  }
+  if (looksLikeMpeg2TransportStream(bytes)) {
+    return "an MPEG-2 transport stream";
+  }
+
+  const ebmlFormat = detectEbmlFormat(bytes);
+  if (ebmlFormat !== null) {
+    return ebmlFormat;
+  }
+
+  return null;
+}
+
+/**
+ * @param {Uint8Array} bytes
+ * @returns {string | null}
+ */
+function detectEbmlFormat(bytes) {
+  if (
+    bytes.byteLength < 4 ||
+    bytes[0] !== 0x1a ||
+    bytes[1] !== 0x45 ||
+    bytes[2] !== 0xdf ||
+    bytes[3] !== 0xa3
+  ) {
+    return null;
+  }
+
+  const prefixText = new TextDecoder().decode(bytes);
+  if (prefixText.includes("webm")) {
+    return "a WebM file";
+  }
+  if (prefixText.includes("matroska")) {
+    return "a Matroska / MKV file";
+  }
+  return "an EBML container such as WebM or Matroska";
+}
+
+/**
+ * @param {Uint8Array} bytes
+ */
+function looksLikePng(bytes) {
+  return (
+    bytes.byteLength >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a
+  );
+}
+
+/**
+ * @param {Uint8Array} bytes
+ */
+function looksLikeJpeg(bytes) {
+  return (
+    bytes.byteLength >= 3 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff
+  );
+}
+
+/**
+ * @param {Uint8Array} bytes
+ */
+function looksLikePdf(bytes) {
+  return (
+    bytes.byteLength >= 5 &&
+    bytes[0] === 0x25 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x44 &&
+    bytes[3] === 0x46 &&
+    bytes[4] === 0x2d
+  );
+}
+
+/**
+ * @param {Uint8Array} bytes
+ */
+function looksLikeMpeg2TransportStream(bytes) {
+  if (bytes.byteLength < 188 * 2) {
+    return false;
+  }
+
+  let syncCount = 0;
+  for (let offset = 0; offset < bytes.byteLength; offset += 188) {
+    if (bytes[offset] !== 0x47) {
+      break;
+    }
+    syncCount++;
+    if (syncCount >= 2) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
