@@ -23,6 +23,9 @@ const USUAL_FIRST_BOX_TYPES = new Set([
  */
 
 /**
+ * Run the streaming parser and render the box tree at the same time. When
+ * finished, render the rest of the UI with the right information.
+ *
  * @param {import("isobmff-inspector").ISOBMFFInput} input
  * @param {AbortSignal} abortSignal
  * @param {{
@@ -31,11 +34,7 @@ const USUAL_FIRST_BOX_TYPES = new Set([
  *   } | null>,
  * }} [options]
  */
-export default async function parseAndRenderSegment(
-  input,
-  abortSignal,
-  options = {},
-) {
+export async function parseAndRenderSegment(input, abortSignal, options = {}) {
   let boxCount = 0;
   InspectionResultsView.prepareForParsing();
   ProgressBar.updateStatus("parsing…");
@@ -144,6 +143,103 @@ export default async function parseAndRenderSegment(
       }
     }
   }
+}
+
+/**
+ * This method is intended for cases where you just want the parsed metadata
+ * of a segment, without having the associated rendering running at the same
+ * time that metadata is constructed.
+ *
+ * This can be needed e.g. when the corresponding metadata is helping with the
+ * parsing of the real segment, but isn't the actual focus, like an
+ * initialization segment linked to the media segment the user chose.
+ *
+ * @param {import("isobmff-inspector").ISOBMFFInput} input
+ * @param {AbortSignal} abortSignal
+ * @returns {Promise<Array<import("isobmff-inspector").ParsedBox>>}
+ */
+export async function parseSegmentWithoutRender(input, abortSignal) {
+  /** @type {Array<import("isobmff-inspector").ParsedBox>} */
+  const topLevelBoxes = [];
+  let inspectedFirstTopLevelBox = false;
+  let openTopLevelBox = false;
+
+  for await (const event of parseEvents(input)) {
+    if (abortSignal.aborted) {
+      return [];
+    }
+
+    if (event.event === "box-start") {
+      if (event.path.length === 1) {
+        openTopLevelBox = true;
+        if (!inspectedFirstTopLevelBox) {
+          inspectedFirstTopLevelBox = true;
+          validateFirstBox({
+            type: event.type,
+            size: event.size,
+            headerSize: event.headerSize,
+          });
+        }
+      }
+      continue;
+    }
+
+    if (event.path.length !== 1) {
+      continue;
+    }
+
+    if (!openTopLevelBox) {
+      throwIncompleteHeader(event.box);
+    }
+
+    openTopLevelBox = false;
+    topLevelBoxes.push(event.box);
+  }
+
+  if (!inspectedFirstTopLevelBox) {
+    throw new Error(
+      "This input is empty, so it does not look like an ISOBMFF file.",
+    );
+  }
+
+  return topLevelBoxes;
+}
+
+/**
+ * @param {{
+ *   type: string,
+ *   size: number,
+ *   headerSize: number,
+ * }} box
+ */
+function validateFirstBox(box) {
+  if (!/^[\x20-\x7e]{4}$/.test(box.type)) {
+    throw new Error(
+      "The first top-level box type is not a printable four-character code, so this input is unlikely to be ISOBMFF.",
+    );
+  }
+
+  if (box.size !== 0 && box.size < box.headerSize) {
+    return;
+  }
+
+  if (!USUAL_FIRST_BOX_TYPES.has(box.type)) {
+    throw new Error(
+      `The first top-level box is "${box.type}", which is not a usual ISOBMFF entry box.`,
+    );
+  }
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox} box
+ */
+function throwIncompleteHeader(box) {
+  const parserIssue = box.issues.find((issue) => issue.severity === "error");
+  throw new Error(
+    parserIssue
+      ? `This input does not start with a complete ISOBMFF box header. ${parserIssue.message}`
+      : "This input does not start with a complete ISOBMFF box header.",
+  );
 }
 
 /**
