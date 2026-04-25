@@ -157,6 +157,9 @@ class ProgressBarClass {
     this.#setToastState(
       color === "var(--color-accent-orange)" ? "is-error" : "is-warning",
     );
+    this.#percent = 100;
+    this.#setProgressSemantics(true, this.#percent);
+    progressBarElt.style.width = "100%";
     progressBarWrapperElt.style.backgroundColor =
       "var(--color-border-tertiary)";
     progressBarElt.style.backgroundColor = color;
