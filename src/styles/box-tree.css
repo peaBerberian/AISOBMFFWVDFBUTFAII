@@ -318,7 +318,7 @@ summary:hover .box-type {
 
 .box-body {
   padding: 4px 0 4px 0;
-  overflow: scroll;
+  overflow: auto;
 }
 
 .box-desc {
