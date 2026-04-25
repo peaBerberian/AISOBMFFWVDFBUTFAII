@@ -297,6 +297,14 @@
   background: var(--color-background-secondary);
 }
 
+.size-legend > .size-row:not(.size-row-head):nth-child(even) {
+  background: color-mix(
+    in srgb,
+    var(--color-background-primary) 96%,
+    var(--color-background-secondary) 4%
+  );
+}
+
 .size-row.preview {
   background: color-mix(in srgb, var(--box-color) 8%, transparent);
 }

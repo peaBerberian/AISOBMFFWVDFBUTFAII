@@ -22,17 +22,32 @@ const MAX_RENDERED_SAMPLE_COUNT = 5000;
  *   | "kind"
  * >} SampleSortKey
  */
-/** @type {{ key: SampleSortKey, label: string, width: string }[]} */
+/** @type {{ key: SampleSortKey, label: string, shortLabel?: string, width: string }[]} */
 const SAMPLE_COLUMNS = [
   { key: "index", label: "sample", width: "9ch" },
   { key: "dts", label: "dts", width: "18ch" },
   { key: "pts", label: "pts", width: "18ch" },
   { key: "duration", label: "duration", width: "18ch" },
   { key: "size", label: "size", width: "12ch" },
-  { key: "isSync", label: "sync", width: "8ch" },
-  { key: "sampleDependsOn", label: "depends on", width: "12ch" },
-  { key: "sampleIsDependedOn", label: "depended on", width: "12ch" },
-  { key: "sampleHasRedundancy", label: "redundancy", width: "12ch" },
+  { key: "isSync", label: "sync", shortLabel: "sync", width: "6ch" },
+  {
+    key: "sampleDependsOn",
+    label: "depends on",
+    shortLabel: "dep",
+    width: "7ch",
+  },
+  {
+    key: "sampleIsDependedOn",
+    label: "depended on",
+    shortLabel: "used",
+    width: "7ch",
+  },
+  {
+    key: "sampleHasRedundancy",
+    label: "redundancy",
+    shortLabel: "red",
+    width: "7ch",
+  },
   { key: "kind", label: "class", width: "14ch" },
 ];
 
@@ -59,6 +74,8 @@ export default function renderSampleView(boxes) {
    *   sortKey: SampleSortKey,
    *   sortDirection: "asc" | "desc",
    *   renderedRows: import("../../post-process/index.js").SampleRow[],
+   *   activeRow: import("../../post-process/index.js").SampleRow | null,
+   *   previewRow: import("../../post-process/index.js").SampleRow | null,
    * }} */
   const state = {
     view: info.sampleViews[0],
@@ -67,6 +84,8 @@ export default function renderSampleView(boxes) {
     sortKey: "index",
     sortDirection: "asc",
     renderedRows: [],
+    activeRow: null,
+    previewRow: null,
   };
 
   const controls = el("div", "samples-controls");
@@ -113,10 +132,27 @@ export default function renderSampleView(boxes) {
     const th = document.createElement("th");
     th.scope = "col";
     const button = /** @type {HTMLButtonElement} */ (
-      el("button", "samples-sort-button")
+      el(
+        "button",
+        `samples-sort-button${isSampleNumericColumn(column.key) ? " is-numeric" : ""}`,
+      )
     );
     button.type = "button";
-    button.textContent = column.label;
+    button.textContent =
+      state.sortKey === column.key
+        ? `${column.shortLabel ?? column.label} ${state.sortDirection === "asc" ? "↑" : "↓"}`
+        : (column.shortLabel ?? column.label);
+    button.title = column.label;
+    button.setAttribute(
+      "aria-label",
+      state.sortKey === column.key
+        ? `${column.label}, sorted ${state.sortDirection}`
+        : `${column.label}, sortable`,
+    );
+    button.setAttribute(
+      "aria-pressed",
+      state.sortKey === column.key ? "true" : "false",
+    );
     button.addEventListener("click", () => {
       if (state.sortKey === column.key) {
         state.sortDirection = state.sortDirection === "asc" ? "desc" : "asc";
@@ -124,15 +160,14 @@ export default function renderSampleView(boxes) {
         state.sortKey = column.key;
         state.sortDirection = "asc";
       }
-      updateSortButtons();
       renderRows();
     });
     th.appendChild(button);
     headerRow.appendChild(th);
   });
-  table.appendChild(colgroup);
   thead.appendChild(headerRow);
   const tbody = document.createElement("tbody");
+  table.appendChild(colgroup);
   table.appendChild(thead);
   table.appendChild(tbody);
   tableWrap.appendChild(table);
@@ -155,6 +190,8 @@ export default function renderSampleView(boxes) {
       Math.min(DEFAULT_SAMPLE_COUNT, state.view.totalSamples),
     );
     syncInputs();
+    state.activeRow = null;
+    state.previewRow = null;
     renderRows();
   };
 
@@ -165,6 +202,8 @@ export default function renderSampleView(boxes) {
     state.start = 1;
     state.count = Math.min(DEFAULT_SAMPLE_COUNT, state.view.totalSamples);
     syncInputs();
+    state.activeRow = null;
+    state.previewRow = null;
     renderRows();
   };
 
@@ -173,7 +212,6 @@ export default function renderSampleView(boxes) {
   countInput.addEventListener("input", updateRange);
 
   syncInputs();
-  updateSortButtons();
   renderRows();
   return true;
 
@@ -193,14 +231,6 @@ export default function renderSampleView(boxes) {
     const rangeEnd = rows.length
       ? rows[rows.length - 1].index
       : Math.min(state.start, state.view.totalSamples);
-    summary.textContent = [
-      `${state.view.label}: ${numberFormat(state.view.totalSamples)} samples`,
-      `showing ${numberFormat(state.start)}-${numberFormat(rangeEnd)}`,
-      `sorted by ${getColumnLabel(state.sortKey)} ${state.sortDirection}`,
-      state.view.note,
-    ]
-      .filter(Boolean)
-      .join(", ");
     state.renderedRows = sortRows(
       rows,
       state.sortKey,
@@ -208,17 +238,89 @@ export default function renderSampleView(boxes) {
       state.renderedRows,
     );
     const tickContexts = createUnknownTickContexts(state.renderedRows);
+    const activeRow = state.activeRow;
+    const previewRow = state.previewRow;
+
+    if (
+      activeRow &&
+      !state.renderedRows.some(
+        (row) => getSampleRowId(row) === getSampleRowId(activeRow),
+      )
+    ) {
+      state.activeRow = null;
+    }
+    if (
+      previewRow &&
+      !state.renderedRows.some(
+        (row) => getSampleRowId(row) === getSampleRowId(previewRow),
+      )
+    ) {
+      state.previewRow = null;
+    }
+
+    renderSummary(
+      summary,
+      state.view,
+      rangeEnd,
+      state.sortKey,
+      state.sortDirection,
+      state.start,
+      tickContexts,
+    );
+    syncHeaderButtons();
     tbody.replaceChildren(
       ...state.renderedRows.map((row) =>
-        renderRow(row, state.view.timescale, tickContexts),
+        renderRow(row, state, state.view.timescale, tickContexts),
       ),
     );
   }
 
-  function updateSortButtons() {
-    const sortButtons = headerRow.getElementsByClassName("samples-sort-button");
-    for (let index = 0; index < sortButtons.length; index++) {
-      const button = sortButtons[index];
+  /**
+   * @param {import("../../post-process/index.js").SampleRow | null} row
+   */
+  function setActiveRow(row) {
+    state.activeRow =
+      state.activeRow &&
+      row &&
+      getSampleRowId(state.activeRow) === getSampleRowId(row)
+        ? null
+        : row;
+    syncRowHighlights();
+  }
+
+  /**
+   * @param {import("../../post-process/index.js").SampleRow | null} row
+   */
+  function setPreviewRow(row) {
+    state.previewRow = row;
+    syncRowHighlights();
+  }
+
+  function syncRowHighlights() {
+    for (let index = 0; index < tbody.rows.length; index++) {
+      const row = tbody.rows[index];
+      if (!(row instanceof HTMLTableRowElement)) {
+        continue;
+      }
+      const rowId = row.dataset.sampleRowId;
+      const isActive =
+        rowId != null &&
+        state.activeRow != null &&
+        rowId === getSampleRowId(state.activeRow);
+      const isPreview =
+        rowId != null &&
+        state.previewRow != null &&
+        rowId === getSampleRowId(state.previewRow);
+      row.classList.toggle("active", isActive);
+      row.classList.toggle("preview", isPreview);
+      row.setAttribute("aria-selected", isActive ? "true" : "false");
+    }
+  }
+
+  function syncHeaderButtons() {
+    const buttons = headerRow.getElementsByClassName("samples-sort-button");
+    for (let index = 0; index < buttons.length; index++) {
+      const button = buttons[index];
       if (!(button instanceof HTMLButtonElement)) {
         continue;
       }
@@ -227,61 +329,196 @@ export default function renderSampleView(boxes) {
         continue;
       }
       const isActive = state.sortKey === column.key;
-      button.classList.toggle("is-active", isActive);
+      button.textContent = isActive
+        ? `${column.shortLabel ?? column.label} ${state.sortDirection === "asc" ? "↑" : "↓"}`
+        : (column.shortLabel ?? column.label);
+      button.title = column.label;
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
       button.setAttribute(
         "aria-label",
         isActive
           ? `${column.label}, sorted ${state.sortDirection}`
           : `${column.label}, sortable`,
       );
-      button.dataset.direction = isActive ? state.sortDirection : "";
     }
+  }
+
+  /**
+   * @param {import("../../post-process/index.js").SampleRow} row
+   * @param {number | null} timescale
+   * @param {UnknownTickContexts} tickContexts
+   * @param {{
+   *   activeRow: import("../../post-process/index.js").SampleRow | null,
+   *   previewRow: import("../../post-process/index.js").SampleRow | null,
+   * }} stateRef
+   */
+  function renderRow(row, stateRef, timescale, tickContexts) {
+    const item = document.createElement("tr");
+    item.className = "sample-row";
+    item.tabIndex = 0;
+    item.dataset.sampleRowId = getSampleRowId(row);
+    item.setAttribute(
+      "aria-label",
+      getSampleDetailText(row, timescale, tickContexts),
+    );
+    item.title = getSampleDetailText(row, timescale, tickContexts);
+    const dts = formatTickValue(row.dts, timescale, tickContexts.dts);
+    const pts = formatTickValue(row.pts, timescale, tickContexts.pts);
+    const duration = formatTickValue(
+      row.duration,
+      timescale,
+      tickContexts.duration,
+    );
+    const cells = [
+      createSampleCell(
+        "index",
+        numberFormat(row.index),
+        undefined,
+        "is-numeric is-key",
+      ),
+      createSampleCell("dts", dts.text, dts.title, "is-numeric"),
+      createSampleCell("pts", pts.text, pts.title, "is-numeric"),
+      createSampleCell("duration", duration.text, duration.title, "is-numeric"),
+      createSampleCell(
+        "size",
+        row.size != null ? fmtBytes(row.size) : "?",
+        row.size != null ? `${numberFormat(row.size)} bytes` : undefined,
+        "is-numeric",
+      ),
+      createSampleCell("isSync", formatBoolean(row.isSync)),
+      createSampleCell(
+        "sampleDependsOn",
+        formatDependencyCode(row.sampleDependsOn),
+      ),
+      createSampleCell(
+        "sampleIsDependedOn",
+        formatDependencyCode(row.sampleIsDependedOn),
+      ),
+      createSampleCell(
+        "sampleHasRedundancy",
+        formatDependencyCode(row.sampleHasRedundancy),
+      ),
+      createSampleCell(
+        "kind",
+        row.kind,
+        getSampleKindTitle(row.kind),
+        "is-kind",
+      ),
+    ];
+    cells.forEach((cell) => {
+      item.appendChild(cell);
+    });
+    item.addEventListener("click", () => setActiveRow(row));
+    item.addEventListener("mouseenter", () => setPreviewRow(row));
+    item.addEventListener("mouseleave", () => setPreviewRow(null));
+    item.addEventListener("focus", () => setPreviewRow(row));
+    item.addEventListener("blur", () => setPreviewRow(null));
+    item.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+      event.preventDefault();
+      setActiveRow(row);
+    });
+    if (
+      stateRef.activeRow &&
+      getSampleRowId(stateRef.activeRow) === getSampleRowId(row)
+    ) {
+      item.classList.add("active");
+      item.setAttribute("aria-selected", "true");
+    }
+    if (
+      stateRef.previewRow &&
+      getSampleRowId(stateRef.previewRow) === getSampleRowId(row)
+    ) {
+      item.classList.add("preview");
+    }
+    return item;
   }
 }
 
 /**
- * @param {import("../../post-process/index.js").SampleRow} row
- * @param {number | null} timescale
+ * @param {HTMLElement} container
+ * @param {import("../../post-process/index.js").SampleView} view
+ * @param {number} rangeEnd
+ * @param {SampleSortKey} sortKey
+ * @param {"asc" | "desc"} sortDirection
+ * @param {number} rangeStart
  * @param {UnknownTickContexts} tickContexts
  */
-function renderRow(row, timescale, tickContexts) {
-  const tr = document.createElement("tr");
-  appendCell(tr, numberFormat(row.index));
-  appendTickCell(tr, row.dts, timescale, tickContexts.dts);
-  appendTickCell(tr, row.pts, timescale, tickContexts.pts);
-  appendTickCell(tr, row.duration, timescale, tickContexts.duration);
-  appendCell(tr, row.size != null ? fmtBytes(row.size) : "?");
-  appendCell(tr, formatBoolean(row.isSync));
-  appendCell(tr, formatDependencyCode(row.sampleDependsOn));
-  appendCell(tr, formatDependencyCode(row.sampleIsDependedOn));
-  appendCell(tr, formatDependencyCode(row.sampleHasRedundancy));
-  appendCell(tr, row.kind, getSampleKindTitle(row.kind));
-  return tr;
+function renderSummary(
+  container,
+  view,
+  rangeEnd,
+  sortKey,
+  sortDirection,
+  rangeStart,
+  tickContexts,
+) {
+  const stats = el("div", "samples-summary-stats");
+  stats.appendChild(createSummaryStat("source", view.label));
+  stats.appendChild(
+    createSummaryStat("total", `${numberFormat(view.totalSamples)} samples`),
+  );
+  stats.appendChild(
+    createSummaryStat(
+      "range",
+      `${numberFormat(rangeStart)}-${numberFormat(rangeEnd)}`,
+    ),
+  );
+  stats.appendChild(
+    createSummaryStat(
+      "sort",
+      `${getColumnLabel(sortKey)} ${sortDirection === "asc" ? "ascending" : "descending"}`,
+    ),
+  );
+  if (view.timescale) {
+    stats.appendChild(
+      createSummaryStat("timescale", `${numberFormat(view.timescale)} ticks/s`),
+    );
+  } else if (
+    tickContexts.dts.sharedPrefix ||
+    tickContexts.pts.sharedPrefix ||
+    tickContexts.duration.sharedPrefix
+  ) {
+    stats.appendChild(createSummaryStat("ticks", "shared prefixes elided"));
+  }
+  const note = el("div", "samples-summary-note");
+  note.textContent = view.note || "Hover or select a sample to inspect it.";
+  container.replaceChildren(stats, note);
 }
 
 /**
- * @param {HTMLTableRowElement} row
- * @param {number | null} value
- * @param {number | null} timescale
- * @param {UnknownTickContext} unknownTickContext
+ * @param {string} label
+ * @param {string} value
  */
-function appendTickCell(row, value, timescale, unknownTickContext) {
-  const { text, title } = formatTickValue(value, timescale, unknownTickContext);
-  appendCell(row, text, title);
+function createSummaryStat(label, value) {
+  const stat = el("div", "samples-stat");
+  const title = el("span", "samples-stat-label");
+  title.textContent = label;
+  const body = el("span", "samples-stat-value");
+  body.textContent = value;
+  stat.appendChild(title);
+  stat.appendChild(body);
+  return stat;
 }
 
 /**
- * @param {HTMLTableRowElement} row
+ * @param {SampleSortKey} column
  * @param {string} value
  * @param {string} [title]
+ * @param {string} [extraClassName]
  */
-function appendCell(row, value, title) {
-  const td = document.createElement("td");
+function createSampleCell(column, value, title, extraClassName = "") {
+  const td = el(
+    "td",
+    `sample-cell sample-cell-${column}${extraClassName ? ` ${extraClassName}` : ""}`,
+  );
   td.textContent = value;
   if (title) {
     td.title = title;
   }
-  row.appendChild(td);
+  return td;
 }
 
 /**
@@ -295,6 +532,19 @@ function createLabeledControl(label) {
   wrap.appendChild(caption);
   wrap.appendChild(body);
   return { wrap, body };
+}
+
+/**
+ * @param {SampleSortKey} key
+ */
+function isSampleNumericColumn(key) {
+  return (
+    key === "index" ||
+    key === "dts" ||
+    key === "pts" ||
+    key === "duration" ||
+    key === "size"
+  );
 }
 
 /**
@@ -482,6 +732,36 @@ function getSharedPrefix(values) {
  */
 function getColumnLabel(key) {
   return SAMPLE_COLUMNS.find((column) => column.key === key)?.label ?? key;
+}
+
+/**
+ * @param {import("../../post-process/index.js").SampleRow | null} row
+ * @param {number | null} timescale
+ * @param {UnknownTickContexts} tickContexts
+ */
+function getSampleDetailText(row, timescale, tickContexts) {
+  if (!row) {
+    return "Hover or select a sample to inspect timing, size, and dependency details.";
+  }
+  const dts = formatTickValue(row.dts, timescale, tickContexts.dts);
+  const pts = formatTickValue(row.pts, timescale, tickContexts.pts);
+  const duration = formatTickValue(
+    row.duration,
+    timescale,
+    tickContexts.duration,
+  );
+  return [
+    `sample ${numberFormat(row.index)}`,
+    `class ${row.kind}`,
+    `size ${row.size != null ? fmtBytes(row.size) : "?"}`,
+    `dts ${dts.text}`,
+    `pts ${pts.text}`,
+    `duration ${duration.text}`,
+    `sync ${formatBoolean(row.isSync)}`,
+    `depends on ${formatDependencyCode(row.sampleDependsOn)}`,
+    `depended on ${formatDependencyCode(row.sampleIsDependedOn)}`,
+    `redundancy ${formatDependencyCode(row.sampleHasRedundancy)}`,
+  ].join(" - ");
 }
 
 /**
