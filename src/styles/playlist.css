@@ -228,6 +228,7 @@
 
 .compact-source[open] .compact-source-toggle {
   color: var(--color-text-secondary);
+	font-weight: bold;
 }
 
 .compact-source-value {

@@ -51,7 +51,8 @@ function summarizeSourceValue(value) {
       const pathname = url.pathname.split("/").filter(Boolean);
       const lastSegment = pathname[pathname.length - 1];
       if (lastSegment) {
-        // XXX TODO: do better
+        // TODO: Better algo for source summarization? We might only have a single slash
+				// for one
         return `${url.hostname}/…/${lastSegment}`;
       }
       if (url.search) {
