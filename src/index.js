@@ -45,14 +45,22 @@ function setResultsLoading(isLoading) {
  * Fetch the mp4 file's URL and run our parser on it.
  * Can be aborted at any time with the given `AbortSignal`.
  * @param {string} url
+ * @param {[number, number|undefined]|undefined} byteRange
  * @param {AbortSignal} signal
  * @returns {Promise<void>}
  */
-async function fetchSegmentAndParse(url, signal) {
+async function fetchSegmentAndParse(url, byteRange, signal) {
   ProgressBar.start("fetching…");
   ProgressBar.startEasing();
   try {
-    const r = await fetch(url, { signal });
+    /** @type HeadersInit */
+    const headers = {};
+    if (byteRange !== undefined) {
+      const [start, end] = byteRange;
+      headers.Range =
+        end !== undefined ? `bytes=${start}-${end}` : `bytes=${start}-`;
+    }
+    const r = await fetch(url, { signal, headers });
     if (signal.aborted) {
       return;
     }
@@ -317,9 +325,10 @@ async function inspectRemoteUrl(sourceUrl, controller) {
         1,
         `DASH manifest loaded. Choose one of ${segmentCount} segments to inspect.`,
       );
-      showDashSegmentChooser(sourceUrl, tree, (segmentUrl) => {
+      showDashSegmentChooser(sourceUrl, tree, (segmentUrl, byteRange) => {
         inspectChosenSegment(
           segmentUrl,
+          byteRange,
           controller,
           sourceUrl,
           "DASH manifest",
@@ -357,8 +366,14 @@ async function inspectRemoteUrl(sourceUrl, controller) {
         1,
         `HLS playlist loaded. Choose one of ${segmentCount} resources to inspect.`,
       );
-      showHlsSegmentChooser(sourceUrl, extraction, (segmentUrl) => {
-        inspectChosenSegment(segmentUrl, controller, sourceUrl, "HLS playlist");
+      showHlsSegmentChooser(sourceUrl, extraction, (segmentUrl, byteRange) => {
+        inspectChosenSegment(
+          segmentUrl,
+          byteRange,
+          controller,
+          sourceUrl,
+          "HLS playlist",
+        );
       });
       return;
     } catch (err) {
@@ -375,17 +390,19 @@ async function inspectRemoteUrl(sourceUrl, controller) {
     selectedLabel: "Remote resource",
     selectedValue: sourceUrl,
   });
-  await fetchSegmentAndParse(sourceUrl, signal);
+  await fetchSegmentAndParse(sourceUrl, undefined, signal);
 }
 
 /**
  * @param {string} segmentUrl
+ * @param {[number, number|undefined]|undefined} byteRange
  * @param {AbortController} controller
  * @param {string | null} [originUrl=null]
  * @param {string | null} [originKind=null]
  */
 function inspectChosenSegment(
   segmentUrl,
+  byteRange,
   controller,
   originUrl = null,
   originKind = null,
@@ -396,6 +413,8 @@ function inspectChosenSegment(
   ) {
     return;
   }
+
+  // TODO: Insert byte-range here?
   setInspectionSource({
     selectedLabel: "Selected segment URL",
     selectedValue: segmentUrl,
@@ -403,7 +422,7 @@ function inspectChosenSegment(
     originValue: originUrl ?? undefined,
   });
   hideSegmentChooser();
-  fetchSegmentAndParse(segmentUrl, controller.signal).finally(() => {
+  fetchSegmentAndParse(segmentUrl, byteRange, controller.signal).finally(() => {
     finishInspectionLifecycle(controller);
   });
 }
@@ -473,7 +492,7 @@ function countHlsSegments(extraction) {
     ) {
       const segment = result.segments[segmentIndex];
       if (segment.map) {
-        const mapKey = `${segment.map.url}:${segment.map.byteRange?.offset ?? ""}:${segment.map.byteRange?.length ?? ""}`;
+        const mapKey = `${segment.map.url}:${segment.map.byteRange?.[0] ?? ""}:${segment.map.byteRange?.[1] ?? ""}`;
         if (!seenMapKeys.has(mapKey)) {
           seenMapKeys.add(mapKey);
           count++;

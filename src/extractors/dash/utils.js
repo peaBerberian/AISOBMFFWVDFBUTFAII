@@ -150,3 +150,16 @@ export function inherit(child, parent) {
   }
   return /** @type {Partial<T & U>} */ (out);
 }
+
+/**
+ * Parse a byte-range string "first-last" into [first, last] (both inclusive).
+ * @param {string} range
+ * @returns {[number, number] | undefined}
+ */
+export function parseByteRange(range) {
+  const m = range.match(/^(\d+)-(\d+)$/);
+  if (!m) {
+    return undefined;
+  }
+  return [Number(m[1]), Number(m[2])];
+}

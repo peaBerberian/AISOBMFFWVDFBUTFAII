@@ -1,7 +1,7 @@
 /**
  * @typedef {Object} SegmentItem
  * @property {string} url
- * @property {string} [byteRange]   "first-last" inclusive; present for SIDX-derived and range-init segments
+ * @property {[number, number|undefined]|undefined} [byteRange]
  * @property {"init"|"media"|"index"} type
  * @property {true} isISOBMFF
  */

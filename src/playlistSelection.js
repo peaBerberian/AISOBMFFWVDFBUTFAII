@@ -7,6 +7,7 @@ const chooserElt = requireElementById("segment-chooser", HTMLElement);
  * @typedef {{
  *   label: string,
  *   url: string,
+ *   byteRange: [number, number|undefined]|undefined;
  *   type?: string,
  * }} SegmentChoice
  *
@@ -21,7 +22,10 @@ const chooserElt = requireElementById("segment-chooser", HTMLElement);
 /**
  * @param {string} sourceUrl
  * @param {import("./extractors/dash/types.js").DashTree} tree
- * @param {(segmentUrl: string) => void} onInspect
+ * @param {(
+ *   segmentUrl: string,
+ *   byteRange: [number, number|undefined]|undefined
+ * ) => void} onInspect
  */
 export function showDashSegmentChooser(sourceUrl, tree, onInspect) {
   /** @type {SegmentChoiceCard[]} */
@@ -59,6 +63,7 @@ export function showDashSegmentChooser(sourceUrl, tree, onInspect) {
           choices: representation.segments.map((segment, segmentIndex) => ({
             label: formatDashSegmentLabel(segment, segmentIndex),
             url: segment.url,
+            byteRange: segment.byteRange,
             type: segment.type,
           })),
         });
@@ -79,7 +84,10 @@ export function showDashSegmentChooser(sourceUrl, tree, onInspect) {
 /**
  * @param {string} sourceUrl
  * @param {import("./extractors/HlsUrlExtractor.js").ExtractionResult} extraction
- * @param {(segmentUrl: string) => void} onInspect
+ * @param {(
+ *   segmentUrl: string,
+ *   byteRange: [number, number|undefined]|undefined
+ * ) => void} onInspect
  */
 export function showHlsSegmentChooser(sourceUrl, extraction, onInspect) {
   /** @type {SegmentChoiceCard[]} */
@@ -132,7 +140,10 @@ export function hasVisibleSegmentChooser() {
  *   intro: string,
  *   sourceUrl: string,
  *   cards: SegmentChoiceCard[],
- *   onInspect: (segmentUrl: string) => void,
+ *   onInspect: (
+ *     segmentUrl: string,
+ *     byteRange: [number, number|undefined]|undefined
+ *   ) => void
  * }} input
  */
 function renderChooser(input) {
@@ -174,7 +185,10 @@ function renderChooser(input) {
 
 /**
  * @param {SegmentChoiceCard} card
- * @param {(segmentUrl: string) => void} onInspect
+ * @param {(
+ *   segmentUrl: string,
+ *   byteRange: [number, number|undefined]|undefined
+ * ) => void} onInspect
  */
 function createChoiceCard(card, onInspect) {
   const article = document.createElement("article");
@@ -294,7 +308,10 @@ function createChoiceCard(card, onInspect) {
     updateSelection((Number(indexInput.value) || 1) - 1);
   });
   inspectButton.addEventListener("click", () => {
-    onInspect(card.choices[selectedIndex].url);
+    onInspect(
+      card.choices[selectedIndex].url,
+      card.choices[selectedIndex].byteRange,
+    );
   });
 
   updateSelection(selectedIndex);
@@ -323,6 +340,7 @@ function collectHlsChoices(result) {
         choices.push({
           label: `init map ${choices.length + 1} · ${formatByteRange(segment.map.byteRange) || "full resource"} · ${formatUrlLabel(segment.map.url)}`,
           url: segment.map.url,
+          byteRange: segment.map.byteRange ?? undefined,
           type: "init",
         });
       }
@@ -336,6 +354,7 @@ function collectHlsChoices(result) {
     choices.push({
       label: formatHlsSegmentLabel(segment, segmentIndex),
       url: segment.url,
+      byteRange: segment.byteRange ?? undefined,
       type: "media",
     });
   }
@@ -544,13 +563,13 @@ function formatDuration(duration) {
 }
 
 /**
- * @param {{ offset: number, length: number } | null | undefined} byteRange
+ * @param {[number, number|undefined] | null | undefined} byteRange
  */
 function formatByteRange(byteRange) {
   if (!byteRange) {
     return "";
   }
-  return `${byteRange.offset}-${byteRange.offset + byteRange.length - 1}`;
+  return `${byteRange[0]}-${byteRange[1] ?? ""}`;
 }
 
 /**

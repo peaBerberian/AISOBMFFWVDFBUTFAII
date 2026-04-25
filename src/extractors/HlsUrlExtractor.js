@@ -11,22 +11,14 @@
  */
 
 /**
- * A resolved byte-range request, as expressed by EXT-X-BYTERANGE / EXT-X-MAP.
- * @typedef {{
- *   offset: number,
- *   length: number
- * }} ByteRange
- */
-
-/**
  * A single segment that has been identified as an ISOBMFF resource.
  * @typedef {{
  *   url: string,
- *   byteRange: ByteRange | null,
+ *   byteRange: [number, number] | null,
  *   duration: number | null,
  *   title: string | null,
  *   discontinuity: boolean,
- *   map: { url: string, byteRange: ByteRange | null } | null
+ *   map: { url: string, byteRange: [number, number] | null } | null
  * }} ISOBMFFSegment
  */
 
@@ -159,13 +151,13 @@ const parseAttributeList = (attrString) => {
  * Parse EXT-X-BYTERANGE value: `<length>[@<offset>]`
  * @param {string} value
  * @param {number} [previousEnd] - the byte offset where the previous range ended (for chained ranges)
- * @returns {ByteRange}
+ * @returns {[number, number]}
  */
 const parseByteRange = (value, previousEnd = 0) => {
   const [lenStr, offStr] = value.split("@");
   const length = parseInt(lenStr, 10);
   const offset = offStr !== undefined ? parseInt(offStr, 10) : previousEnd;
-  return { length, offset };
+  return [offset, offset + length];
 };
 
 /**
@@ -340,9 +332,9 @@ const parseMediaPlaylist = (text, baseUrl, variantCodecs) => {
   /** @type {ISOBMFFSegment[]} */
   const segments = [];
 
-  /** @type {{ url: string, byteRange: ByteRange | null } | null} */
+  /** @type {{ url: string, byteRange: [number, number] | null } | null} */
   let currentMap = null;
-  /** @type {ByteRange | null} */
+  /** @type {[number, number] | null} */
   let pendingByteRange = null;
   /** @type {number} */
   let byteRangeEnd = 0; // tracks implicit offset for chained byte ranges
@@ -371,14 +363,14 @@ const parseMediaPlaylist = (text, baseUrl, variantCodecs) => {
         continue;
       }
       const mapUrl = resolveUrl(baseUrl, mapUri);
-      /** @type {ByteRange | null} */
+      /** @type {[number, number] | null} */
       let mapRange = null;
       if (attrs.has("BYTERANGE")) {
         mapRange = parseByteRange(
           /** @type {string} */ (attrs.get("BYTERANGE")),
           mapByteRangeEnd,
         );
-        mapByteRangeEnd = mapRange.offset + mapRange.length;
+        mapByteRangeEnd = mapRange[1];
       }
       currentMap = { url: mapUrl, byteRange: mapRange };
       continue;
@@ -423,10 +415,10 @@ const parseMediaPlaylist = (text, baseUrl, variantCodecs) => {
 
     // Determine byte range (EXTINF-paired inline byterange appears in some encoders as
     // the next #EXT-X-BYTERANGE before the URI – already captured in pendingByteRange).
-    /** @type {ByteRange | null} */
+    /** @type {[number, number] | null} */
     const byteRange = pendingByteRange;
     if (byteRange) {
-      byteRangeEnd = byteRange.offset + byteRange.length;
+      byteRangeEnd = byteRange[1];
     }
 
     // ISOBMFF check – use variant codecs hint if available

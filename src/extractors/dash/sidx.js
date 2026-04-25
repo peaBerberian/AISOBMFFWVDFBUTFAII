@@ -1,3 +1,5 @@
+import { parseByteRange } from "./utils";
+
 /**
  * Walk a DashTree and resolve all `sidxPending` entries in parallel,
  * replacing each with fully-populated `segments`.
@@ -29,29 +31,6 @@ export async function resolveSIDX(tree, signal) {
   }
   await Promise.all(tasks);
   return tree;
-}
-
-/**
- * Parse a byte-range string "first-last" into [first, last] (both inclusive).
- * @param {string} range
- * @returns {[number, number] | undefined}
- */
-function parseByteRange(range) {
-  const m = range.match(/^(\d+)-(\d+)$/);
-  if (!m) {
-    return undefined;
-  }
-  return [Number(m[1]), Number(m[2])];
-}
-
-/**
- * Format an inclusive byte range as an HTTP Range / MPD byteRange string.
- * @param {number} first
- * @param {number} last
- * @returns {string}
- */
-function formatRange(first, last) {
-  return `${first}-${last}`;
 }
 
 /**
@@ -361,10 +340,10 @@ async function resolveSidxPending(pending, signal) {
     return segments;
   }
 
-  for (const [first, last] of byteRanges) {
+  for (const range of byteRanges) {
     segments.push({
       url: mediaURL,
-      byteRange: formatRange(first, last),
+      byteRange: range,
       type: "media",
       isISOBMFF: true,
     });

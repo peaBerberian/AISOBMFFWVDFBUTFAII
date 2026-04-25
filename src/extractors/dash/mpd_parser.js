@@ -6,6 +6,7 @@ import {
   isISOBMFF,
   numAttr,
   pad,
+  parseByteRange,
   parseISO8601Duration,
 } from "./utils.js";
 
@@ -298,7 +299,11 @@ export function parseMPD(mpdText, mpdURL = "", signal) {
             if (initEl) {
               const src = attr(initEl, "sourceURL");
               const initURL = src ? resolveURL(baseURL, src) : baseURL;
-              const initRange = attr(initEl, "range");
+              const initRangeAttr = attr(initEl, "range");
+              const initRange =
+                initRangeAttr === undefined
+                  ? undefined
+                  : parseByteRange(initRangeAttr);
               if (initURL && isISOBMFF(initURL, repMimeType)) {
                 initSegment = {
                   url: initURL,
