@@ -40,8 +40,6 @@ class InspectionResultsViewClass {
   #sampleView = requireElementById("sample-view", HTMLElement);
   /** @type {Array<import("./tabs/index.js").BoxTreeNodeView>} */
   #stack = [];
-  /** @type {Array<import("isobmff-inspector").ParsedBox>} */
-  #topLevelBoxes = [];
   #renderedBoxCount = 0;
   #abortCtrlr = new AbortController();
 
@@ -59,7 +57,6 @@ class InspectionResultsViewClass {
     this.#abortCtrlr = new AbortController();
     this.#clearDom();
     this.#stack.length = 0;
-    this.#topLevelBoxes.length = 0;
     this.#renderedBoxCount = 0;
   }
 
@@ -115,28 +112,17 @@ class InspectionResultsViewClass {
     }
 
     current.updateBox(box);
-    if (depth === 0) {
-      this.#topLevelBoxes.push(box);
-    }
     return true;
   }
 
   /**
    * @param {import("isobmff-inspector").ParsedBox} box
    */
-  appendRecoveredTopLevelBox(box) {
-    const recoveredBox = {
-      ...box,
-      type: box.type || "(header)",
-      description:
-        box.description ??
-        "The parser could not read a complete top-level box header.",
-    };
-    const view = new BoxTreeNodeView(recoveredBox, {
+  appendTopLevelBox(box) {
+    const view = new BoxTreeNodeView(box, {
       autoOpen: true,
     });
     this.#wrapper.appendChild(view.element);
-    this.#topLevelBoxes.push(recoveredBox);
   }
 
   /**
@@ -156,6 +142,7 @@ class InspectionResultsViewClass {
 
   /**
    * @param {{
+   *   topLevelBoxes: Array<import("isobmff-inspector").ParsedBox>,
    *   supplementalMetadata?: {
    *     boxes: Array<import("isobmff-inspector").ParsedBox>,
    *   } | null,
@@ -163,23 +150,24 @@ class InspectionResultsViewClass {
    * } | null} [options]
    */
   finalize(options = null) {
+    const topLevelBoxes = options?.topLevelBoxes ?? [];
     const supplementalMetadata = options?.supplementalMetadata ?? null;
     const renderOptions = supplementalMetadata
       ? { supplementalBoxes: supplementalMetadata.boxes }
       : {};
-    renderMediaInfo(this.#topLevelBoxes, renderOptions);
-    const hasCodecDetails = renderCodecDetails(this.#topLevelBoxes, {
+    renderMediaInfo(topLevelBoxes, renderOptions);
+    const hasCodecDetails = renderCodecDetails(topLevelBoxes, {
       ...renderOptions,
       results: options?.codecDetailsResults ?? null,
     });
     this.#codecTabButton.hidden = !hasCodecDetails;
     this.#codecPanel.hidden = !hasCodecDetails;
-    const hasSampleView = renderSampleView(this.#topLevelBoxes, renderOptions);
+    const hasSampleView = renderSampleView(topLevelBoxes, renderOptions);
     this.#sampleTabButton.hidden = !hasSampleView;
     this.#sampleTabPanel.hidden = !hasSampleView;
-    renderSizeChart(this.#topLevelBoxes);
+    renderSizeChart(topLevelBoxes);
     renderTreePositionMap(
-      this.#topLevelBoxes,
+      topLevelBoxes,
       this.#wrapper,
       this.#abortCtrlr.signal,
     );
