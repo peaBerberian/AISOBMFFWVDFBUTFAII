@@ -13,14 +13,15 @@ import InspectionSession from "./InspectionSession.js";
  * finished, render the rest of the UI with the right information.
  *
  * @param {import("isobmff-inspector").ISOBMFFInput} input
- * @param {AbortSignal} abortSignal
+ * @param {import("./InspectionLifecycle.js").InspectionRun} run
  * @param {{
  *   supplementalMetadataPromise?: Promise<{
  *     boxes: Array<import("isobmff-inspector").ParsedBox>,
  *   } | null>,
  * }} [options]
  */
-export async function parseAndRenderSegment(input, abortSignal, options = {}) {
+export async function parseAndRenderSegment(input, run, options = {}) {
+  const abortSignal = run.controller.signal;
   let boxCount = 0;
   InspectionResultsView.prepareForParsing();
   ProgressBar.updateStatus("parsing…");
@@ -46,13 +47,14 @@ export async function parseAndRenderSegment(input, abortSignal, options = {}) {
   const inspectionSession = new InspectionSession({
     supplementalBoxes: supplementalMetadata?.boxes ?? [],
   });
+  run.session = inspectionSession;
 
   try {
     for await (const event of parseEvents(input, {
       payloads: {
         include: ["mdat"],
         onChunk(info, chunk) {
-          inspectionSession.observePayloadChunk(info, chunk);
+          inspectionSession.onMdatPayload(info, chunk);
         },
       },
     })) {
@@ -116,12 +118,14 @@ export async function parseAndRenderSegment(input, abortSignal, options = {}) {
       InspectionResultsView.renderNotice(emptyInputNotice);
     }
 
-    const finalizeData =
-      inspectionSession.buildFinalizeData(supplementalMetadata);
+    const topLevelBoxes = inspectionSession.getTopLevelBoxes();
+    const codecDetailsResults = inspectionSession.getCodecDetailsResults(
+      supplementalMetadata?.boxes ?? [],
+    );
     InspectionResultsView.finalize({
-      topLevelBoxes: finalizeData.topLevelBoxes,
+      topLevelBoxes,
       supplementalMetadata,
-      codecDetailsResults: finalizeData.codecDetailsResults,
+      codecDetailsResults,
     });
     completed = true;
   } catch (err) {

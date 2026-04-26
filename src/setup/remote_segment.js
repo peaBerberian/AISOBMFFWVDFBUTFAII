@@ -66,18 +66,18 @@ async function loadSupplementalInitMetadata(segment, signal) {
 
 /**
  * Fetch, parse, and render a remote segment.
- * Returns immediately if the controller is no longer current or was aborted.
+ * Returns immediately if the run is no longer current or was aborted.
  *
  * @param {string} segmentUrl
  * @param {[number, number|undefined]|undefined} byteRange
- * @param {AbortController} controller
+ * @param {import("./InspectionLifecycle.js").InspectionRun} run
  * @param {RemoteSegmentOptions} options
  * @returns {Promise<void>}
  */
 export function inspectRemoteSegment(
   segmentUrl,
   byteRange,
-  controller,
+  run,
   {
     selectedLabel,
     selectedValue,
@@ -90,7 +90,7 @@ export function inspectRemoteSegment(
     statusMessage = undefined,
   },
 ) {
-  if (!isCurrentInspection(controller) || controller.signal.aborted) {
+  if (!isCurrentInspection(run) || run.controller.signal.aborted) {
     return Promise.resolve();
   }
 
@@ -113,24 +113,24 @@ export function inspectRemoteSegment(
   const inputPromise =
     input !== undefined
       ? Promise.resolve(input)
-      : fetchSegmentInput(segmentUrl, byteRange, controller.signal);
+      : fetchSegmentInput(segmentUrl, byteRange, run.controller.signal);
 
   return inputPromise
     .then((segmentInput) => {
       const supplementalMetadataPromise = companionInit
-        ? loadSupplementalInitMetadata(companionInit, controller.signal)
+        ? loadSupplementalInitMetadata(companionInit, run.controller.signal)
         : Promise.resolve(null);
-      return parseAndRenderSegment(segmentInput, controller.signal, {
+      return parseAndRenderSegment(segmentInput, run, {
         supplementalMetadataPromise,
       });
     })
     .catch((err) => {
-      if (!controller.signal.aborted) {
+      if (!run.controller.signal.aborted) {
         ProgressBar.fail(err instanceof Error ? err.message : "Unknown Error");
       }
     })
     .finally(() => {
-      finishInspectionLifecycle(controller);
+      finishInspectionLifecycle(run);
     });
 }
 
@@ -141,7 +141,7 @@ export function inspectRemoteSegment(
  *
  * @param {string} segmentUrl
  * @param {[number, number|undefined]|undefined} byteRange
- * @param {AbortController} controller
+ * @param {import("./InspectionLifecycle.js").InspectionRun} run
  * @param {string | null} originUrl
  * @param {string | null} originKind
  * @param {{ url: string, byteRange: [number, number|undefined]|undefined } | undefined} [companionInit]
@@ -150,12 +150,12 @@ export function inspectRemoteSegment(
 export function inspectChosenSegment(
   segmentUrl,
   byteRange,
-  controller,
+  run,
   originUrl = null,
   originKind = null,
   companionInit = undefined,
 ) {
-  return inspectRemoteSegment(segmentUrl, byteRange, controller, {
+  return inspectRemoteSegment(segmentUrl, byteRange, run, {
     selectedLabel: "Selected segment URL",
     selectedValue: segmentUrl,
     originLabel: originUrl && originKind ? `${originKind} source` : undefined,

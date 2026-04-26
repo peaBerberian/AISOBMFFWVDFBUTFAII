@@ -16,6 +16,17 @@ const USUAL_FIRST_BOX_TYPES = new Set([
   "uuid",
 ]);
 
+/**
+ * Handle transitive data while parsing a segment allowing for advanced
+ * analysis.
+ *
+ * For example media segment may contain a huge amount of media data we may
+ * not want to keep all in memory. To handle this, `InspectionSession` can be
+ * made aware of chunked parsed data as it is read, and determine through its
+ * own algorithms what needs to be kept and what does not need to.
+ *
+ * Once parsing has been done
+ */
 export default class InspectionSession {
   #codecCoordinator;
   /** @type {Array<import("isobmff-inspector").ParsedBox>} */
@@ -102,7 +113,7 @@ export default class InspectionSession {
    * @param {import("isobmff-inspector").BoxPayloadChunkInfo} info
    * @param {Uint8Array} bytes
    */
-  observePayloadChunk(info, bytes) {
+  onMdatPayload(info, bytes) {
     this.#codecCoordinator.consumeSpan({
       start: info.payloadAbsoluteOffset,
       bytes,
@@ -120,20 +131,6 @@ export default class InspectionSession {
 
   getTopLevelBoxes() {
     return this.#topLevelBoxes;
-  }
-
-  /**
-   * @param {{
-   *   boxes: Array<import("isobmff-inspector").ParsedBox>,
-   * } | null} supplementalMetadata
-   */
-  buildFinalizeData(supplementalMetadata = null) {
-    return {
-      topLevelBoxes: this.getTopLevelBoxes(),
-      codecDetailsResults: this.getCodecDetailsResults(
-        supplementalMetadata?.boxes ?? [],
-      ),
-    };
   }
 
   /**

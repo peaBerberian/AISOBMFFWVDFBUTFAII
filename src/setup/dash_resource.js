@@ -15,7 +15,7 @@ import {
  *
  * @param {string} sourceUrl
  * @param {{ text: string | null }} probe
- * @param {AbortController} controller
+ * @param {import("./InspectionLifecycle.js").InspectionRun} run
  * @param {(
  *   segmentUrl: string,
  *   byteRange: [number, number|undefined]|undefined,
@@ -23,13 +23,8 @@ import {
  * ) => void} onSegmentChosen
  * @returns {Promise<void>}
  */
-export async function handleDashSource(
-  sourceUrl,
-  probe,
-  controller,
-  onSegmentChosen,
-) {
-  const signal = controller.signal;
+export async function handleDashSource(sourceUrl, probe, run, onSegmentChosen) {
+  const signal = run.controller.signal;
 
   setInspectionSource({
     selectedLabel: "DASH manifest",

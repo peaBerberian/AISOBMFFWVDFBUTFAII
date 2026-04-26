@@ -27,8 +27,8 @@ function formatFileInput(file, signal) {
  * @param {Blob} file
  */
 export function parseLocalFile(file) {
-  const controller = beginInspectionLifecycle();
-  const signal = controller.signal;
+  const run = beginInspectionLifecycle();
+  const signal = run.controller.signal;
   const namedFile = /** @type {{ name?: string }} */ (file);
 
   ProgressBar.start("Loading local file...");
@@ -37,8 +37,8 @@ export function parseLocalFile(file) {
     selectedLabel: "Local file",
     selectedValue: namedFile.name || "Unnamed file",
   });
-  parseAndRenderSegment(formatFileInput(file, signal), signal).finally(() => {
-    finishInspectionLifecycle(controller);
+  parseAndRenderSegment(formatFileInput(file, signal), run).finally(() => {
+    finishInspectionLifecycle(run);
   });
 }
 

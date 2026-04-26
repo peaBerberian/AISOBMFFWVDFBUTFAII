@@ -12,6 +12,10 @@ import {
 const AUTO_OPEN_BOX_LIMIT = 200;
 
 /**
+ * Handle the central UI around result presentation, both wile parsing (where
+ * the progressive box tree is shown) and at its end (where all UI formatting)
+ * the result is shown.
+ *
  * @typedef {{ severity: "warning" | "error", message: string }} ParseNotice
  * @typedef {import("../utils/box_size.js").BoxWithOptionalActualSize} PendingParsedBox
  */

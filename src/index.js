@@ -32,25 +32,21 @@ initializeGithubStars();
  * @param {{ url: string, byteRange: [number, number|undefined]|undefined } | undefined} [companionInit]
  */
 function inspectUrl(url, companionInit = undefined) {
-  const controller = beginInspectionLifecycle();
-  inspectRemoteUrl(url, controller, companionInit).finally(() => {
+  const run = beginInspectionLifecycle();
+  inspectRemoteUrl(url, run, companionInit).finally(() => {
     if (!hasVisibleSegmentChooser()) {
-      finishInspectionLifecycle(controller);
+      finishInspectionLifecycle(run);
     }
   });
 }
 
 /**
  * @param {string} sourceUrl
- * @param {AbortController} controller
+ * @param {import("./setup/InspectionLifecycle.js").InspectionRun} run
  * @param {{ url: string, byteRange: [number, number|undefined]|undefined } | undefined} [companionInit]
  */
-async function inspectRemoteUrl(
-  sourceUrl,
-  controller,
-  companionInit = undefined,
-) {
-  const signal = controller.signal;
+async function inspectRemoteUrl(sourceUrl, run, companionInit = undefined) {
+  const signal = run.controller.signal;
 
   ProgressBar.start("Probing remote source…");
   ProgressBar.startEasing();
@@ -81,21 +77,21 @@ async function inspectRemoteUrl(
     inspectChosenSegment(
       segmentUrl,
       byteRange,
-      controller,
+      run,
       sourceUrl,
       originKindLabel,
       companionInit,
     );
 
   if (probe.kind === "dash") {
-    return handleDashSource(sourceUrl, probe, controller, onSegmentChosen);
+    return handleDashSource(sourceUrl, probe, run, onSegmentChosen);
   }
   if (probe.kind === "hls") {
-    return handleHlsSource(sourceUrl, probe, controller, onSegmentChosen);
+    return handleHlsSource(sourceUrl, probe, run, onSegmentChosen);
   }
 
   // Plain ISOBMFF segment or unknown type — inspect directly.
-  return inspectRemoteSegment(sourceUrl, undefined, controller, {
+  return inspectRemoteSegment(sourceUrl, undefined, run, {
     selectedLabel: "Remote resource",
     selectedValue: sourceUrl,
     extraSources: companionInit
