@@ -53,9 +53,7 @@ export async function handleHlsSource(
       return;
     }
 
-    ProgressBar.end(
-      "HLS playlist loaded. Choose a stream to inspect or load on demand.",
-    );
+    ProgressBar.end("HLS playlist loaded.");
     InspectionResultsView.clear();
 
     const renderChooser = () => {
@@ -71,7 +69,7 @@ export async function handleHlsSource(
             if (signal.aborted) {
               return;
             }
-            ProgressBar.end("HLS segment list loaded.");
+            ProgressBar.end("HLS segment list loaded");
             renderChooser();
           } catch (err) {
             if (!signal.aborted) {

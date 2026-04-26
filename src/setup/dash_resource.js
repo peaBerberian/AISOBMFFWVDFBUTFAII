@@ -53,9 +53,7 @@ export async function handleDashSource(
       return;
     }
 
-    ProgressBar.end(
-      "DASH manifest loaded. Choose a representation to inspect or load on demand.",
-    );
+    ProgressBar.end("DASH manifest loaded.");
     InspectionResultsView.clear();
 
     const renderChooser = () => {
@@ -71,7 +69,7 @@ export async function handleDashSource(
             if (signal.aborted) {
               return;
             }
-            ProgressBar.end("DASH segment list loaded.");
+            ProgressBar.end("DASH segment list loaded");
             renderChooser();
           } catch (err) {
             if (!signal.aborted) {
