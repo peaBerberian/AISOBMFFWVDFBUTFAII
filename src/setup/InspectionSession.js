@@ -122,6 +122,14 @@ export default class InspectionSession {
   }
 
   /**
+   * @param {Blob} file
+   * @param {AbortSignal} abortSignal
+   */
+  async completeLocalFileAnalysis(file, abortSignal) {
+    await this.#codecCoordinator.completeLocalFileAnalysis(file, abortSignal);
+  }
+
+  /**
    * @param {Array<import("isobmff-inspector").ParsedBox>} supplementalBoxes
    */
   getCodecDetailsResults(supplementalBoxes) {

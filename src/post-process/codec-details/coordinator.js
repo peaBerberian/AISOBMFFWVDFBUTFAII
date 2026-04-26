@@ -48,7 +48,10 @@ const MAX_ANALYZED_NALS = 4000;
  *   passedBeforeReady: boolean,
  *   sampleClassCounts: Map<string, number>,
  *   nalTypeCounts: Map<string, number>,
- *   sampleSequence: string[],
+ *   sampleSequenceEntries: Array<{ sampleIndex: number, label: string }>,
+ *   deferredLocations: SampleLocation[],
+ *   localRereadSamples: number,
+ *   localRereadFailed: boolean,
  *   issues: string[],
  * }} TrackState
  */
@@ -204,6 +207,50 @@ export default class CodecDetailsCoordinator {
   }
 
   /**
+   * @param {Blob} file
+   * @param {AbortSignal} abortSignal
+   */
+  async completeLocalFileAnalysis(file, abortSignal) {
+    for (const trackState of this.#tracks.values()) {
+      if (
+        abortSignal.aborted ||
+        trackState.protected ||
+        trackState.lengthSize == null
+      ) {
+        continue;
+      }
+      while (
+        trackState.deferredLocations.length > 0 &&
+        trackState.analyzedSamples < MAX_ANALYZED_SAMPLES &&
+        trackState.nalCount < MAX_ANALYZED_NALS
+      ) {
+        if (abortSignal.aborted) {
+          return;
+        }
+        const location = trackState.deferredLocations.shift();
+        if (!location) {
+          break;
+        }
+        try {
+          const sampleBytes = await readSampleBytes(file, location);
+          if (abortSignal.aborted) {
+            return;
+          }
+          this.#analyzeSample(trackState, location.index, sampleBytes);
+          trackState.localRereadSamples++;
+        } catch (err) {
+          trackState.localRereadFailed = true;
+          const message = err instanceof Error ? err.message : String(err);
+          trackState.issues.push(
+            `local reread failed for sample ${location.index}: ${message}`,
+          );
+          break;
+        }
+      }
+    }
+  }
+
+  /**
    * @param {any[]} results
    */
   mergeIntoResults(results) {
@@ -348,6 +395,7 @@ export default class CodecDetailsCoordinator {
         )
       ) {
         trackState.passedBeforeReady = true;
+        this.#queueDeferredSample(trackState, location);
       }
     }
   }
@@ -369,6 +417,7 @@ export default class CodecDetailsCoordinator {
       const sampleEnd = location.offset + location.size;
       if (sampleEnd <= span.start) {
         trackState.passedBeforeReady = true;
+        this.#queueDeferredSample(trackState, location);
         trackState.cursor++;
         trackState.partialSample = null;
         continue;
@@ -378,6 +427,7 @@ export default class CodecDetailsCoordinator {
       }
       if (!trackState.partialSample && span.start > location.offset) {
         trackState.passedBeforeReady = true;
+        this.#queueDeferredSample(trackState, location);
         trackState.cursor++;
         continue;
       }
@@ -393,6 +443,7 @@ export default class CodecDetailsCoordinator {
         createPartialSample(location.index, location.offset, location.size);
       if (partial.nextOffset !== overlapStart) {
         trackState.passedBeforeReady = true;
+        this.#queueDeferredSample(trackState, location);
         trackState.partialSample = null;
         trackState.cursor++;
         continue;
@@ -498,22 +549,24 @@ export default class CodecDetailsCoordinator {
         (trackState.sampleClassCounts.get(sampleClass) ?? 0) + 1,
       );
     }
-    if (trackState.sampleSequence.length < 48) {
-      if (trackState.codecFamily === "avc" && sampleClass) {
-        trackState.sampleSequence.push(
-          sampleHasIdr ? `${sampleClass}*` : sampleClass,
-        );
-      } else if (trackState.codecFamily === "hevc") {
-        trackState.sampleSequence.push(
-          sampleHasIdr
-            ? "IDR"
-            : sampleHasCra
-              ? "CRA"
-              : sampleHasIrap
-                ? "IRAP"
-                : "other",
-        );
-      }
+    if (trackState.codecFamily === "avc" && sampleClass) {
+      this.#recordSampleSequence(
+        trackState,
+        sampleIndex,
+        sampleHasIdr ? `${sampleClass}*` : sampleClass,
+      );
+    } else if (trackState.codecFamily === "hevc") {
+      this.#recordSampleSequence(
+        trackState,
+        sampleIndex,
+        sampleHasIdr
+          ? "IDR"
+          : sampleHasCra
+            ? "CRA"
+            : sampleHasIrap
+              ? "IRAP"
+              : "other",
+      );
     }
   }
 
@@ -541,15 +594,20 @@ export default class CodecDetailsCoordinator {
         "sample payload analysis unavailable because the selected samples are protected or encrypted",
       );
     } else if (trackState.analyzedSamples > 0) {
+      const usedLocalRereads = trackState.localRereadSamples > 0;
       sampleFacts.push({
         label: "Analyzed Samples",
         value: String(trackState.analyzedSamples),
-        note: "decoded from mapped sample payload bytes during the streaming parse",
+        note: usedLocalRereads
+          ? "decoded from mapped sample payload bytes across the streaming pass and targeted local rereads"
+          : "decoded from mapped sample payload bytes during the streaming parse",
       });
       sampleFacts.push({
         label: "Analyzed NAL Units",
         value: String(trackState.nalCount),
-        note: "total length-prefixed NAL units inspected in the current streaming window",
+        note: usedLocalRereads
+          ? "total length-prefixed NAL units inspected across the streaming pass and local rereads"
+          : "total length-prefixed NAL units inspected in the current streaming window",
       });
       if (trackState.sampleClassCounts.size > 0) {
         const sliceClasses = [...trackState.sampleClassCounts.entries()]
@@ -562,23 +620,83 @@ export default class CodecDetailsCoordinator {
           note: "decode-order slice classes inferred from AVC slice headers",
         });
       }
+      if (trackState.localRereadSamples > 0) {
+        sampleFacts.push({
+          label: "Local Rereads",
+          value: String(trackState.localRereadSamples),
+          note: "sample payloads re-read from the local file after late metadata became available",
+        });
+      }
     }
 
     if (trackState.passedBeforeReady) {
       sampleDetails.push(
         "some mapped sample payload bytes passed before codec metadata or sample mapping were ready, so the streaming pass could not inspect them",
       );
+      if (trackState.localRereadSamples > 0) {
+        sampleDetails.push(
+          "local random-access rereads recovered part of that missed payload analysis without buffering the whole file",
+        );
+      }
+    }
+
+    if (
+      trackState.deferredLocations.length > 0 &&
+      !trackState.protected &&
+      !trackState.localRereadFailed
+    ) {
+      sampleDetails.push(
+        "some deferred sample ranges remain unanalyzed because the codec analysis window limit was reached",
+      );
     }
 
     return {
       sampleFacts,
       sampleDetails,
-      sampleSequence: trackState.sampleSequence,
+      sampleSequence: trackState.sampleSequenceEntries
+        .slice()
+        .sort((left, right) => left.sampleIndex - right.sampleIndex)
+        .slice(0, 48)
+        .map((entry) => entry.label),
       nalTypes: [...trackState.nalTypeCounts.entries()]
         .sort((left, right) => right[1] - left[1])
         .map(([label, count]) => ({ label, count })),
       issues,
     };
+  }
+
+  /**
+   * @param {TrackState} trackState
+   * @param {number} sampleIndex
+   * @param {string} label
+   */
+  #recordSampleSequence(trackState, sampleIndex, label) {
+    if (
+      trackState.sampleSequenceEntries.some(
+        (entry) => entry.sampleIndex === sampleIndex,
+      )
+    ) {
+      return;
+    }
+    trackState.sampleSequenceEntries.push({ sampleIndex, label });
+  }
+
+  /**
+   * @param {TrackState} trackState
+   * @param {SampleLocation} location
+   */
+  #queueDeferredSample(trackState, location) {
+    if (
+      trackState.deferredLocations.some(
+        (deferred) =>
+          deferred.index === location.index &&
+          deferred.offset === location.offset &&
+          deferred.size === location.size,
+      )
+    ) {
+      return;
+    }
+    trackState.deferredLocations.push(location);
   }
 }
 
@@ -606,7 +724,11 @@ function createTrackState(trackId) {
     passedBeforeReady: false,
     sampleClassCounts: new Map(),
     nalTypeCounts: new Map(),
-    sampleSequence: /** @type {string[]} */ ([]),
+    sampleSequenceEntries:
+      /** @type {Array<{ sampleIndex: number, label: string }>} */ ([]),
+    deferredLocations: /** @type {SampleLocation[]} */ ([]),
+    localRereadSamples: 0,
+    localRereadFailed: false,
     issues: /** @type {string[]} */ ([]),
   };
 }
@@ -640,4 +762,15 @@ function concatChunks(chunks, totalLength) {
     offset += chunk.length;
   }
   return combined;
+}
+
+/**
+ * @param {Blob} file
+ * @param {SampleLocation} location
+ */
+async function readSampleBytes(file, location) {
+  const buffer = await file
+    .slice(location.offset, location.offset + location.size)
+    .arrayBuffer();
+  return new Uint8Array(buffer);
 }

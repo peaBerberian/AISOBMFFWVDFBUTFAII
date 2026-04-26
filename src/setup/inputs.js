@@ -37,7 +37,9 @@ export function parseLocalFile(file) {
     selectedLabel: "Local file",
     selectedValue: namedFile.name || "Unnamed file",
   });
-  parseAndRenderSegment(formatFileInput(file, signal), run).finally(() => {
+  parseAndRenderSegment(formatFileInput(file, signal), run, {
+    localFileSource: file,
+  }).finally(() => {
     finishInspectionLifecycle(run);
   });
 }
