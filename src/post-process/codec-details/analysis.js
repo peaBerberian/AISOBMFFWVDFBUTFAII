@@ -74,6 +74,7 @@ const HEVC_NAL_TYPE_NAMES = new Map([
  *   nalTypes: Array<{ label: string, count: number }>,
  *   sampleSequence: string[],
  *   issues: string[],
+ *   canDeepenPayloadRemotely?: boolean,
  * }} CodecTrackDetails
  *
  * @typedef {{
@@ -161,6 +162,7 @@ export default function deriveCodecDetails(boxes, options = {}) {
       issues: [
         "This looks like a standalone media fragment without an init segment. Sample entry definitions and decoder configuration are usually carried in the init segment, so codec-specific analysis is limited here.",
       ],
+      canDeepenPayloadRemotely: false,
     });
   }
 
@@ -364,6 +366,7 @@ function deriveTrackCodecDetails(trak, boxes, moofs, trexDefaults, bytes) {
       ...sampleIssues,
       ...(sampleAnalysis?.issues ?? []),
     ],
+    canDeepenPayloadRemotely: false,
   };
 }
 
@@ -487,6 +490,7 @@ function buildGenericTrackCodecDetails(input) {
     nalTypes: [],
     sampleSequence: [],
     issues: [...codecMetadata.issues],
+    canDeepenPayloadRemotely: false,
   };
 }
 

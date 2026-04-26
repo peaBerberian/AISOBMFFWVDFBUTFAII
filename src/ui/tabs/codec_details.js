@@ -6,6 +6,25 @@ import { numberFormat } from "../../utils/format.js";
  * @param {{
  *   supplementalBoxes?: Array<import("isobmff-inspector").ParsedBox> | null,
  *   results?: Array<any> | null,
+ *   remoteDeferredAnalysisAction?: {
+ *     state: {
+ *       available: boolean,
+ *       blockedReason: string | null,
+ *       pendingTrackCount: number,
+ *       pendingSampleCount: number,
+ *       recoveredSampleCount: number,
+ *     },
+ *     run: () => Promise<{
+ *       state: {
+ *         available: boolean,
+ *         blockedReason: string | null,
+ *         pendingTrackCount: number,
+ *         pendingSampleCount: number,
+ *         recoveredSampleCount: number,
+ *       },
+ *       results: Array<any>,
+ *     } | null>,
+ *   } | null,
  * }} [options]
  * @returns {boolean}
  */
@@ -16,7 +35,7 @@ export default function renderCodecDetails(boxes, options = {}) {
     return false;
   }
 
-  const results = options.results ?? [];
+  let results = options.results ?? [];
   if (!results.length) {
     return false;
   }
@@ -33,6 +52,13 @@ export default function renderCodecDetails(boxes, options = {}) {
   }
   picker.body.appendChild(sourceSelect);
   controls.appendChild(picker.wrap);
+  const remoteActionState = {
+    busy: false,
+    error: "",
+    action: options.remoteDeferredAnalysisAction ?? null,
+  };
+  const deferredAction = createDeferredActionControl();
+  controls.appendChild(deferredAction.wrap);
 
   const summary = el("div", "codec-summary");
   const content = el("div", "codec-content");
@@ -50,9 +76,45 @@ export default function renderCodecDetails(boxes, options = {}) {
   render();
   return true;
 
+  async function triggerDeferredAnalysis() {
+    if (!remoteActionState.action || remoteActionState.busy) {
+      return;
+    }
+    remoteActionState.busy = true;
+    remoteActionState.error = "";
+    render();
+    try {
+      const next = await remoteActionState.action.run();
+      if (!next) {
+        return;
+      }
+      results = next.results;
+      remoteActionState.action = {
+        ...remoteActionState.action,
+        state: next.state,
+      };
+      state.result =
+        results.find(
+          (result) => result.trackLabel === state.result.trackLabel,
+        ) ?? results[0];
+    } catch (err) {
+      remoteActionState.error =
+        err instanceof Error ? err.message : String(err);
+    } finally {
+      remoteActionState.busy = false;
+      render();
+    }
+  }
+
   function render() {
     sourceSelect.value = state.result.trackLabel;
     sourceSelect.disabled = results.length === 1;
+    updateDeferredActionControl(
+      deferredAction,
+      state.result,
+      remoteActionState,
+      triggerDeferredAnalysis,
+    );
     summary.replaceChildren(renderSummary(state.result));
     content.replaceChildren();
     const merged = mergeDetailItems(state.result);
@@ -100,6 +162,87 @@ function renderSummary(result) {
   addStat(wrap, "codec", result.codecLabel);
   addStat(wrap, "focus", result.description);
   return wrap;
+}
+
+function createDeferredActionControl() {
+  const wrap = el("div", "codec-deferred-action");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "codec-deferred-button";
+  const status = el("div", "codec-deferred-status");
+  wrap.appendChild(button);
+  wrap.appendChild(status);
+  return { wrap, button, status };
+}
+
+/**
+ * @param {{ wrap: HTMLElement, button: HTMLButtonElement, status: HTMLElement }} control
+ * @param {any} result
+ * @param {{
+ *   busy: boolean,
+ *   error: string,
+ *   action: {
+ *     state: {
+ *       available: boolean,
+ *       blockedReason: string | null,
+ *       pendingTrackCount: number,
+ *       pendingSampleCount: number,
+ *       recoveredSampleCount: number,
+ *     },
+ *     run: () => Promise<{ state: any, results: Array<any> } | null>,
+ *   } | null,
+ * }} remoteActionState
+ * @param {() => void} onClick
+ */
+function updateDeferredActionControl(
+  control,
+  result,
+  remoteActionState,
+  onClick,
+) {
+  const action = remoteActionState.action;
+  const shouldShow =
+    action &&
+    (result.canDeepenPayloadRemotely ||
+      Boolean(remoteActionState.error) ||
+      Boolean(action.state.blockedReason));
+  control.wrap.hidden = !shouldShow;
+  if (!shouldShow || !action) {
+    return;
+  }
+
+  control.button.disabled =
+    remoteActionState.busy || !result.canDeepenPayloadRemotely;
+  control.button.textContent = remoteActionState.busy
+    ? "Fetching byte ranges..."
+    : "Deepen payload analysis";
+  control.button.onclick = onClick;
+
+  if (remoteActionState.error) {
+    control.status.textContent = remoteActionState.error;
+    control.status.className =
+      "codec-deferred-status codec-deferred-status-warn";
+    return;
+  }
+  if (action.state.blockedReason) {
+    control.status.textContent = action.state.blockedReason;
+    control.status.className =
+      "codec-deferred-status codec-deferred-status-warn";
+    return;
+  }
+  if (remoteActionState.busy) {
+    control.status.textContent = `Fetching up to ${numberFormat(action.state.pendingSampleCount)} deferred sample range(s) from the remote resource.`;
+    control.status.className = "codec-deferred-status";
+    return;
+  }
+  const trackCount = numberFormat(action.state.pendingTrackCount);
+  const sampleCount = numberFormat(action.state.pendingSampleCount);
+  const recoveredCount = numberFormat(action.state.recoveredSampleCount);
+  control.status.textContent =
+    action.state.recoveredSampleCount > 0
+      ? `${recoveredCount} sample range(s) already recovered; ${sampleCount} deferred range(s) remain across ${trackCount} track(s).`
+      : `${sampleCount} deferred sample range(s) remain across ${trackCount} track(s).`;
+  control.status.className = "codec-deferred-status";
 }
 
 /**

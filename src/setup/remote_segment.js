@@ -122,6 +122,10 @@ export function inspectRemoteSegment(
         : Promise.resolve(null);
       return parseAndRenderSegment(segmentInput, run, {
         supplementalMetadataPromise,
+        remoteSource: {
+          url: segmentUrl,
+          byteRange,
+        },
       });
     })
     .catch((err) => {

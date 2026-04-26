@@ -19,9 +19,11 @@ import ProgressBar from "../ui/ProgressBar.js";
 let currentInspectionRun = null;
 
 /**
+ * @param {{ preserveResultsOnAbort?: boolean }} [options]
  * @returns {InspectionRun}
  */
-export function beginInspectionLifecycle() {
+export function beginInspectionLifecycle(options = {}) {
+  const preserveResultsOnAbort = options.preserveResultsOnAbort ?? false;
   currentInspectionRun?.controller.abort();
   hideSegmentChooser();
   const controller = new AbortController();
@@ -43,8 +45,10 @@ export function beginInspectionLifecycle() {
         return;
       }
       hideSegmentChooser();
-      clearInspectionSource();
-      InspectionResultsView.clear();
+      if (!preserveResultsOnAbort) {
+        clearInspectionSource();
+        InspectionResultsView.clear();
+      }
       InspectionResultsView.setLoading(false);
       ProgressBar.bindAbortController(null);
       currentInspectionRun = null;

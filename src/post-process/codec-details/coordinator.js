@@ -53,6 +53,8 @@ const MAX_ANALYZED_NALS = 4000;
  *   deferredLocations: SampleLocation[],
  *   localRereadSamples: number,
  *   localRereadFailed: boolean,
+ *   remoteRereadSamples: number,
+ *   remoteRereadFailed: boolean,
  *   issues: string[],
  * }} TrackState
  */
@@ -104,6 +106,8 @@ export default class CodecDetailsCoordinator {
   #tracks = new Map();
   /** @type {Array<import("isobmff-inspector").ParsedBox>} */
   #topLevelBoxes = [];
+  /** @type {string | null} */
+  #remoteRereadBlockedReason = null;
 
   /**
    * @param {{
@@ -212,6 +216,80 @@ export default class CodecDetailsCoordinator {
    * @param {AbortSignal} abortSignal
    */
   async completeLocalFileAnalysis(readRange, abortSignal) {
+    await this.#completeDeferredAnalysis(readRange, abortSignal, "local");
+  }
+
+  /**
+   * @param {RangeReader} readRange
+   * @param {AbortSignal} abortSignal
+   */
+  async completeRemoteFileAnalysis(readRange, abortSignal) {
+    await this.#completeDeferredAnalysis(readRange, abortSignal, "remote");
+  }
+
+  getDeferredRemoteAnalysisState() {
+    let pendingTrackCount = 0;
+    let pendingSampleCount = 0;
+    let recoveredSampleCount = 0;
+
+    for (const trackState of this.#tracks.values()) {
+      if (
+        trackState.protected ||
+        trackState.lengthSize == null ||
+        trackState.deferredLocations.length === 0
+      ) {
+        recoveredSampleCount += trackState.remoteRereadSamples;
+        continue;
+      }
+      pendingTrackCount++;
+      pendingSampleCount += trackState.deferredLocations.length;
+      recoveredSampleCount += trackState.remoteRereadSamples;
+    }
+
+    return {
+      available:
+        this.#remoteRereadBlockedReason === null && pendingSampleCount > 0,
+      blockedReason: this.#remoteRereadBlockedReason,
+      pendingTrackCount,
+      pendingSampleCount,
+      recoveredSampleCount,
+    };
+  }
+
+  /**
+   * @param {any[]} results
+   */
+  mergeIntoResults(results) {
+    for (const result of results) {
+      const trackId = result.trackLabel.replace(/^track /, "");
+      const trackState = this.#tracks.get(trackId);
+      if (!trackState) {
+        continue;
+      }
+      const payloadDetails = this.#buildPayloadDetails(trackState);
+      if (!payloadDetails) {
+        continue;
+      }
+      result.sampleFacts = payloadDetails.sampleFacts;
+      result.sampleDetails = payloadDetails.sampleDetails;
+      result.nalTypes = payloadDetails.nalTypes;
+      result.sampleSequence = payloadDetails.sampleSequence;
+      result.issues = [...result.issues, ...payloadDetails.issues];
+      result.canDeepenPayloadRemotely =
+        trackState.lengthSize != null &&
+        !trackState.protected &&
+        trackState.deferredLocations.length > 0 &&
+        this.#remoteRereadBlockedReason === null;
+    }
+    return results;
+  }
+
+  /**
+   * @param {RangeReader} readRange
+   * @param {AbortSignal} abortSignal
+   * @param {"local" | "remote"} sourceKind
+   */
+  async #completeDeferredAnalysis(readRange, abortSignal, sourceKind) {
     for (const trackState of this.#tracks.values()) {
       if (
         abortSignal.aborted ||
@@ -241,40 +319,39 @@ export default class CodecDetailsCoordinator {
           if (abortSignal.aborted) {
             return;
           }
-          trackState.localRereadSamples++;
+          if (sourceKind === "local") {
+            trackState.localRereadSamples++;
+          } else {
+            trackState.remoteRereadSamples++;
+          }
         } catch (err) {
-          trackState.localRereadFailed = true;
+          if (abortSignal.aborted) {
+            return;
+          }
           const message = err instanceof Error ? err.message : String(err);
-          trackState.issues.push(
-            `local reread failed for sample ${location.index}: ${message}`,
-          );
+          if (sourceKind === "local") {
+            trackState.localRereadFailed = true;
+            trackState.issues.push(
+              `local reread failed for sample ${location.index}: ${message}`,
+            );
+          } else {
+            trackState.remoteRereadFailed = true;
+            if (isRangeUnsupportedError(err)) {
+              this.#remoteRereadBlockedReason =
+                "remote deferred analysis is unavailable because this server did not honor the requested HTTP byte range";
+            } else {
+              trackState.issues.push(
+                `remote deferred fetch failed for sample ${location.index}: ${message}`,
+              );
+            }
+          }
           break;
         }
       }
-    }
-  }
-
-  /**
-   * @param {any[]} results
-   */
-  mergeIntoResults(results) {
-    for (const result of results) {
-      const trackId = result.trackLabel.replace(/^track /, "");
-      const trackState = this.#tracks.get(trackId);
-      if (!trackState) {
-        continue;
+      if (sourceKind === "remote" && this.#remoteRereadBlockedReason !== null) {
+        return;
       }
-      const payloadDetails = this.#buildPayloadDetails(trackState);
-      if (!payloadDetails) {
-        continue;
-      }
-      result.sampleFacts = payloadDetails.sampleFacts;
-      result.sampleDetails = payloadDetails.sampleDetails;
-      result.nalTypes = payloadDetails.nalTypes;
-      result.sampleSequence = payloadDetails.sampleSequence;
-      result.issues = [...result.issues, ...payloadDetails.issues];
     }
-    return results;
   }
 
   /**
@@ -741,6 +818,13 @@ export default class CodecDetailsCoordinator {
           note: "sample payloads re-read from the local file after late metadata became available",
         });
       }
+      if (trackState.remoteRereadSamples > 0) {
+        sampleFacts.push({
+          label: "Remote Range Fetches",
+          value: String(trackState.remoteRereadSamples),
+          note: "sample payloads re-fetched by user-driven HTTP byte-range reads after late metadata became available",
+        });
+      }
     }
 
     if (trackState.passedBeforeReady) {
@@ -752,12 +836,23 @@ export default class CodecDetailsCoordinator {
           "local random-access rereads recovered part of that missed payload analysis without buffering the whole file",
         );
       }
+      if (trackState.remoteRereadSamples > 0) {
+        sampleDetails.push(
+          "user-driven remote byte-range fetches recovered part of that missed payload analysis without re-downloading the whole resource",
+        );
+      }
+    }
+
+    if (this.#remoteRereadBlockedReason !== null) {
+      sampleDetails.push(this.#remoteRereadBlockedReason);
     }
 
     if (
       trackState.deferredLocations.length > 0 &&
       !trackState.protected &&
-      !trackState.localRereadFailed
+      !trackState.localRereadFailed &&
+      !trackState.remoteRereadFailed &&
+      this.#remoteRereadBlockedReason === null
     ) {
       sampleDetails.push(
         "some deferred sample ranges remain unanalyzed because the codec analysis window limit was reached",
@@ -843,8 +938,22 @@ function createTrackState(trackId) {
     deferredLocations: /** @type {SampleLocation[]} */ ([]),
     localRereadSamples: 0,
     localRereadFailed: false,
+    remoteRereadSamples: 0,
+    remoteRereadFailed: false,
     issues: /** @type {string[]} */ ([]),
   };
+}
+
+/**
+ * @param {unknown} err
+ * @returns {boolean}
+ */
+function isRangeUnsupportedError(err) {
+  return (
+    err instanceof Error &&
+    "name" in err &&
+    err.name === "RangeNotSupportedError"
+  );
 }
 
 /**

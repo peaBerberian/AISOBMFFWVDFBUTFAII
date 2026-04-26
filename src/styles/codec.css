@@ -5,6 +5,41 @@
   font-size: 12px;
 }
 
+.codec-deferred-action {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-width: min(320px, 100%);
+}
+
+.codec-deferred-button {
+  min-height: 34px;
+  padding: 8px 12px;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.codec-deferred-button:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.codec-deferred-status {
+  color: var(--color-text-tertiary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.codec-deferred-status-warn {
+  color: var(--color-accent-orange);
+}
+
 .codec-fact-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

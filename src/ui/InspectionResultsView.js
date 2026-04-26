@@ -178,6 +178,10 @@ class InspectionResultsViewClass {
    *     boxes: Array<import("isobmff-inspector").ParsedBox>,
    *   } | null,
    *   codecDetailsResults?: Array<any> | null,
+   *   remoteDeferredAnalysisAction?: {
+   *     state: any,
+   *     run: () => Promise<{ state: any, results: Array<any> } | null>,
+   *   } | null,
    * } | null} [options]
    */
   renderFullResults(options = null) {
@@ -190,6 +194,8 @@ class InspectionResultsViewClass {
     const hasCodecDetails = renderCodecDetails(topLevelBoxes, {
       ...renderOptions,
       results: options?.codecDetailsResults ?? null,
+      remoteDeferredAnalysisAction:
+        options?.remoteDeferredAnalysisAction ?? null,
     });
     this.#codecTabButton.hidden = !hasCodecDetails;
     this.#codecPanel.hidden = !hasCodecDetails;

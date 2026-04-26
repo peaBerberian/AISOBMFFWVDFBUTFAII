@@ -133,6 +133,21 @@ export default class InspectionSession {
   }
 
   /**
+   * @param {(start: number, endExclusive: number) => AsyncIterable<Uint8Array>} readRange
+   * @param {AbortSignal} abortSignal
+   */
+  async completeRemoteFileAnalysis(readRange, abortSignal) {
+    await this.#codecCoordinator.completeRemoteFileAnalysis(
+      readRange,
+      abortSignal,
+    );
+  }
+
+  getDeferredRemoteAnalysisState() {
+    return this.#codecCoordinator.getDeferredRemoteAnalysisState();
+  }
+
+  /**
    * @param {Array<import("isobmff-inspector").ParsedBox>} supplementalBoxes
    */
   getCodecDetailsResults(supplementalBoxes) {

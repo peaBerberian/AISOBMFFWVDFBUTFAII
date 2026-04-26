@@ -1,7 +1,12 @@
 import { parseEvents } from "isobmff-inspector";
 import InspectionResultsView from "../ui/InspectionResultsView.js";
 import ProgressBar from "../ui/ProgressBar.js";
+import {
+  beginInspectionLifecycle,
+  finishInspectionLifecycle,
+} from "./InspectionLifecycle.js";
 import InspectionSession from "./InspectionSession.js";
+import { createRemoteRangeReader } from "./RemoteRangeReader.js";
 
 /**
  * @typedef {{ severity: "warning" | "error", message: string }} ParseNotice
@@ -19,6 +24,10 @@ import InspectionSession from "./InspectionSession.js";
  *     boxes: Array<import("isobmff-inspector").ParsedBox>,
  *   } | null>,
  *   rangeReader?: ((start: number, endExclusive: number) => AsyncIterable<Uint8Array>) | null,
+ *   remoteSource?: {
+ *     url: string,
+ *     byteRange: [number, number|undefined] | undefined,
+ *   } | null,
  * }} [options]
  */
 export async function parseAndRenderSegment(input, run, options = {}) {
@@ -135,10 +144,18 @@ export async function parseAndRenderSegment(input, run, options = {}) {
     const codecDetailsResults = inspectionSession.getCodecDetailsResults(
       supplementalMetadata?.boxes ?? [],
     );
+    const remoteDeferredAnalysisAction = options.remoteSource
+      ? createRemoteDeferredAnalysisAction(
+          inspectionSession,
+          options.remoteSource,
+          supplementalMetadata?.boxes ?? [],
+        )
+      : null;
     InspectionResultsView.renderFullResults({
       topLevelBoxes,
       supplementalMetadata,
       codecDetailsResults,
+      remoteDeferredAnalysisAction,
     });
     completed = true;
   } catch (err) {
@@ -164,6 +181,61 @@ export async function parseAndRenderSegment(input, run, options = {}) {
       }
     }
   }
+}
+
+/**
+ * @param {InspectionSession} inspectionSession
+ * @param {{
+ *   url: string,
+ *   byteRange: [number, number|undefined] | undefined,
+ * }} remoteSource
+ * @param {Array<import("isobmff-inspector").ParsedBox>} supplementalBoxes
+ */
+function createRemoteDeferredAnalysisAction(
+  inspectionSession,
+  remoteSource,
+  supplementalBoxes,
+) {
+  return {
+    state: inspectionSession.getDeferredRemoteAnalysisState(),
+    async run() {
+      const deferredRun = beginInspectionLifecycle({
+        preserveResultsOnAbort: true,
+      });
+      ProgressBar.start("Fetching deferred codec byte ranges...");
+      ProgressBar.startEasing();
+
+      try {
+        await inspectionSession.completeRemoteFileAnalysis(
+          createRemoteRangeReader(
+            remoteSource.url,
+            remoteSource.byteRange,
+            deferredRun.controller.signal,
+          ),
+          deferredRun.controller.signal,
+        );
+        if (deferredRun.controller.signal.aborted) {
+          return null;
+        }
+        const nextState = inspectionSession.getDeferredRemoteAnalysisState();
+        const nextResults =
+          inspectionSession.getCodecDetailsResults(supplementalBoxes);
+        if (nextState.blockedReason) {
+          ProgressBar.fail("Remote byte-range fetches are unavailable here.");
+        } else if (nextState.recoveredSampleCount > 0) {
+          ProgressBar.end("Codec details deepened with remote byte ranges.");
+        } else {
+          ProgressBar.end("Codec details refreshed.");
+        }
+        return {
+          state: nextState,
+          results: nextResults,
+        };
+      } finally {
+        finishInspectionLifecycle(deferredRun);
+      }
+    },
+  };
 }
 
 /**
