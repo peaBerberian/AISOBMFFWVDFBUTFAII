@@ -21,22 +21,20 @@ Avoid duplicating parser logic here unless it is clearly UI-facing.
 
 ## Important Files
 
-- `src/index.js`: app entry point wiring everything.
-- `src/parseAndRenderSegment.js`: consumes parser events and delegates
+- `src/index.js`: app entry point
+- `src/setup/parseSegment.js`: consumes parser events and delegates
    parsed-result rendering to the inspection results view.
-- `src/filetype_detection.js`: probes remote resources and classifies them (as
+- `src/setup/filetype_detection.js`: probes remote resources and classifies them (as
   DASH, HLS, direct ISOBMFF content...) before the main inspection flow.
-- `src/extractors/dash/*.js`: DASH manifest parsing and ISOBMFF segment
+- `src/setup/extractors/dash/*.js`: DASH manifest parsing and ISOBMFF segment
   extraction.
-- `src/extractors/hls/*.js`: HLS playlist parsing and ISOBMFF resource
+- `src/setup/extractors/hls/*.js`: HLS playlist parsing and ISOBMFF resource
   extraction.
-- `src/post-process/*.js`: derived analysis built from parsed boxes.
+- `src/post-process/**/*.js`: derived analysis built from parsed boxes.
 - `src/ui/ProgressBar.js`: progress, status, easing, and cancel-button state.
 - `src/ui/InspectionResultsView.js`: owns the whole results area lifecycle:
   stale/loading state, chooser-time clearing, parse-time preparation,
   incremental box tree mounting, notices, and derived tab finalization.
-- `src/ui/InspectionSourceElement.js`: renders the currently inspected source
-  and origin metadata.
 - `src/ui/PlaylistSegmentChooser.js`: chooser UI for DASH/HLS segment
   selection.
 - `src/ui/tabs/index.js`: tab-level exports and navigation wiring.
@@ -44,11 +42,8 @@ Avoid duplicating parser logic here unless it is clearly UI-facing.
 - `src/ui/tabs/info/*`: summary from derived media info.
 - `src/ui/tabs/samples.js`: sample-table UI (expose pts/dts if found...)
 - `src/ui/tabs/sizes.js`: box-size summaries, maps, and tables.
+- `src/ui/tabs/codec_details.js`: data parsed from mdat iself
 - `src/utils/*.js`: shared formatting, dom, byte math, source-label, and scheduling
-- `src/utils/dom.js`: small DOM helpers
-- `src/utils/abortables.js`: abort-aware stream helpers
-  inputs.
-  helpers.
 - `src/styles/*.css`: authored CSS sources, concatenated in a fixed order by the
   build script.
 - `scripts/build.mjs`: CSS concatenation plus esbuild bundling and watch mode.
@@ -75,10 +70,10 @@ The main runtime flow is:
 
 1. `src/index.js` starts a new inspection lifecycle and aborts any previous one.
 2. Local files are streamed directly, while remote URLs are first classified by
-   `src/filetype_detection.js`.
+   `src/setup/filetype_detection.js`.
 3. DASH and HLS sources are resolved into selectable segment resources before
    inspection continues.
-4. `src/parseAndRenderSegment.js` streams parser events and forwards parsed UI
+4. `src/setup/parseSegment.js` streams parser events and forwards parsed UI
    updates to `src/ui/InspectionResultsView.js`.
 5. `src/ui/InspectionResultsView.js` owns the results shell and derived tabs,
    including incremental box-tree mounting and post-parse rendering.
@@ -100,6 +95,7 @@ CSS is split by feature ownership:
 - `info.css`: media-info summary, track, fragment, GOP, and issue sections.
 - `samples.css`: sample controls and sample table.
 - `sizes.css`: size summaries, size map, and sortable box-size tables.
+- `codec.css`: style specific to the "codec details" tab
 
 When adding or removing a CSS source file, update the `styleSources` list in
 `scripts/build.mjs`. The explicit list defines the final source order.
@@ -165,6 +161,11 @@ can expose sample views worth rendering.
 
 The size view treats `mdat` specially for the "excluding mdat" view. Keep
 that behavior explicit if changing size calculations or labels.
+
+Whatever is done, it is **very** important to not keep huge chunks of the data in
+memory, to keep things efficient. Everything should be done in a streaming
+manner, only extracting actual interesting information and not the whole media
+data.
 
 ## Dependency Boundaries
 
