@@ -21,6 +21,7 @@ const MAX_ANALYZED_NALS = 4000;
 /**
  * @typedef {{ index: number, offset: number, size: number }} SampleLocation
  * @typedef {{ start: number, endExclusive: number }} ByteRange
+ * @typedef {(start: number, endExclusive: number) => AsyncIterable<Uint8Array>} RangeReader
  * @typedef {{
  *   index: number,
  *   offset: number,
@@ -207,10 +208,10 @@ export default class CodecDetailsCoordinator {
   }
 
   /**
-   * @param {Blob} file
+   * @param {RangeReader} readRange
    * @param {AbortSignal} abortSignal
    */
-  async completeLocalFileAnalysis(file, abortSignal) {
+  async completeLocalFileAnalysis(readRange, abortSignal) {
     for (const trackState of this.#tracks.values()) {
       if (
         abortSignal.aborted ||
@@ -232,11 +233,14 @@ export default class CodecDetailsCoordinator {
           break;
         }
         try {
-          const sampleBytes = await readSampleBytes(file, location);
+          await this.#analyzeSampleStream(
+            trackState,
+            location.index,
+            readRange(location.offset, location.offset + location.size),
+          );
           if (abortSignal.aborted) {
             return;
           }
-          this.#analyzeSample(trackState, location.index, sampleBytes);
           trackState.localRereadSamples++;
         } catch (err) {
           trackState.localRereadFailed = true;
@@ -481,54 +485,164 @@ export default class CodecDetailsCoordinator {
       );
     }
 
-    let sampleHasParameterSets = false;
-    let sampleHasIdr = false;
-    let sampleHasCra = false;
-    let sampleHasIrap = false;
-    let sampleClass = null;
-
+    const summary = createPendingSampleSummary();
     for (const nal of split.nals) {
-      trackState.nalCount++;
-      if (trackState.codecFamily === "avc") {
-        const type = nal[0] & 0x1f;
-        const name = AVC_NAL_TYPE_NAMES.get(type) ?? `type ${type}`;
-        trackState.nalTypeCounts.set(
-          name,
-          (trackState.nalTypeCounts.get(name) ?? 0) + 1,
-        );
-        if (type === 5) {
-          sampleHasIdr = true;
+      this.#consumeSampleNal(trackState, summary, nal);
+      if (trackState.nalCount >= MAX_ANALYZED_NALS) {
+        break;
+      }
+    }
+
+    this.#finalizeSampleAnalysis(trackState, sampleIndex, summary);
+  }
+
+  /**
+   * @param {TrackState} trackState
+   * @param {number} sampleIndex
+   * @param {AsyncIterable<Uint8Array>} chunks
+   */
+  async #analyzeSampleStream(trackState, sampleIndex, chunks) {
+    const lengthSize = trackState.lengthSize;
+    if (lengthSize == null) {
+      return;
+    }
+
+    const summary = createPendingSampleSummary();
+    let pendingLengthBytes = createEmptyUint8Array();
+    let currentNalLength = null;
+    /** @type {Uint8Array[]} */
+    let currentNalChunks = [];
+    let currentNalReceived = 0;
+    let truncated = false;
+
+    for await (const chunk of chunks) {
+      let offset = 0;
+      while (offset < chunk.length) {
+        if (trackState.nalCount >= MAX_ANALYZED_NALS) {
+          break;
         }
-        if (type === 7 || type === 8) {
-          sampleHasParameterSets = true;
+        if (currentNalLength === null) {
+          const lengthRead = readPartialLength(
+            pendingLengthBytes,
+            chunk,
+            offset,
+            lengthSize,
+          );
+          pendingLengthBytes = lengthRead.bytes;
+          offset = lengthRead.nextOffset;
+          if (pendingLengthBytes.length < lengthSize) {
+            break;
+          }
+          currentNalLength = readUint(pendingLengthBytes, 0, lengthSize);
+          pendingLengthBytes = createEmptyUint8Array();
+          currentNalReceived = 0;
+          currentNalChunks = [];
+          if (currentNalLength === 0) {
+            currentNalLength = null;
+          }
+          continue;
         }
-        if (sampleClass === null && (type === 1 || type === 2 || type === 5)) {
-          sampleClass = parseAvcSliceType(nal);
+
+        const bytesNeeded = currentNalLength - currentNalReceived;
+        const bytesAvailable = chunk.length - offset;
+        const bytesTaken = Math.min(bytesNeeded, bytesAvailable);
+        if (bytesTaken > 0) {
+          currentNalChunks.push(chunk.subarray(offset, offset + bytesTaken));
+          currentNalReceived += bytesTaken;
+          offset += bytesTaken;
         }
-      } else {
-        const type = (nal[0] >> 1) & 0x3f;
-        const name = HEVC_NAL_TYPE_NAMES.get(type) ?? `type ${type}`;
-        trackState.nalTypeCounts.set(
-          name,
-          (trackState.nalTypeCounts.get(name) ?? 0) + 1,
-        );
-        if (type === 19 || type === 20) {
-          sampleHasIdr = true;
+        if (currentNalReceived < currentNalLength) {
+          break;
         }
-        if (type === 21) {
-          sampleHasCra = true;
-        }
-        if (type >= 16 && type <= 23) {
-          sampleHasIrap = true;
-        }
-        if (type === 32 || type === 33 || type === 34) {
-          sampleHasParameterSets = true;
-        }
+
+        const nal = concatChunks(currentNalChunks, currentNalLength);
+        this.#consumeSampleNal(trackState, summary, nal);
+        currentNalLength = null;
+        currentNalChunks = [];
+        currentNalReceived = 0;
       }
       if (trackState.nalCount >= MAX_ANALYZED_NALS) {
         break;
       }
     }
+
+    if (
+      pendingLengthBytes.length > 0 ||
+      currentNalLength !== null ||
+      currentNalReceived !== 0
+    ) {
+      truncated = true;
+    }
+    if (truncated) {
+      trackState.issues.push(
+        `sample ${sampleIndex} ends in a truncated NAL unit`,
+      );
+    }
+    this.#finalizeSampleAnalysis(trackState, sampleIndex, summary);
+  }
+
+  /**
+   * @param {TrackState} trackState
+   * @param {ReturnType<typeof createPendingSampleSummary>} summary
+   * @param {Uint8Array} nal
+   */
+  #consumeSampleNal(trackState, summary, nal) {
+    trackState.nalCount++;
+    if (trackState.codecFamily === "avc") {
+      const type = nal[0] & 0x1f;
+      const name = AVC_NAL_TYPE_NAMES.get(type) ?? `type ${type}`;
+      trackState.nalTypeCounts.set(
+        name,
+        (trackState.nalTypeCounts.get(name) ?? 0) + 1,
+      );
+      if (type === 5) {
+        summary.sampleHasIdr = true;
+      }
+      if (type === 7 || type === 8) {
+        summary.sampleHasParameterSets = true;
+      }
+      if (
+        summary.sampleClass === null &&
+        (type === 1 || type === 2 || type === 5)
+      ) {
+        summary.sampleClass = parseAvcSliceType(nal);
+      }
+      return;
+    }
+
+    const type = (nal[0] >> 1) & 0x3f;
+    const name = HEVC_NAL_TYPE_NAMES.get(type) ?? `type ${type}`;
+    trackState.nalTypeCounts.set(
+      name,
+      (trackState.nalTypeCounts.get(name) ?? 0) + 1,
+    );
+    if (type === 19 || type === 20) {
+      summary.sampleHasIdr = true;
+    }
+    if (type === 21) {
+      summary.sampleHasCra = true;
+    }
+    if (type >= 16 && type <= 23) {
+      summary.sampleHasIrap = true;
+    }
+    if (type === 32 || type === 33 || type === 34) {
+      summary.sampleHasParameterSets = true;
+    }
+  }
+
+  /**
+   * @param {TrackState} trackState
+   * @param {number} sampleIndex
+   * @param {ReturnType<typeof createPendingSampleSummary>} summary
+   */
+  #finalizeSampleAnalysis(trackState, sampleIndex, summary) {
+    const {
+      sampleHasParameterSets,
+      sampleHasIdr,
+      sampleHasCra,
+      sampleHasIrap,
+      sampleClass,
+    } = summary;
 
     trackState.analyzedSamples++;
     if (sampleHasParameterSets) {
@@ -765,12 +879,66 @@ function concatChunks(chunks, totalLength) {
 }
 
 /**
- * @param {Blob} file
- * @param {SampleLocation} location
+ * @returns {Uint8Array}
  */
-async function readSampleBytes(file, location) {
-  const buffer = await file
-    .slice(location.offset, location.offset + location.size)
-    .arrayBuffer();
-  return new Uint8Array(buffer);
+function createEmptyUint8Array() {
+  return new Uint8Array(0);
+}
+
+/**
+ * @returns {{
+ *   sampleHasParameterSets: boolean,
+ *   sampleHasIdr: boolean,
+ *   sampleHasCra: boolean,
+ *   sampleHasIrap: boolean,
+ *   sampleClass: string | null,
+ * }}
+ */
+function createPendingSampleSummary() {
+  return {
+    sampleHasParameterSets: false,
+    sampleHasIdr: false,
+    sampleHasCra: false,
+    sampleHasIrap: false,
+    sampleClass: null,
+  };
+}
+
+/**
+ * @param {Uint8Array} existing
+ * @param {Uint8Array} chunk
+ * @param {number} offset
+ * @param {number} targetLength
+ * @returns {{ bytes: Uint8Array, nextOffset: number }}
+ */
+function readPartialLength(existing, chunk, offset, targetLength) {
+  const bytesNeeded = targetLength - existing.length;
+  const bytesAvailable = chunk.length - offset;
+  const bytesTaken = Math.min(bytesNeeded, bytesAvailable);
+  if (bytesTaken <= 0) {
+    return {
+      bytes: existing,
+      nextOffset: offset,
+    };
+  }
+  const bytes = new Uint8Array(existing.length + bytesTaken);
+  bytes.set(existing, 0);
+  bytes.set(chunk.subarray(offset, offset + bytesTaken), existing.length);
+  return {
+    bytes,
+    nextOffset: offset + bytesTaken,
+  };
+}
+
+/**
+ * @param {Uint8Array} bytes
+ * @param {number} offset
+ * @param {number} size
+ */
+function readUint(bytes, offset, size) {
+  let value = 0;
+  for (let index = 0; index < size; index++) {
+    value = (value << 8) | bytes[offset + index];
+  }
+  return value;
 }

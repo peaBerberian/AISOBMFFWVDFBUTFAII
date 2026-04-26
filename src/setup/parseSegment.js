@@ -18,7 +18,7 @@ import InspectionSession from "./InspectionSession.js";
  *   supplementalMetadataPromise?: Promise<{
  *     boxes: Array<import("isobmff-inspector").ParsedBox>,
  *   } | null>,
- *   localFileSource?: Blob | null,
+ *   rangeReader?: ((start: number, endExclusive: number) => AsyncIterable<Uint8Array>) | null,
  * }} [options]
  */
 export async function parseAndRenderSegment(input, run, options = {}) {
@@ -120,10 +120,10 @@ export async function parseAndRenderSegment(input, run, options = {}) {
       InspectionResultsView.renderNotice(emptyInputNotice);
     }
 
-    if (options.localFileSource) {
-      ProgressBar.updateStatus("deepening codec analysis from local file…");
+    if (options.rangeReader) {
+      ProgressBar.updateStatus("deepening codec analysis by reading back…");
       await inspectionSession.completeLocalFileAnalysis(
-        options.localFileSource,
+        options.rangeReader,
         abortSignal,
       );
       if (abortSignal.aborted) {

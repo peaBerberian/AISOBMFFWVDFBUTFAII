@@ -1,26 +1,12 @@
 import { setInspectionSource } from "../ui/InspectionSourceElement.js";
 import ProgressBar from "../ui/ProgressBar.js";
-import { createAbortableAsyncIterable } from "../utils/abortables.js";
 import { requireElementById } from "../utils/dom.js";
 import {
   beginInspectionLifecycle,
   finishInspectionLifecycle,
 } from "./InspectionLifecycle.js";
+import LocalFileReader from "./LocalFileReader.js";
 import { parseAndRenderSegment } from "./parseSegment.js";
-
-/**
- * Try to format the given file to the best abstraction for the job.
- * @param {Blob} file
- * @param {AbortSignal} signal
- * @returns {import("isobmff-inspector").ISOBMFFInput}
- */
-function formatFileInput(file, signal) {
-  const streamableFile = /** @type {{ stream?: Blob["stream"] }} */ (file);
-  if (typeof streamableFile.stream === "function") {
-    return createAbortableAsyncIterable(streamableFile.stream(), signal);
-  }
-  return file;
-}
 
 /**
  * Parse a local file while preserving the app's single active parse lifecycle.
@@ -30,6 +16,7 @@ export function parseLocalFile(file) {
   const run = beginInspectionLifecycle();
   const signal = run.controller.signal;
   const namedFile = /** @type {{ name?: string }} */ (file);
+  const reader = new LocalFileReader(file, signal);
 
   ProgressBar.start("Loading local file...");
   ProgressBar.startEasing();
@@ -37,8 +24,8 @@ export function parseLocalFile(file) {
     selectedLabel: "Local file",
     selectedValue: namedFile.name || "Unnamed file",
   });
-  parseAndRenderSegment(formatFileInput(file, signal), run, {
-    localFileSource: file,
+  parseAndRenderSegment(reader.toParserInput(), run, {
+    rangeReader: reader.readRange.bind(reader),
   }).finally(() => {
     finishInspectionLifecycle(run);
   });

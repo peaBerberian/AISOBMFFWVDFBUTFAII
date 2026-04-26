@@ -122,11 +122,14 @@ export default class InspectionSession {
   }
 
   /**
-   * @param {Blob} file
+   * @param {(start: number, endExclusive: number) => AsyncIterable<Uint8Array>} readRange
    * @param {AbortSignal} abortSignal
    */
-  async completeLocalFileAnalysis(file, abortSignal) {
-    await this.#codecCoordinator.completeLocalFileAnalysis(file, abortSignal);
+  async completeLocalFileAnalysis(readRange, abortSignal) {
+    await this.#codecCoordinator.completeLocalFileAnalysis(
+      readRange,
+      abortSignal,
+    );
   }
 
   /**
