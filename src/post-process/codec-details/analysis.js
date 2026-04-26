@@ -10,6 +10,7 @@ import {
   getNumberFromStruct,
   getStringField,
   getStructArrayField,
+  toNullableNumber,
 } from "../box_access.js";
 import {
   getAudioDescription,
@@ -19,6 +20,7 @@ import {
   isProtectedSampleEntry,
   normalizeTrackKind,
 } from "../codec_meta.js";
+import { formatBitrate, formatNumber } from "../format.js";
 
 const MAX_ANALYZED_SAMPLES = 160;
 const MAX_ANALYZED_NALS = 4000;
@@ -82,7 +84,21 @@ const HEVC_NAL_TYPE_NAMES = new Map([
  *   codecFamily: "avc" | "hevc" | null,
  *   avcC: import("isobmff-inspector").ParsedBox | null,
  *   hvcC: import("isobmff-inspector").ParsedBox | null,
+ *   esds: import("isobmff-inspector").ParsedBox | null,
+ *   dac3: import("isobmff-inspector").ParsedBox | null,
+ *   dec3: import("isobmff-inspector").ParsedBox | null,
+ *   dOps: import("isobmff-inspector").ParsedBox | null,
  * }} TrackSampleEntry
+ *
+ * @typedef {{ label: string, value: string, note: string | null }} CodecFact
+ *
+ * @typedef {{
+ *   recognized: boolean,
+ *   codecLabel: string | null,
+ *   overviewFacts: CodecFact[],
+ *   details: string[],
+ *   issues: string[],
+ * }} DerivedEntryCodecMetadata
  */
 
 /**
@@ -178,15 +194,14 @@ function deriveTrackCodecDetails(trak, boxes, moofs, trexDefaults, bytes) {
   }
   const codecFamily = chosenEntry.codecFamily;
   const kind = normalizeTrackKind(handlerType, chosenEntry.sampleEntry.type);
+  const codecMetadata = deriveSampleEntryCodecMetadata(chosenEntry);
 
-  const codecLabel = getCodecLabel(
-    chosenEntry.sampleEntry.type,
-    chosenEntry.originalFormat,
-    {
+  const codecLabel =
+    codecMetadata.codecLabel ??
+    getCodecLabel(chosenEntry.sampleEntry.type, chosenEntry.originalFormat, {
       avcC: chosenEntry.avcC,
       hvcC: chosenEntry.hvcC,
-    },
-  );
+    });
   const protectedEntry = isProtectedSampleEntry(chosenEntry.sampleEntry.type);
   const dimensions = getDimensions(chosenEntry.sampleEntry, tkhd);
   const config =
@@ -207,6 +222,7 @@ function deriveTrackCodecDetails(trak, boxes, moofs, trexDefaults, bytes) {
       dimensions,
       codecFamily,
       hasConfig: config !== null,
+      codecMetadata,
     });
   }
   const detailedCodecFamily = /** @type {"avc" | "hevc"} */ (codecFamily);
@@ -362,6 +378,7 @@ function deriveTrackCodecDetails(trak, boxes, moofs, trexDefaults, bytes) {
  *   dimensions: string | null,
  *   codecFamily: "avc" | "hevc" | null,
  *   hasConfig: boolean,
+ *   codecMetadata: ReturnType<typeof deriveSampleEntryCodecMetadata>,
  * }} input
  */
 function buildGenericTrackCodecDetails(input) {
@@ -375,6 +392,7 @@ function buildGenericTrackCodecDetails(input) {
     dimensions,
     codecFamily,
     hasConfig,
+    codecMetadata,
   } = input;
   const audioDescription = getAudioDescription(chosenEntry.sampleEntry);
   const normalizedKind = kind === "unknown" ? "track" : `${kind} track`;
@@ -414,6 +432,7 @@ function buildGenericTrackCodecDetails(input) {
       note: "track handler type from the container metadata",
     });
   }
+  overviewFacts.push(...codecMetadata.overviewFacts);
 
   /** @type {string[]} */
   const details = [];
@@ -426,6 +445,8 @@ function buildGenericTrackCodecDetails(input) {
     details.push(
       `${chosenEntry.codecType ?? "selected"} sample entry is present, but its decoder configuration box is not available in the current track metadata`,
     );
+  } else if (codecMetadata.recognized) {
+    details.push(...codecMetadata.details);
   } else if (kind === "audio") {
     details.push(
       "sample-entry metadata is available for this audio track, but deep decoder-config parsing in this tab is not implemented for this codec family yet",
@@ -465,8 +486,725 @@ function buildGenericTrackCodecDetails(input) {
     sampleDetails: [],
     nalTypes: [],
     sampleSequence: [],
+    issues: [...codecMetadata.issues],
+  };
+}
+
+/**
+ * @param {TrackSampleEntry} chosenEntry
+ * @returns {DerivedEntryCodecMetadata}
+ */
+function deriveSampleEntryCodecMetadata(chosenEntry) {
+  switch (chosenEntry.codecType) {
+    case "mp4a":
+      return deriveMp4aCodecMetadata(chosenEntry.esds);
+    case "ac-3":
+      return deriveAc3CodecMetadata(chosenEntry.dac3);
+    case "ec-3":
+      return deriveEc3CodecMetadata(chosenEntry.dec3);
+    case "Opus":
+      return deriveOpusCodecMetadata(chosenEntry.dOps);
+    default:
+      return {
+        recognized: false,
+        codecLabel: null,
+        overviewFacts: [],
+        details: [],
+        issues: [],
+      };
+  }
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox | null} esds
+ */
+function deriveMp4aCodecMetadata(esds) {
+  if (!esds) {
+    return {
+      recognized: true,
+      codecLabel: null,
+      overviewFacts: [],
+      details: [],
+      issues: [
+        "mp4a sample entry is present, but its esds decoder configuration box is not available in the current track metadata",
+      ],
+    };
+  }
+
+  const descriptors = getStructArrayField(esds, "descriptors");
+  const decoderConfig = findFirstDescriptorByTag(descriptors, 0x04);
+  const decoderConfigPayload = getDescriptorPayload(decoderConfig);
+  const objectTypeIndication = getStructNumberField(
+    decoderConfigPayload,
+    "object_type_indication",
+  );
+  const streamType = getStructNumberField(decoderConfigPayload, "stream_type");
+  const maxBitrate = getStructNumberField(decoderConfigPayload, "max_bitrate");
+  const avgBitrate = getStructNumberField(decoderConfigPayload, "avg_bitrate");
+  const decoderSpecific = findFirstDescriptorByTag(descriptors, 0x05);
+  const decoderSpecificPayload = getDescriptorPayload(decoderSpecific);
+  const decoderSpecificBytes = decodeHexByteField(
+    getStructFieldPrimitive(decoderSpecificPayload, "decoder_specific_info"),
+  );
+  const audioSpecificConfig = decoderSpecificBytes
+    ? parseAacAudioSpecificConfig(decoderSpecificBytes)
+    : null;
+  const objectTypeLabel = formatMp4ObjectTypeIndication(objectTypeIndication);
+
+  /** @type {Array<{ label: string, value: string, note: string | null }>} */
+  const overviewFacts = [];
+  /** @type {string[]} */
+  const details = [];
+  /** @type {string[]} */
+  const issues = [];
+
+  if (objectTypeLabel) {
+    overviewFacts.push({
+      label: "Object Type",
+      value: objectTypeLabel,
+      note: "MPEG-4 object type indication from the DecoderConfigDescriptor",
+    });
+  }
+  if (audioSpecificConfig?.audioObjectTypeLabel) {
+    overviewFacts.push({
+      label: "Audio Object",
+      value: audioSpecificConfig.audioObjectTypeLabel,
+      note: "decoded from the AudioSpecificConfig payload in esds",
+    });
+  }
+  if (audioSpecificConfig?.sampleRate != null) {
+    overviewFacts.push({
+      label: "Config Sample Rate",
+      value: `${formatNumber(audioSpecificConfig.sampleRate)} Hz`,
+      note: "sample rate declared in AudioSpecificConfig",
+    });
+  }
+  if (audioSpecificConfig?.channelLayout) {
+    overviewFacts.push({
+      label: "Config Channels",
+      value: audioSpecificConfig.channelLayout,
+      note: "channel configuration declared in AudioSpecificConfig",
+    });
+  }
+  if (avgBitrate != null) {
+    overviewFacts.push({
+      label: "Average Bitrate",
+      value: formatBitrate(avgBitrate),
+      note: "average bitrate from the DecoderConfigDescriptor",
+    });
+  }
+  if (maxBitrate != null) {
+    overviewFacts.push({
+      label: "Max Bitrate",
+      value: formatBitrate(maxBitrate),
+      note: "maximum bitrate from the DecoderConfigDescriptor",
+    });
+  }
+
+  if (streamType != null) {
+    details.push(
+      `stream type ${formatMp4StreamType(streamType)} in the DecoderConfigDescriptor`,
+    );
+  }
+  if (decoderSpecificBytes) {
+    details.push(
+      `AudioSpecificConfig present (${numberFormat(decoderSpecificBytes.length)} byte${decoderSpecificBytes.length === 1 ? "" : "s"})`,
+    );
+  } else {
+    issues.push(
+      "esds is present, but no decoder-specific AudioSpecificConfig payload could be extracted from it",
+    );
+  }
+  if (audioSpecificConfig?.sbrPresent) {
+    details.push("SBR extension signaled in AudioSpecificConfig");
+  }
+  if (audioSpecificConfig?.psPresent) {
+    details.push("Parametric Stereo extension signaled in AudioSpecificConfig");
+  }
+  if (audioSpecificConfig?.extensionAudioObjectTypeLabel) {
+    details.push(
+      `extension audio object ${audioSpecificConfig.extensionAudioObjectTypeLabel}`,
+    );
+  }
+
+  return {
+    recognized: true,
+    codecLabel:
+      objectTypeIndication === 0x40 && audioSpecificConfig?.audioObjectType
+        ? `mp4a.40.${audioSpecificConfig.audioObjectType}`
+        : null,
+    overviewFacts,
+    details,
+    issues,
+  };
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox | null} dac3
+ */
+function deriveAc3CodecMetadata(dac3) {
+  if (!dac3) {
+    return {
+      recognized: true,
+      codecLabel: null,
+      overviewFacts: [],
+      details: [],
+      issues: [
+        "ac-3 sample entry is present, but its dac3 decoder configuration box is not available in the current track metadata",
+      ],
+    };
+  }
+
+  const sampleRate = getAc3SampleRate(getNumberField(dac3, "fscod"));
+  const channelMode = getAc3ChannelMode(getNumberField(dac3, "acmod"));
+  const lfe = getNumberField(dac3, "lfeon") === 1;
+  const bitrate = getNumberField(dac3, "data_rate_kbps");
+  /** @type {CodecFact[]} */
+  const overviewFacts = [];
+  if (sampleRate != null) {
+    overviewFacts.push({
+      label: "Sample Rate",
+      value: `${formatNumber(sampleRate)} Hz`,
+      note: "derived from the AC-3 decoder configuration",
+    });
+  }
+  if (channelMode) {
+    overviewFacts.push({
+      label: "Channel Mode",
+      value: formatChannelModeWithLfe(channelMode, lfe),
+      note: "channel mode and LFE flag from dac3",
+    });
+  }
+  if (bitrate != null) {
+    overviewFacts.push({
+      label: "Bitrate",
+      value: `${numberFormat(bitrate)} kbps`,
+      note: "declared AC-3 data rate from dac3",
+    });
+  }
+
+  return {
+    recognized: true,
+    codecLabel: null,
+    overviewFacts,
+    details: [
+      `bitstream identification bsid ${getNumberField(dac3, "bsid") ?? "?"}`,
+      `bitstream mode ${formatAc3BitstreamMode(getNumberField(dac3, "bsmod"))}`,
+    ],
     issues: [],
   };
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox | null} dec3
+ */
+function deriveEc3CodecMetadata(dec3) {
+  if (!dec3) {
+    return {
+      recognized: true,
+      codecLabel: null,
+      overviewFacts: [],
+      details: [],
+      issues: [
+        "ec-3 sample entry is present, but its dec3 decoder configuration box is not available in the current track metadata",
+      ],
+    };
+  }
+
+  const substreams = getStructArrayField(dec3, "substreams");
+  const firstSubstream = substreams[0];
+  const sampleRate = getAc3SampleRate(
+    getStructNumberField(firstSubstream, "fscod"),
+  );
+  const channelMode = getAc3ChannelMode(
+    getStructNumberField(firstSubstream, "acmod"),
+  );
+  const lfe = getStructNumberField(firstSubstream, "lfeon") === 1;
+  const dataRate = getNumberField(dec3, "data_rate");
+  const extension = getField(dec3, "ec3_extension");
+  const extensionStruct = extension?.kind === "struct" ? extension : null;
+  const extensionTypeA =
+    getStructNumberField(extensionStruct, "flag_ec3_extension_type_a") === 1;
+  /** @type {CodecFact[]} */
+  const overviewFacts = [
+    {
+      label: "Independent Substreams",
+      value: numberFormat(substreams.length),
+      note: "count of independent substreams signaled in dec3",
+    },
+  ];
+  if (sampleRate != null) {
+    overviewFacts.push({
+      label: "Sample Rate",
+      value: `${formatNumber(sampleRate)} Hz`,
+      note: "derived from the first EC-3 independent substream",
+    });
+  }
+  if (channelMode) {
+    overviewFacts.push({
+      label: "Primary Substream",
+      value: formatChannelModeWithLfe(channelMode, lfe),
+      note: "channel mode and LFE flag from the first dec3 substream",
+    });
+  }
+  if (dataRate != null) {
+    overviewFacts.push({
+      label: "Data Rate",
+      value: `${numberFormat(dataRate)} kbps`,
+      note: "declared EC-3 data rate from dec3",
+    });
+  }
+  /** @type {string[]} */
+  const details = [
+    `first independent substream bsid ${getStructNumberField(firstSubstream, "bsid") ?? "?"}, mode ${formatAc3BitstreamMode(getStructNumberField(firstSubstream, "bsmod"))}`,
+  ];
+  if (extensionTypeA) {
+    details.push(
+      "EC-3 extension type A is signaled, which is commonly used for Atmos/JOC carriage",
+    );
+  }
+
+  return {
+    recognized: true,
+    codecLabel: null,
+    overviewFacts,
+    details,
+    issues: [],
+  };
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox | null} dOps
+ */
+function deriveOpusCodecMetadata(dOps) {
+  if (!dOps) {
+    return {
+      recognized: true,
+      codecLabel: null,
+      overviewFacts: [],
+      details: [],
+      issues: [
+        "Opus sample entry is present, but its dOps decoder configuration box is not available in the current track metadata",
+      ],
+    };
+  }
+
+  const channelCount = getNumberField(dOps, "OutputChannelCount");
+  const inputSampleRate = getNumberField(dOps, "InputSampleRate");
+  const preSkip = getNumberField(dOps, "PreSkip");
+  const gain = getNumberField(dOps, "OutputGain");
+  const mappingFamily = getNumberField(dOps, "ChannelMappingFamily");
+  const streamCount = getNumberField(dOps, "StreamCount");
+  const coupledCount = getNumberField(dOps, "CoupledCount");
+  /** @type {CodecFact[]} */
+  const overviewFacts = [];
+  if (channelCount != null) {
+    overviewFacts.push({
+      label: "Output Channels",
+      value: numberFormat(channelCount),
+      note: "decoded from the Opus dOps box",
+    });
+  }
+  if (inputSampleRate != null) {
+    overviewFacts.push({
+      label: "Input Sample Rate",
+      value: `${formatNumber(inputSampleRate)} Hz`,
+      note: "original input sample rate declared in dOps",
+    });
+  }
+  if (preSkip != null) {
+    overviewFacts.push({
+      label: "Pre-skip",
+      value: numberFormat(preSkip),
+      note: "initial samples to discard before normal output",
+    });
+  }
+  if (mappingFamily != null) {
+    overviewFacts.push({
+      label: "Mapping Family",
+      value: String(mappingFamily),
+      note: "Opus channel mapping family from dOps",
+    });
+  }
+  /** @type {string[]} */
+  const details = [];
+  if (gain != null && gain !== 0) {
+    details.push(`output gain ${gain} Q8 dB units`);
+  }
+  if (streamCount != null) {
+    details.push(
+      `stream count ${streamCount}${coupledCount == null ? "" : `, coupled streams ${coupledCount}`}`,
+    );
+  }
+
+  return {
+    recognized: true,
+    codecLabel: null,
+    overviewFacts,
+    details,
+    issues: [],
+  };
+}
+
+/**
+ * @param {Array<Extract<import("isobmff-inspector").ParsedField, { kind: "struct" }>>} descriptors
+ * @param {number} tag
+ * @returns {Extract<import("isobmff-inspector").ParsedField, { kind: "struct" }> | null}
+ */
+function findFirstDescriptorByTag(descriptors, tag) {
+  for (const descriptor of descriptors) {
+    if (getStructNumberField(descriptor, "tag") === tag) {
+      return descriptor;
+    }
+    const nested = getNestedDescriptors(descriptor);
+    const nestedMatch = findFirstDescriptorByTag(nested, tag);
+    if (nestedMatch) {
+      return nestedMatch;
+    }
+  }
+  return null;
+}
+
+/**
+ * @param {Extract<import("isobmff-inspector").ParsedField, { kind: "struct" }> | null | undefined} descriptor
+ * @returns {Array<Extract<import("isobmff-inspector").ParsedField, { kind: "struct" }>>}
+ */
+function getNestedDescriptors(descriptor) {
+  const payload = getDescriptorPayload(descriptor);
+  const descriptorsField = getStructField(payload, "descriptors");
+  if (descriptorsField?.kind !== "array") {
+    return [];
+  }
+  return descriptorsField.items.filter((item) => item.kind === "struct");
+}
+
+/**
+ * @param {Extract<import("isobmff-inspector").ParsedField, { kind: "struct" }> | null | undefined} descriptor
+ */
+function getDescriptorPayload(descriptor) {
+  const payload = getStructField(descriptor, "payload");
+  return payload?.kind === "struct" ? payload : null;
+}
+
+/**
+ * @param {Extract<import("isobmff-inspector").ParsedField, { kind: "struct" }> | null | undefined} struct
+ * @param {string} key
+ */
+function getStructField(struct, key) {
+  return struct?.fields.find((field) => field.key === key) ?? null;
+}
+
+/**
+ * @param {Extract<import("isobmff-inspector").ParsedField, { kind: "struct" }> | null | undefined} struct
+ * @param {string} key
+ */
+function getStructFieldPrimitive(struct, key) {
+  return getFieldPrimitive(getStructField(struct, key));
+}
+
+/**
+ * @param {Extract<import("isobmff-inspector").ParsedField, { kind: "struct" }> | null | undefined} struct
+ * @param {string} key
+ */
+function getStructNumberField(struct, key) {
+  return toNullableNumber(getStructFieldPrimitive(struct, key));
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Uint8Array | null}
+ */
+function decodeHexByteField(value) {
+  if (value instanceof Uint8Array) {
+    return value;
+  }
+  if (typeof value !== "string" || value.length % 2 !== 0) {
+    return null;
+  }
+  const bytes = new Uint8Array(value.length / 2);
+  for (let index = 0; index < value.length; index += 2) {
+    const parsed = Number.parseInt(value.slice(index, index + 2), 16);
+    if (!Number.isFinite(parsed)) {
+      return null;
+    }
+    bytes[index / 2] = parsed;
+  }
+  return bytes;
+}
+
+/**
+ * @param {Uint8Array} bytes
+ */
+function parseAacAudioSpecificConfig(bytes) {
+  let bitOffset = 0;
+  /**
+   * @param {number} bitCount
+   */
+  function readBits(bitCount) {
+    if (bitOffset + bitCount > bytes.length * 8) {
+      return null;
+    }
+    let value = 0;
+    for (let index = 0; index < bitCount; index++) {
+      const absoluteBit = bitOffset + index;
+      const currentByte = bytes[absoluteBit >> 3];
+      const shift = 7 - (absoluteBit & 7);
+      value = (value << 1) | ((currentByte >> shift) & 1);
+    }
+    bitOffset += bitCount;
+    return value;
+  }
+  function readAudioObjectType() {
+    const value = readBits(5);
+    if (value == null) {
+      return null;
+    }
+    if (value !== 31) {
+      return value;
+    }
+    const extended = readBits(6);
+    return extended == null ? null : 32 + extended;
+  }
+
+  const audioObjectType = readAudioObjectType();
+  const samplingFrequencyIndex = readBits(4);
+  const sampleRate =
+    samplingFrequencyIndex === 15
+      ? readBits(24)
+      : getAacSamplingRate(samplingFrequencyIndex);
+  const channelConfiguration = readBits(4);
+  if (
+    audioObjectType == null ||
+    samplingFrequencyIndex == null ||
+    channelConfiguration == null
+  ) {
+    return null;
+  }
+
+  let extensionSampleRate = null;
+  let extensionAudioObjectType = null;
+  if (audioObjectType === 5 || audioObjectType === 29) {
+    const extensionSamplingIndex = readBits(4);
+    extensionSampleRate =
+      extensionSamplingIndex === 15
+        ? readBits(24)
+        : getAacSamplingRate(extensionSamplingIndex);
+    extensionAudioObjectType = readAudioObjectType();
+  }
+
+  return {
+    audioObjectType,
+    audioObjectTypeLabel: formatAacAudioObjectType(audioObjectType),
+    sampleRate,
+    channelConfiguration,
+    channelLayout: formatAacChannelConfiguration(channelConfiguration),
+    extensionSampleRate,
+    extensionAudioObjectType,
+    extensionAudioObjectTypeLabel:
+      extensionAudioObjectType == null
+        ? null
+        : formatAacAudioObjectType(extensionAudioObjectType),
+    sbrPresent: audioObjectType === 5,
+    psPresent: audioObjectType === 29,
+  };
+}
+
+/**
+ * @param {number | null} value
+ */
+function getAacSamplingRate(value) {
+  switch (value) {
+    case 0:
+      return 96000;
+    case 1:
+      return 88200;
+    case 2:
+      return 64000;
+    case 3:
+      return 48000;
+    case 4:
+      return 44100;
+    case 5:
+      return 32000;
+    case 6:
+      return 24000;
+    case 7:
+      return 22050;
+    case 8:
+      return 16000;
+    case 9:
+      return 12000;
+    case 10:
+      return 11025;
+    case 11:
+      return 8000;
+    case 12:
+      return 7350;
+    default:
+      return null;
+  }
+}
+
+/**
+ * @param {number} value
+ */
+function formatAacAudioObjectType(value) {
+  const name = new Map([
+    [1, "AAC Main"],
+    [2, "AAC LC"],
+    [3, "AAC SSR"],
+    [4, "AAC LTP"],
+    [5, "SBR"],
+    [6, "AAC Scalable"],
+    [17, "ER AAC LC"],
+    [19, "ER AAC LTP"],
+    [20, "ER AAC Scalable"],
+    [22, "ER BSAC"],
+    [23, "ER AAC LD"],
+    [29, "PS"],
+    [39, "ER AAC ELD"],
+    [42, "USAC"],
+  ]).get(value);
+  return name ? `${name} (${value})` : String(value);
+}
+
+/**
+ * @param {number} value
+ */
+function formatAacChannelConfiguration(value) {
+  switch (value) {
+    case 0:
+      return "program config element";
+    case 1:
+      return "mono";
+    case 2:
+      return "stereo";
+    case 3:
+      return "3.0";
+    case 4:
+      return "4.0";
+    case 5:
+      return "5.0";
+    case 6:
+      return "5.1";
+    case 7:
+      return "7.1";
+    default:
+      return String(value);
+  }
+}
+
+/**
+ * @param {number | null} value
+ */
+function formatMp4ObjectTypeIndication(value) {
+  if (value == null) {
+    return null;
+  }
+  const name = new Map([
+    [0x40, "MPEG-4 Audio"],
+    [0x66, "MPEG-2 AAC Main"],
+    [0x67, "MPEG-2 AAC LC"],
+    [0x68, "MPEG-2 AAC SSR"],
+    [0x69, "MPEG-2 Audio"],
+    [0x6b, "MPEG-1 Audio"],
+  ]).get(value);
+  return name
+    ? `${name} (0x${value.toString(16).toUpperCase()})`
+    : `0x${value.toString(16).toUpperCase()}`;
+}
+
+/**
+ * @param {number | null} value
+ */
+function formatMp4StreamType(value) {
+  switch (value) {
+    case 4:
+      return "visual";
+    case 5:
+      return "audio";
+    case 13:
+      return "scene description";
+    default:
+      return String(value);
+  }
+}
+
+/**
+ * @param {number | null} value
+ */
+function getAc3SampleRate(value) {
+  switch (value) {
+    case 0:
+      return 48000;
+    case 1:
+      return 44100;
+    case 2:
+      return 32000;
+    default:
+      return null;
+  }
+}
+
+/**
+ * @param {number | null} value
+ */
+function getAc3ChannelMode(value) {
+  switch (value) {
+    case 0:
+      return { label: "dual mono", channels: 2 };
+    case 1:
+      return { label: "mono", channels: 1 };
+    case 2:
+      return { label: "stereo", channels: 2 };
+    case 3:
+      return { label: "3.0", channels: 3 };
+    case 4:
+      return { label: "2.1", channels: 3 };
+    case 5:
+      return { label: "3.1", channels: 4 };
+    case 6:
+      return { label: "4.0", channels: 4 };
+    case 7:
+      return { label: "5.0", channels: 5 };
+    default:
+      return null;
+  }
+}
+
+/**
+ * @param {{ label: string, channels: number }} channelMode
+ * @param {boolean} hasLfe
+ */
+function formatChannelModeWithLfe(channelMode, hasLfe) {
+  const totalChannels = channelMode.channels + (hasLfe ? 1 : 0);
+  return `${channelMode.label}${hasLfe ? " + LFE" : ""} (${totalChannels} ch)`;
+}
+
+/**
+ * @param {number | null} value
+ */
+function formatAc3BitstreamMode(value) {
+  switch (value) {
+    case 0:
+      return "complete main";
+    case 1:
+      return "music and effects";
+    case 2:
+      return "visually impaired";
+    case 3:
+      return "hearing impaired";
+    case 4:
+      return "dialogue";
+    case 5:
+      return "commentary";
+    case 6:
+      return "emergency";
+    case 7:
+      return "voice-over / karaoke";
+    default:
+      return value == null ? "unknown" : String(value);
+  }
 }
 
 /**
@@ -500,6 +1238,10 @@ export function getTrackSampleEntries(trak) {
             : null,
       avcC: findFirstBox([sampleEntry], "avcC"),
       hvcC: findFirstBox([sampleEntry], "hvcC"),
+      esds: findFirstBox([sampleEntry], "esds"),
+      dac3: findFirstBox([sampleEntry], "dac3"),
+      dec3: findFirstBox([sampleEntry], "dec3"),
+      dOps: findFirstBox([sampleEntry], "dOps"),
     };
   });
 }
