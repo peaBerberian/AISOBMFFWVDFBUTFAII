@@ -1,6 +1,7 @@
 import { requireElementById } from "../utils/dom.js";
 import {
   BoxTreeNodeView,
+  ByteViewTab,
   renderCodecDetails,
   renderMediaInfo,
   renderSampleView,
@@ -27,6 +28,9 @@ class InspectionResultsViewClass {
   #boxesPanel = requireElementById("tab-boxes", HTMLElement);
   #infoPanel = requireElementById("tab-info", HTMLElement);
   #wrapper = requireElementById("file-description", HTMLElement);
+  #byteTabButton = requireElementById("tab-button-bytes", HTMLButtonElement);
+  #bytePanel = requireElementById("tab-bytes", HTMLElement);
+  #byteView = requireElementById("byte-view", HTMLElement);
   #mediaInfo = requireElementById("media-info", HTMLElement);
   #codecTabButton = requireElementById(
     "tab-button-codec-details",
@@ -178,6 +182,7 @@ class InspectionResultsViewClass {
    *     boxes: Array<import("isobmff-inspector").ParsedBox>,
    *   } | null,
    *   codecDetailsResults?: Array<any> | null,
+   *   byteViewSession?: import("../setup/ByteViewSession.js").default | null,
    * } | null} [options]
    */
   renderFullResults(options = null) {
@@ -196,6 +201,10 @@ class InspectionResultsViewClass {
     const hasSampleView = renderSampleView(topLevelBoxes, renderOptions);
     this.#sampleTabButton.hidden = !hasSampleView;
     this.#sampleTabPanel.hidden = !hasSampleView;
+    ByteViewTab.render(options?.byteViewSession ?? null, {
+      treeRoot: this.#wrapper,
+      abortSignal: this.#abortCtrlr.signal,
+    });
     renderSizeChart(topLevelBoxes);
     renderTreePositionMap(
       topLevelBoxes,
@@ -218,10 +227,14 @@ class InspectionResultsViewClass {
   #clearDom() {
     this.#resultNotices.replaceChildren();
     this.#restorePanelRoot(this.#boxesPanel, this.#wrapper);
+    this.#restorePanelRoot(this.#bytePanel, this.#byteView);
     this.#restorePanelRoot(this.#infoPanel, this.#mediaInfo);
     this.#restorePanelRoot(this.#codecPanel, this.#codecDetails);
     this.#restorePanelRoot(this.#sampleTabPanel, this.#sampleView);
     this.#restorePanelRoot(this.#sizesPanel, this.#sizeChart);
+    ByteViewTab.reset();
+    this.#byteTabButton.hidden = true;
+    this.#bytePanel.hidden = true;
     this.#codecTabButton.hidden = true;
     this.#codecPanel.hidden = true;
     this.#sampleTabButton.hidden = true;

@@ -1,6 +1,7 @@
 import deriveCodecDetails, {
   CodecDetailsCoordinator,
 } from "../post-process/codec-details/index.js";
+import ByteViewSession from "./ByteViewSession.js";
 
 const USUAL_FIRST_BOX_TYPES = new Set([
   "ftyp",
@@ -29,6 +30,7 @@ const USUAL_FIRST_BOX_TYPES = new Set([
  * Once parsing has been done
  */
 export default class InspectionSession {
+  #byteViewSession;
   #codecCoordinator;
   /** @type {Array<import("isobmff-inspector").ParsedBox>} */
   #topLevelBoxes = [];
@@ -45,6 +47,7 @@ export default class InspectionSession {
    * }} [options]
    */
   constructor(options = {}) {
+    this.#byteViewSession = new ByteViewSession();
     this.#codecCoordinator = new CodecDetailsCoordinator(options);
     this.#strictFirstBoxValidation = options.strictFirstBoxValidation ?? false;
     this.#recoverIncompleteTopLevelBoxes =
@@ -84,7 +87,7 @@ export default class InspectionSession {
   /**
    * @param {import("isobmff-inspector").ParsedBox} box
    * @param {number} depth
-   * @param {{ started?: boolean }} [options]
+   * @param {{ started?: boolean, path?: string[] }} [options]
    * @returns {{
    *   box: import("isobmff-inspector").ParsedBox,
    *   notice: null | { severity: "warning" | "error", message: string },
@@ -92,6 +95,7 @@ export default class InspectionSession {
    */
   onBoxComplete(box, depth, options = {}) {
     if (depth !== 0) {
+      this.#byteViewSession.onBoxComplete(box, options.path ?? [box.type]);
       return { box, notice: null };
     }
     const started = options.started ?? this.#openTopLevelBox;
@@ -107,7 +111,19 @@ export default class InspectionSession {
     }
     this.#topLevelBoxes.push(completedBox);
     this.#codecCoordinator.onTopLevelBoxComplete(completedBox);
+    this.#byteViewSession.onBoxComplete(
+      completedBox,
+      options.path ?? [box.type],
+    );
     return { box: completedBox, notice };
+  }
+
+  /**
+   * @param {number} absoluteOffset
+   * @param {Uint8Array} bytes
+   */
+  onInputBytes(absoluteOffset, bytes) {
+    this.#byteViewSession.captureInputChunk(absoluteOffset, bytes);
   }
 
   /**
@@ -119,6 +135,10 @@ export default class InspectionSession {
       start: info.payloadAbsoluteOffset,
       bytes,
     });
+    this.#byteViewSession.excludeByteRange(
+      info.payloadAbsoluteOffset,
+      info.payloadAbsoluteOffset + bytes.byteLength,
+    );
   }
 
   /**
@@ -143,6 +163,10 @@ export default class InspectionSession {
 
   getTopLevelBoxes() {
     return this.#topLevelBoxes;
+  }
+
+  getByteViewSession() {
+    return this.#byteViewSession;
   }
 
   /**

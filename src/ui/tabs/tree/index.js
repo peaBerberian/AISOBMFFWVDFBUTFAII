@@ -1,2 +1,2 @@
-export { default, getBoxNodeKey } from "./BoxTreeNodeView.js";
+export { default, getBoxNodeKey, openBoxBody } from "./BoxTreeNodeView.js";
 export { renderTreePositionMap } from "./TreePositionMap.js";

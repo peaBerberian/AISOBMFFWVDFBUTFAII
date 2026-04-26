@@ -30,6 +30,7 @@ const styleSources = [
   "box-tree.css",
   "values.css",
   "info.css",
+  "byte-view.css",
   "codec.css",
   "samples.css",
   "sizes.css",

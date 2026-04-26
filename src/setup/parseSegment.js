@@ -1,6 +1,8 @@
 import { parseEvents } from "isobmff-inspector";
 import InspectionResultsView from "../ui/InspectionResultsView.js";
 import ProgressBar from "../ui/ProgressBar.js";
+import { createAbortableAsyncIterable } from "../utils/abortables.js";
+import { toUint8Array } from "../utils/bytes.js";
 import InspectionSession from "./InspectionSession.js";
 
 /**
@@ -49,9 +51,14 @@ export async function parseAndRenderSegment(input, run, options = {}) {
     supplementalBoxes: supplementalMetadata?.boxes ?? [],
   });
   run.session = inspectionSession;
+  const byteTrackedInput = createByteTrackedInput(
+    input,
+    abortSignal,
+    inspectionSession.onInputBytes.bind(inspectionSession),
+  );
 
   try {
-    for await (const event of parseEvents(input, {
+    for await (const event of parseEvents(byteTrackedInput, {
       payloads: {
         include: ["mdat"],
         onChunk(info, chunk) {
@@ -102,6 +109,7 @@ export async function parseAndRenderSegment(input, run, options = {}) {
           );
         }
         const completion = inspectionSession.onBoxComplete(box, depth, {
+          path: event.path,
           started: wasStarted,
         });
         if (!wasStarted) {
@@ -139,6 +147,7 @@ export async function parseAndRenderSegment(input, run, options = {}) {
       topLevelBoxes,
       supplementalMetadata,
       codecDetailsResults,
+      byteViewSession: inspectionSession.getByteViewSession(),
     });
     completed = true;
   } catch (err) {
@@ -164,6 +173,124 @@ export async function parseAndRenderSegment(input, run, options = {}) {
       }
     }
   }
+}
+
+/**
+ * @param {import("isobmff-inspector").ISOBMFFInput} input
+ * @param {AbortSignal} signal
+ * @param {(absoluteOffset: number, bytes: Uint8Array) => void} onChunk
+ * @returns {AsyncIterable<Uint8Array>}
+ */
+function createByteTrackedInput(input, signal, onChunk) {
+  let source = input;
+  if (hasBodyLike(source) && source.body) {
+    source = source.body;
+  } else if (hasStream(source) && typeof source.stream === "function") {
+    source = source.stream();
+  }
+
+  /** @type {AsyncIterable<Uint8Array>} */
+  let iterable;
+  if (isReadableStream(source)) {
+    iterable = createAbortableAsyncIterable(source, signal);
+  } else if (isAsyncIterable(source)) {
+    iterable = {
+      async *[Symbol.asyncIterator]() {
+        for await (const chunk of source) {
+          yield toUint8Array(chunk);
+        }
+      },
+    };
+  } else if (isIterable(source)) {
+    iterable = {
+      async *[Symbol.asyncIterator]() {
+        for (const chunk of source) {
+          yield toUint8Array(chunk);
+        }
+      },
+    };
+  } else if (hasArrayBuffer(input) && typeof input.arrayBuffer === "function") {
+    iterable = {
+      async *[Symbol.asyncIterator]() {
+        yield new Uint8Array(await input.arrayBuffer());
+      },
+    };
+  } else {
+    throw new TypeError("Unsupported parser input for byte capture.");
+  }
+
+  return {
+    async *[Symbol.asyncIterator]() {
+      let absoluteOffset = 0;
+      for await (const chunk of iterable) {
+        onChunk(absoluteOffset, chunk);
+        absoluteOffset += chunk.byteLength;
+        yield chunk;
+      }
+    },
+  };
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is ReadableStream<import("isobmff-inspector").ISOBMFFByteChunk>}
+ */
+function isReadableStream(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    "getReader" in value &&
+    typeof value.getReader === "function"
+  );
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is AsyncIterable<import("isobmff-inspector").ISOBMFFByteChunk>}
+ */
+function isAsyncIterable(value) {
+  return (
+    value !== null && typeof value === "object" && Symbol.asyncIterator in value
+  );
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is Iterable<import("isobmff-inspector").ISOBMFFByteChunk>}
+ */
+function isIterable(value) {
+  return (
+    value !== null && typeof value === "object" && Symbol.iterator in value
+  );
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is { body?: unknown }}
+ */
+function hasBodyLike(value) {
+  return value !== null && typeof value === "object" && "body" in value;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is { stream?: () => unknown }}
+ */
+function hasStream(value) {
+  return value !== null && typeof value === "object" && "stream" in value;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is { arrayBuffer: () => Promise<ArrayBuffer> }}
+ */
+function hasArrayBuffer(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    "arrayBuffer" in value &&
+    typeof value.arrayBuffer === "function"
+  );
 }
 
 /**

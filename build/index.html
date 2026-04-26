@@ -132,6 +132,7 @@
     <div id="result-notices" aria-live="polite"></div>
     <div id="tabs" role="tablist" aria-label="Inspection views" hidden>
       <button type="button" class="tab active" id="tab-button-boxes" role="tab" data-tab="boxes" aria-controls="tab-boxes" aria-selected="true">box tree</button>
+      <button type="button" class="tab" id="tab-button-bytes" role="tab" data-tab="bytes" aria-controls="tab-bytes" aria-selected="false" hidden>byte view</button>
       <button type="button" class="tab" id="tab-button-info" role="tab" data-tab="info" aria-controls="tab-info" aria-selected="false">info</button>
       <button type="button" class="tab" id="tab-button-codec-details" role="tab" data-tab="codec-details" aria-controls="tab-codec-details" aria-selected="false" hidden>codec details</button>
       <button type="button" class="tab" id="tab-button-samples" role="tab" data-tab="samples" aria-controls="tab-samples" aria-selected="false" hidden>samples</button>
@@ -139,6 +140,9 @@
     </div>
     <div id="tab-boxes" class="tab-panel active" role="tabpanel" aria-labelledby="tab-button-boxes">
       <div id="file-description"></div>
+    </div>
+    <div id="tab-bytes" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-bytes" hidden>
+      <div id="byte-view"></div>
     </div>
     <div id="tab-info" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-info" hidden>
       <div id="media-info"></div>
