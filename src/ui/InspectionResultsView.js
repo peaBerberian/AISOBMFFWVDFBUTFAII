@@ -1,6 +1,7 @@
 import { requireElementById } from "../utils/dom.js";
 import {
   BoxTreeNodeView,
+  renderCodecDetails,
   renderMediaInfo,
   renderSampleView,
   renderSizeChart,
@@ -23,6 +24,12 @@ class InspectionResultsViewClass {
   #infoPanel = requireElementById("tab-info", HTMLElement);
   #wrapper = requireElementById("file-description", HTMLElement);
   #mediaInfo = requireElementById("media-info", HTMLElement);
+  #codecTabButton = requireElementById(
+    "tab-button-codec-details",
+    HTMLButtonElement,
+  );
+  #codecPanel = requireElementById("tab-codec-details", HTMLElement);
+  #codecDetails = requireElementById("codec-details", HTMLElement);
   #sizesPanel = requireElementById("tab-sizes", HTMLElement);
   #sizeChart = requireElementById("size-chart", HTMLElement);
   #sampleTabButton = requireElementById(
@@ -149,15 +156,25 @@ class InspectionResultsViewClass {
 
   /**
    * @param {{
-   *   boxes: Array<import("isobmff-inspector").ParsedBox>,
-   * } | null} [supplementalMetadata]
+   *   supplementalMetadata?: {
+   *     boxes: Array<import("isobmff-inspector").ParsedBox>,
+   *   } | null,
+   *   codecDetailsResults?: Array<any> | null,
+   * } | null} [options]
    */
-  finalize(supplementalMetadata = null) {
-    const options = supplementalMetadata
+  finalize(options = null) {
+    const supplementalMetadata = options?.supplementalMetadata ?? null;
+    const renderOptions = supplementalMetadata
       ? { supplementalBoxes: supplementalMetadata.boxes }
       : {};
-    renderMediaInfo(this.#topLevelBoxes, options);
-    const hasSampleView = renderSampleView(this.#topLevelBoxes, options);
+    renderMediaInfo(this.#topLevelBoxes, renderOptions);
+    const hasCodecDetails = renderCodecDetails(this.#topLevelBoxes, {
+      ...renderOptions,
+      results: options?.codecDetailsResults ?? null,
+    });
+    this.#codecTabButton.hidden = !hasCodecDetails;
+    this.#codecPanel.hidden = !hasCodecDetails;
+    const hasSampleView = renderSampleView(this.#topLevelBoxes, renderOptions);
     this.#sampleTabButton.hidden = !hasSampleView;
     this.#sampleTabPanel.hidden = !hasSampleView;
     renderSizeChart(this.#topLevelBoxes);
@@ -184,8 +201,11 @@ class InspectionResultsViewClass {
     this.#resultNotices.replaceChildren();
     this.#restorePanelRoot(this.#boxesPanel, this.#wrapper);
     this.#restorePanelRoot(this.#infoPanel, this.#mediaInfo);
+    this.#restorePanelRoot(this.#codecPanel, this.#codecDetails);
     this.#restorePanelRoot(this.#sampleTabPanel, this.#sampleView);
     this.#restorePanelRoot(this.#sizesPanel, this.#sizeChart);
+    this.#codecTabButton.hidden = true;
+    this.#codecPanel.hidden = true;
     this.#sampleTabButton.hidden = true;
     this.#sampleTabPanel.hidden = true;
     this.#tabs.hidden = true;

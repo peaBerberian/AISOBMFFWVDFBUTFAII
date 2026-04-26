@@ -30,6 +30,7 @@ const styleSources = [
   "box-tree.css",
   "values.css",
   "info.css",
+  "codec.css",
   "samples.css",
   "sizes.css",
 ].map((filename) => path.join("src", "styles", filename));

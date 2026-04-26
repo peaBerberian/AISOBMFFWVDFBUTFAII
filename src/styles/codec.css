@@ -1,0 +1,128 @@
+#codec-details {
+  display: grid;
+  gap: 12px;
+  max-width: 1120px;
+  font-size: 12px;
+}
+
+.codec-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.codec-fact-card {
+  display: grid;
+  gap: 3px;
+  padding: 8px 9px;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+  background: var(--color-background-secondary);
+}
+
+.codec-fact-label {
+  color: var(--color-text-tertiary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+}
+
+.codec-fact-value {
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.codec-fact-note {
+  color: var(--color-text-tertiary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.codec-list {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--color-text-primary);
+}
+
+.codec-list li + li {
+  margin-top: 4px;
+}
+
+.codec-list-warn {
+  color: var(--color-accent-orange);
+}
+
+.codec-ps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.codec-ps-card {
+  min-width: 0;
+}
+
+.codec-ps-title {
+  margin-bottom: 6px;
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.codec-nal-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--color-text-primary);
+}
+
+.codec-nal-table th,
+.codec-nal-table td {
+  padding: 6px 8px;
+  border-top: 0.5px solid var(--color-border-tertiary);
+  text-align: left;
+}
+
+.codec-nal-table th {
+  color: var(--color-text-tertiary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.codec-nal-table td:last-child,
+.codec-nal-table th:last-child {
+  width: 10ch;
+  text-align: right;
+}
+
+.codec-sequence-summary {
+  margin-bottom: 8px;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+}
+
+.codec-sequence-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.codec-sequence-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  padding: 4px 6px;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+}

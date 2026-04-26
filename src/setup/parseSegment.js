@@ -1,4 +1,5 @@
 import { parseEvents } from "isobmff-inspector";
+import InspectionSession from "../inspection/InspectionSession.js";
 import InspectionResultsView from "../ui/InspectionResultsView.js";
 import ProgressBar from "../ui/ProgressBar.js";
 
@@ -44,9 +45,33 @@ export async function parseAndRenderSegment(input, abortSignal, options = {}) {
   /** @type {ParseNotice | null} */
   let inputHeuristicNotice = null;
   let supplementalMetadata = null;
+  if (options.supplementalMetadataPromise) {
+    try {
+      supplementalMetadata = await options.supplementalMetadataPromise;
+    } catch (err) {
+      if (abortSignal.aborted) {
+        return;
+      }
+      const message = err instanceof Error ? err.message : String(err);
+      InspectionResultsView.renderNotice({
+        severity: "warning",
+        message: `Supplemental init metadata could not be loaded: ${message}`,
+      });
+    }
+  }
+  const inspectionSession = new InspectionSession({
+    supplementalBoxes: supplementalMetadata?.boxes ?? [],
+  });
 
   try {
-    for await (const event of parseEvents(input)) {
+    for await (const event of parseEvents(input, {
+      payloads: {
+        include: ["mdat"],
+        onChunk(info, chunk) {
+          inspectionSession.observePayloadChunk(info, chunk);
+        },
+      },
+    })) {
       if (abortSignal.aborted) {
         return;
       }
@@ -74,6 +99,7 @@ export async function parseAndRenderSegment(input, abortSignal, options = {}) {
           }
         }
         InspectionResultsView.beginBox(box, depth, event.path);
+        inspectionSession.onBoxStart(box, depth);
         continue;
       }
 
@@ -91,6 +117,7 @@ export async function parseAndRenderSegment(input, abortSignal, options = {}) {
           InspectionResultsView.renderNotice(inputHeuristicNotice);
           InspectionResultsView.appendRecoveredTopLevelBox(box);
         }
+        inspectionSession.onBoxComplete(box, depth);
       }
     }
 
@@ -103,22 +130,13 @@ export async function parseAndRenderSegment(input, abortSignal, options = {}) {
       InspectionResultsView.renderNotice(inputHeuristicNotice);
     }
 
-    if (options.supplementalMetadataPromise) {
-      try {
-        supplementalMetadata = await options.supplementalMetadataPromise;
-      } catch (err) {
-        if (abortSignal.aborted) {
-          return;
-        }
-        const message = err instanceof Error ? err.message : String(err);
-        InspectionResultsView.renderNotice({
-          severity: "warning",
-          message: `Supplemental init metadata could not be loaded: ${message}`,
-        });
-      }
-    }
-
-    InspectionResultsView.finalize(supplementalMetadata);
+    InspectionResultsView.finalize({
+      supplementalMetadata,
+      codecDetailsResults: inspectionSession.getCodecDetailsResults(
+        inspectionSession.getTopLevelBoxes(),
+        supplementalMetadata?.boxes ?? [],
+      ),
+    });
     completed = true;
   } catch (err) {
     if (abortSignal.aborted) {

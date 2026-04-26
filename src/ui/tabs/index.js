@@ -1,3 +1,4 @@
+import renderCodecDetails from "./codec_details.js";
 import renderMediaInfo from "./info/index.js";
 import renderSampleView from "./samples.js";
 import renderSizeChart from "./sizes.js";
@@ -7,6 +8,7 @@ import BoxTreeNodeView, { renderTreePositionMap } from "./tree/index.js";
 export {
   BoxTreeNodeView,
   initializeTabNavigation,
+  renderCodecDetails,
   renderMediaInfo,
   renderSampleView,
   renderSizeChart,
