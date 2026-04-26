@@ -87,6 +87,7 @@
           type="button"
           class="example-source-button"
           data-example-url="https://dash.akamaized.net/dash264/TestCases/1c/envivio/seg_b1000k_v_t12012.m4s"
+          data-example-companion-init-url="https://dash.akamaized.net/dash264/TestCases/1c/envivio/seg_b1000k_v_init.m4s"
           title="Inspect a DASH video media segment, 51 KB"
         >media segment</button>
         <button
@@ -132,6 +133,7 @@
     <div id="tabs" role="tablist" aria-label="Inspection views" hidden>
       <button type="button" class="tab active" id="tab-button-boxes" role="tab" data-tab="boxes" aria-controls="tab-boxes" aria-selected="true">box tree</button>
       <button type="button" class="tab" id="tab-button-info" role="tab" data-tab="info" aria-controls="tab-info" aria-selected="false">info</button>
+      <button type="button" class="tab" id="tab-button-codec-details" role="tab" data-tab="codec-details" aria-controls="tab-codec-details" aria-selected="false" hidden>codec details</button>
       <button type="button" class="tab" id="tab-button-samples" role="tab" data-tab="samples" aria-controls="tab-samples" aria-selected="false" hidden>samples</button>
       <button type="button" class="tab" id="tab-button-sizes" role="tab" data-tab="sizes" aria-controls="tab-sizes" aria-selected="false">box sizes</button>
     </div>
@@ -140,6 +142,9 @@
     </div>
     <div id="tab-info" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-info" hidden>
       <div id="media-info"></div>
+    </div>
+    <div id="tab-codec-details" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-codec-details" hidden>
+      <div id="codec-details"></div>
     </div>
     <div id="tab-samples" class="tab-panel" role="tabpanel" aria-labelledby="tab-button-samples" hidden>
       <div id="sample-view"></div>
