@@ -12,6 +12,7 @@ import {
   getStructArrayField,
 } from "../box_access.js";
 import {
+  getAudioDescription,
   getCodecLabel,
   getDimensions,
   getHandlerType,
@@ -62,7 +63,7 @@ const HEVC_NAL_TYPE_NAMES = new Map([
  *   trackLabel: string,
  *   codecLabel: string,
  *   description: string,
- *   codecFamily: "avc" | "hevc",
+ *   codecFamily: "avc" | "hevc" | null,
  *   overviewFacts: Array<{ label: string, value: string, note: string | null }>,
  *   details: string[],
  *   parameterSets: Array<{ label: string, details: string[] }>,
@@ -72,6 +73,16 @@ const HEVC_NAL_TYPE_NAMES = new Map([
  *   sampleSequence: string[],
  *   issues: string[],
  * }} CodecTrackDetails
+ *
+ * @typedef {{
+ *   sampleEntry: import("isobmff-inspector").ParsedBox,
+ *   sampleDescriptionIndex: number,
+ *   originalFormat: string | null,
+ *   codecType: string | null | undefined,
+ *   codecFamily: "avc" | "hevc" | null,
+ *   avcC: import("isobmff-inspector").ParsedBox | null,
+ *   hvcC: import("isobmff-inspector").ParsedBox | null,
+ * }} TrackSampleEntry
  */
 
 /**
@@ -121,9 +132,9 @@ export default function deriveCodecDetails(boxes, options = {}) {
     results.push({
       title: "media fragment",
       trackLabel: "media fragment",
-      codecLabel: "decoder configuration not present in this segment",
+      codecLabel: "track metadata not present in this segment",
       description: "fragment-only inspection",
-      codecFamily: "avc",
+      codecFamily: null,
       overviewFacts: [],
       details: [],
       parameterSets: [],
@@ -132,7 +143,7 @@ export default function deriveCodecDetails(boxes, options = {}) {
       nalTypes: [],
       sampleSequence: [],
       issues: [
-        "This looks like a standalone media fragment without an init segment. Codec config boxes such as avcC or hvcC are usually carried in the init segment, so decoder-oriented analysis is often unavailable here.",
+        "This looks like a standalone media fragment without an init segment. Sample entry definitions and decoder configuration are usually carried in the init segment, so codec-specific analysis is limited here.",
       ],
     });
   }
@@ -153,22 +164,20 @@ function deriveTrackCodecDetails(trak, boxes, moofs, trexDefaults, bytes) {
   const hdlr = findFirstBox([trak], "hdlr");
   const trackId = String(getNumberField(tkhd, "track_ID") ?? "?");
   const trackEntries = getTrackSampleEntries(trak);
-  const chosenEntry = trackEntries.find((entry) => entry.codecFamily !== null);
+  const handlerType = getHandlerType(hdlr);
+  /** @type {TrackSampleEntry | undefined} */
+  const chosenEntry =
+    trackEntries.find((entry) => entry.codecFamily !== null) ??
+    trackEntries.find(
+      (entry) =>
+        normalizeTrackKind(handlerType, entry.sampleEntry.type) !== "unknown",
+    ) ??
+    trackEntries[0];
   if (!chosenEntry) {
     return null;
   }
-  if (!chosenEntry.codecFamily) {
-    return null;
-  }
-  const codecFamily = /** @type {"avc" | "hevc"} */ (chosenEntry.codecFamily);
-
-  const kind = normalizeTrackKind(
-    getHandlerType(hdlr),
-    chosenEntry.sampleEntry.type,
-  );
-  if (kind !== "video") {
-    return null;
-  }
+  const codecFamily = chosenEntry.codecFamily;
+  const kind = normalizeTrackKind(handlerType, chosenEntry.sampleEntry.type);
 
   const codecLabel = getCodecLabel(
     chosenEntry.sampleEntry.type,
@@ -183,11 +192,24 @@ function deriveTrackCodecDetails(trak, boxes, moofs, trexDefaults, bytes) {
   const config =
     codecFamily === "avc"
       ? parseAvcConfigBox(chosenEntry.avcC)
-      : parseHevcConfigBox(chosenEntry.hvcC);
+      : codecFamily === "hevc"
+        ? parseHevcConfigBox(chosenEntry.hvcC)
+        : null;
 
-  if (!config) {
-    return null;
+  if (kind !== "video" || !codecFamily || !config) {
+    return buildGenericTrackCodecDetails({
+      trackId,
+      kind,
+      handlerType,
+      chosenEntry,
+      codecLabel,
+      protectedEntry,
+      dimensions,
+      codecFamily,
+      hasConfig: config !== null,
+    });
   }
+  const detailedCodecFamily = /** @type {"avc" | "hevc"} */ (codecFamily);
 
   const regularSamples = buildRegularTrackSampleLocations(
     trak,
@@ -257,14 +279,14 @@ function deriveTrackCodecDetails(trak, boxes, moofs, trexDefaults, bytes) {
   }
   overviewFacts.push(...config.summaryFacts);
 
-  const parameterSets = buildParameterSetSections(config, codecFamily);
+  const parameterSets = buildParameterSetSections(config, detailedCodecFamily);
   const sampleAnalysis =
     bytes && !protectedEntry && sampleLocations.length
       ? analyzeTrackSamples(
           bytes,
           sampleLocations,
           config.lengthSize,
-          codecFamily,
+          detailedCodecFamily,
         )
       : null;
 
@@ -312,8 +334,8 @@ function deriveTrackCodecDetails(trak, boxes, moofs, trexDefaults, bytes) {
     title: `${kind} track ${trackId}`,
     trackLabel: `track ${trackId}`,
     codecLabel,
-    description: `${kind} track ${trackId} - ${codecFamily.toUpperCase()}`,
-    codecFamily,
+    description: `${kind} track ${trackId} - ${detailedCodecFamily.toUpperCase()}`,
+    codecFamily: detailedCodecFamily,
     overviewFacts,
     details,
     parameterSets,
@@ -330,7 +352,126 @@ function deriveTrackCodecDetails(trak, boxes, moofs, trexDefaults, bytes) {
 }
 
 /**
+ * @param {{
+ *   trackId: string,
+ *   kind: string,
+ *   handlerType: string | null,
+ *   chosenEntry: TrackSampleEntry,
+ *   codecLabel: string,
+ *   protectedEntry: boolean,
+ *   dimensions: string | null,
+ *   codecFamily: "avc" | "hevc" | null,
+ *   hasConfig: boolean,
+ * }} input
+ */
+function buildGenericTrackCodecDetails(input) {
+  const {
+    trackId,
+    kind,
+    handlerType,
+    chosenEntry,
+    codecLabel,
+    protectedEntry,
+    dimensions,
+    codecFamily,
+    hasConfig,
+  } = input;
+  const audioDescription = getAudioDescription(chosenEntry.sampleEntry);
+  const normalizedKind = kind === "unknown" ? "track" : `${kind} track`;
+  /** @type {Array<{ label: string, value: string, note: string | null }>} */
+  const overviewFacts = [
+    {
+      label: "Sample Entry",
+      value: chosenEntry.sampleEntry.type,
+      note: "codec sample entry type from the container",
+    },
+  ];
+  if (chosenEntry.originalFormat) {
+    overviewFacts.push({
+      label: "Original Format",
+      value: chosenEntry.originalFormat,
+      note: "clear codec type declared behind the protected sample entry",
+    });
+  }
+  if (audioDescription) {
+    overviewFacts.push({
+      label: "Audio Format",
+      value: audioDescription,
+      note: "container-level audio parameters from the sample entry",
+    });
+  }
+  if (dimensions) {
+    overviewFacts.push({
+      label: "Sample Entry Size",
+      value: dimensions,
+      note: "container-level display intent from the visual sample entry",
+    });
+  }
+  if (handlerType && kind === "unknown") {
+    overviewFacts.push({
+      label: "Handler",
+      value: handlerType,
+      note: "track handler type from the container metadata",
+    });
+  }
+
+  /** @type {string[]} */
+  const details = [];
+  if (protectedEntry) {
+    details.push(
+      "protected sample entry: raw sample bytes are likely encrypted",
+    );
+  }
+  if (codecFamily && !hasConfig) {
+    details.push(
+      `${chosenEntry.codecType ?? "selected"} sample entry is present, but its decoder configuration box is not available in the current track metadata`,
+    );
+  } else if (kind === "audio") {
+    details.push(
+      "sample-entry metadata is available for this audio track, but deep decoder-config parsing in this tab is not implemented for this codec family yet",
+    );
+  } else if (kind === "text") {
+    details.push(
+      "sample-entry metadata is available for this text track, but this tab does not yet decode text-sample-entry specific configuration details",
+    );
+  } else if (kind === "video") {
+    details.push(
+      "container metadata is available for this video track, but deep decoder-config parsing in this tab currently focuses on AVC and HEVC",
+    );
+  } else {
+    details.push(
+      "track-level codec metadata is available, but this tab has no deeper parser for the selected sample entry yet",
+    );
+  }
+  if (kind !== "video") {
+    details.push(
+      "sample payload analysis is currently only implemented for AVC and HEVC length-prefixed video samples",
+    );
+  }
+
+  return {
+    title: `${normalizedKind} ${trackId}`,
+    trackLabel: `track ${trackId}`,
+    codecLabel,
+    description:
+      kind === "unknown"
+        ? `track ${trackId} - metadata-only codec view`
+        : `${kind} track ${trackId} - metadata-only codec view`,
+    codecFamily: null,
+    overviewFacts,
+    details,
+    parameterSets: [],
+    sampleFacts: [],
+    sampleDetails: [],
+    nalTypes: [],
+    sampleSequence: [],
+    issues: [],
+  };
+}
+
+/**
  * @param {import("isobmff-inspector").ParsedBox} trak
+ * @returns {TrackSampleEntry[]}
  */
 export function getTrackSampleEntries(trak) {
   const stsd = findFirstBox([trak], "stsd");

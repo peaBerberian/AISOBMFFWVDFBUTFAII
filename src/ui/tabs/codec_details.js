@@ -156,7 +156,7 @@ function renderFactGridSection(title, facts) {
 
 /**
  * @param {string[]} sequence
- * @param {"avc" | "hevc"} codecFamily
+ * @param {"avc" | "hevc" | null} codecFamily
  * @returns {HTMLElement | null}
  */
 function renderSequenceSection(sequence, codecFamily) {
