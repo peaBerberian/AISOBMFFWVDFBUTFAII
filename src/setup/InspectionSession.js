@@ -1,5 +1,6 @@
-import CodecDetailsCoordinator from "../post-process/codec-details/coordinator.js";
-import deriveCodecDetails from "../post-process/codec-details/index.js";
+import deriveCodecDetails, {
+  CodecDetailsCoordinator,
+} from "../post-process/codec-details/index.js";
 
 const USUAL_FIRST_BOX_TYPES = new Set([
   "ftyp",

@@ -1,4 +1,3 @@
-import deriveCodecDetails from "../../post-process/codec-details/index.js";
 import { el, requireElementById } from "../../utils/dom.js";
 import { numberFormat } from "../../utils/format.js";
 
@@ -17,7 +16,7 @@ export default function renderCodecDetails(boxes, options = {}) {
     return false;
   }
 
-  const results = options.results ?? deriveCodecDetails(boxes, options);
+  const results = options.results ?? [];
   if (!results.length) {
     return false;
   }
