@@ -135,6 +135,9 @@
 }
 
 .segment-choice-button:hover {
+	/* color: var(--color-text-primary); */
+	/*  background: var(--color-background-secondary); */
+	/*  border-color: var(--color-border-secondary); */
   color: var(--color-text-primary);
   background: var(--color-background-primary);
   border-color: var(--color-border-secondary);
