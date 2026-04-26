@@ -56,11 +56,7 @@ export function getField(box, key) {
  * @param {string} key
  */
 export function getStringField(box, key) {
-  const field = getField(box, key);
-  if (!field) {
-    return null;
-  }
-  const value = getFieldPrimitive(field);
+  const value = getFieldPrimitiveByKey(box, key);
   return value == null ? null : String(value);
 }
 
@@ -69,8 +65,7 @@ export function getStringField(box, key) {
  * @param {string} key
  */
 export function getNumberField(box, key) {
-  const field = getField(box, key);
-  const value = getFieldPrimitive(field);
+  const value = getFieldPrimitiveByKey(box, key);
   return toNullableNumber(value);
 }
 
@@ -133,6 +128,77 @@ export function getFieldPrimitive(field) {
     default:
       return null;
   }
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedBox | null | undefined} box
+ * @param {string} key
+ * @returns {string | number | bigint | boolean | null}
+ */
+function getFieldPrimitiveByKey(box, key) {
+  const field = getField(box, key);
+  if (field) {
+    return getFieldPrimitive(field);
+  }
+  for (const value of box?.values ?? []) {
+    const nested = findNestedFieldPrimitive(value, key);
+    if (nested != null) {
+      return nested;
+    }
+  }
+  return null;
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedField} field
+ * @param {string} key
+ * @returns {string | number | bigint | boolean | null}
+ */
+function findNestedFieldPrimitive(field, key) {
+  if ("fields" in field && Array.isArray(field.fields)) {
+    for (const nestedField of field.fields) {
+      if (nestedField.key === key) {
+        if ("kind" in nestedField) {
+          return getFieldPrimitive(nestedField);
+        }
+        return getPrimitiveValue(nestedField.value);
+      }
+      if ("kind" in nestedField) {
+        const nested = findNestedFieldPrimitive(nestedField, key);
+        if (nested != null) {
+          return nested;
+        }
+      }
+    }
+  }
+  if ("items" in field && Array.isArray(field.items)) {
+    for (const item of field.items) {
+      if ("kind" in item) {
+        const nested = findNestedFieldPrimitive(item, key);
+        if (nested != null) {
+          return nested;
+        }
+      }
+    }
+  }
+  if ("flags" in field && Array.isArray(field.flags)) {
+    const flag = field.flags.find((entry) => entry.key === key);
+    return flag ? getPrimitiveValue(flag.value) : null;
+  }
+  return null;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string | number | bigint | boolean | null}
+ */
+function getPrimitiveValue(value) {
+  return typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "bigint" ||
+    typeof value === "boolean"
+    ? value
+    : null;
 }
 
 /**

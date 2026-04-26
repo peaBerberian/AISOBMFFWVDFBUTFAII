@@ -3,7 +3,6 @@ import { numberFormat } from "../utils/format.js";
 import {
   findBoxes,
   findFirstBox,
-  getBooleanField,
   getField,
   getFieldPrimitive,
   getNumberArrayField,
@@ -235,11 +234,11 @@ function deriveTrackInfo(trak, metadataSource, includeSampleView) {
   }
 
   const hevcProfile = getNumberField(hvcC, "general_profile_idc");
-  const hevcTier = getBooleanField(hvcC, "general_tier_flag");
+  const hevcTier = getNumberField(hvcC, "general_tier_flag");
   const hevcLevel = getNumberField(hvcC, "general_level_idc");
   if (hevcProfile != null || hevcLevel != null) {
     details.push(
-      `HEVC profile ${hevcProfile ?? "?"}, ${hevcTier ? "high" : "main"} tier, level ${hevcLevel != null ? formatHevcLevel(hevcLevel) : "?"}`,
+      `HEVC profile ${hevcProfile ?? "?"}, ${hevcTier === 1 ? "high" : "main"} tier, level ${hevcLevel != null ? formatHevcLevel(hevcLevel) : "?"}`,
     );
   }
 

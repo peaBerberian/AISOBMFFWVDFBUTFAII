@@ -658,7 +658,7 @@ function deriveAc3CodecMetadata(dac3) {
   const sampleRate = getAc3SampleRate(getNumberField(dac3, "fscod"));
   const channelMode = getAc3ChannelMode(getNumberField(dac3, "acmod"));
   const lfe = getNumberField(dac3, "lfeon") === 1;
-  const bitrate = getNumberField(dac3, "data_rate_kbps");
+  const bitrate = getAc3Bitrate(getNumberField(dac3, "bit_rate_code"));
   /** @type {CodecFact[]} */
   const overviewFacts = [];
   if (sampleRate != null) {
@@ -679,7 +679,7 @@ function deriveAc3CodecMetadata(dac3) {
     overviewFacts.push({
       label: "Bitrate",
       value: `${numberFormat(bitrate)} kbps`,
-      note: "declared AC-3 data rate from dac3",
+      note: "derived from the AC-3 bitrate code in dac3",
     });
   }
 
@@ -693,6 +693,21 @@ function deriveAc3CodecMetadata(dac3) {
     ],
     issues: [],
   };
+}
+
+const AC3_BIT_RATE_TABLE = [
+  32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 448, 512,
+  576, 640,
+];
+
+/**
+ * @param {number | null} bitRateCode
+ */
+function getAc3Bitrate(bitRateCode) {
+  if (bitRateCode == null) {
+    return null;
+  }
+  return AC3_BIT_RATE_TABLE[bitRateCode] ?? null;
 }
 
 /**

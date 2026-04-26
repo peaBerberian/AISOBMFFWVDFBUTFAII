@@ -1,6 +1,5 @@
 import { numberFormat } from "../utils/format.js";
 import {
-  getBooleanField,
   getField,
   getFieldPrimitive,
   getNumberField,
@@ -142,7 +141,7 @@ function getHevcCodecString(codecType, hvcC) {
     hvcC,
     "general_profile_compatibility_flags",
   );
-  const tierFlag = getBooleanField(hvcC, "general_tier_flag");
+  const tierFlag = getNumberField(hvcC, "general_tier_flag");
   const levelIdc = getNumberField(hvcC, "general_level_idc");
   const constraintFlags = getNumberField(
     hvcC,
@@ -161,7 +160,7 @@ function getHevcCodecString(codecType, hvcC) {
     codecType,
     `${HEVC_PROFILE_SPACE_LETTERS[profileSpace] ?? ""}${profileIdc}`,
     String(compatibilityFlags),
-    `${tierFlag ? "H" : "L"}${levelIdc}`,
+    `${tierFlag === 1 ? "H" : "L"}${levelIdc}`,
   ];
   const constraintString = formatHevcConstraintString(constraintFlags);
   if (constraintString) {
@@ -305,12 +304,29 @@ export function getAudioDescription(sampleEntry) {
  */
 export function getLanguage(mdhd) {
   const field = getField(mdhd, "language");
-  if (field?.kind !== "struct") {
+  if (!field) {
     return null;
   }
-  const language = field.fields.find((item) => item.key === "language");
-  const value = getFieldPrimitive(language);
-  return value == null ? null : String(value);
+  if (field.kind === "string") {
+    return field.value;
+  }
+  if (field.kind === "bits") {
+    const packed =
+      field.fields.find((item) => item.key === "value")?.value ?? field.value;
+    return decodeIso639LanguageCode(packed);
+  }
+  if (field.kind === "struct") {
+    const valueField = field.fields.find((item) => item.key === "value");
+    const value = getFieldPrimitive(valueField);
+    if (typeof value === "string") {
+      return value;
+    }
+    if (typeof value === "number" && Number.isInteger(value)) {
+      return decodeIso639LanguageCode(value);
+    }
+  }
+  const value = getFieldPrimitive(field);
+  return typeof value === "string" ? value : null;
 }
 
 /**
@@ -337,15 +353,15 @@ export function getColorDescription(colr) {
   const primaries = getNumberField(colr, "colour_primaries");
   const transfer = getNumberField(colr, "transfer_characteristics");
   const matrix = getNumberField(colr, "matrix_coefficients");
-  const fullRange = getBooleanField(colr, "full_range_flag");
+  const fullRangeFlag = getNumberField(colr, "full_range_flag");
   const parts = [`color ${colourType}`];
   if (primaries != null || transfer != null || matrix != null) {
     parts.push(
       `P/T/M ${formatNamedId(primaries, COLOR_PRIMARIES_NAMES)}/${formatNamedId(transfer, TRANSFER_CHARACTERISTIC_NAMES)}/${formatNamedId(matrix, MATRIX_COEFFICIENT_NAMES)}`,
     );
   }
-  if (fullRange != null) {
-    parts.push(fullRange ? "full range" : "limited range");
+  if (fullRangeFlag != null) {
+    parts.push(fullRangeFlag === 1 ? "full range" : "limited range");
   }
   return parts.join(", ");
 }
@@ -370,8 +386,8 @@ export function getEncryptionDetails(schm, tenc) {
   const isProtected = getNumberField(tenc, "default_IsProtected");
   const perSampleIvSize = getNumberField(tenc, "default_Per_Sample_IV_Size");
   const defaultKid = getStringField(tenc, "default_KID");
-  const cryptByteBlock = getNumberField(tenc, "default_crypt_byte_block");
-  const skipByteBlock = getNumberField(tenc, "default_skip_byte_block");
+  const cryptByteBlock = getNumberField(tenc, "crypt_byte_block");
+  const skipByteBlock = getNumberField(tenc, "skip_byte_block");
   if (isProtected != null || perSampleIvSize != null) {
     details.push(
       `tenc default protection ${isProtected === 1 ? "enabled" : "disabled"}, IV size ${perSampleIvSize ?? "?"} bytes`,
@@ -386,6 +402,20 @@ export function getEncryptionDetails(schm, tenc) {
     );
   }
   return details;
+}
+
+/**
+ * @param {string | number | bigint | boolean | null} value
+ */
+function decodeIso639LanguageCode(value) {
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    return null;
+  }
+  return [
+    String.fromCharCode(((value >> 10) & 0x1f) + 0x60),
+    String.fromCharCode(((value >> 5) & 0x1f) + 0x60),
+    String.fromCharCode((value & 0x1f) + 0x60),
+  ].join("");
 }
 
 /**
