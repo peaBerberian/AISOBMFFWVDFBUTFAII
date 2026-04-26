@@ -1,5 +1,4 @@
 import { numberFormat } from "../utils/format.js";
-import { getTrackSampleSizeSource } from "./analysis.js";
 import {
   getFieldPrimitive,
   getNumberArrayField,
@@ -8,6 +7,7 @@ import {
   getStructArrayField,
   toNullableNumber,
 } from "./box_access.js";
+import { getTrackSampleSizeSource } from "./box_analysis.js";
 import {
   classifySample,
   createSampleCounts,
@@ -29,7 +29,7 @@ const SAMPLE_TIMELINE_LIMIT = 240;
  *   stss: import("isobmff-inspector").ParsedBox | null,
  *   sdtp: import("isobmff-inspector").ParsedBox | null,
  * }} input
- * @returns {import("./analysis.js").SampleView | null}
+ * @returns {import("./box_analysis.js").SampleView | null}
  */
 export function createTrackSampleView({
   trackId,
@@ -103,7 +103,7 @@ export function createTrackSampleView({
  *   fallbackSampleDuration: number | null,
  *   fallbackSampleSize: number | null,
  * }} input
- * @returns {import("./analysis.js").SampleView | null}
+ * @returns {import("./box_analysis.js").SampleView | null}
  */
 export function createFragmentSampleView({
   sequence,
@@ -157,9 +157,9 @@ export function createFragmentSampleView({
  *   startSample: number,
  *   count: number,
  *   timescale: number | null,
- *   timingRuns: import("./analysis.js").SampleValueRun[],
- *   compositionRuns: import("./analysis.js").SampleValueRun[],
- *   sampleSizes: import("./analysis.js").SampleSizeSource | null,
+ *   timingRuns: import("./box_analysis.js").SampleValueRun[],
+ *   compositionRuns: import("./box_analysis.js").SampleValueRun[],
+ *   sampleSizes: import("./box_analysis.js").SampleSizeSource | null,
  *   syncSampleNumbers: number[],
  *   hasExplicitSyncTable: boolean,
  *   dependencyInfo: Map<number, {
@@ -168,7 +168,7 @@ export function createFragmentSampleView({
  *     sampleHasRedundancy: number | null,
  *   }>,
  * }} input
- * @returns {import("./analysis.js").SampleRow[]}
+ * @returns {import("./box_analysis.js").SampleRow[]}
  */
 export function getTrackSampleRows({
   totalSamples,
@@ -247,7 +247,7 @@ export function getTrackSampleRows({
  *   fallbackSampleDuration: number | null,
  *   fallbackSampleSize: number | null,
  * }} input
- * @returns {import("./analysis.js").SampleRow[]}
+ * @returns {import("./box_analysis.js").SampleRow[]}
  */
 export function getFragmentSampleRows({
   startSample,
@@ -346,7 +346,7 @@ export function getFragmentSampleRows({
  *   ctts: import("isobmff-inspector").ParsedBox | null,
  *   sdtp: import("isobmff-inspector").ParsedBox | null,
  * }} input
- * @returns {import("./analysis.js").SampleTimeline | null}
+ * @returns {import("./box_analysis.js").SampleTimeline | null}
  */
 export function getTrackSampleTimeline({
   sampleCount,
@@ -385,7 +385,7 @@ export function getTrackSampleTimeline({
 /**
  * @param {Array<import("isobmff-inspector").ParsedBox>} truns
  * @param {import("isobmff-inspector").ParsedBox | null | undefined} tfhd
- * @returns {import("./analysis.js").SampleTimeline | null}
+ * @returns {import("./box_analysis.js").SampleTimeline | null}
  */
 export function getFragmentSampleTimeline(truns, tfhd) {
   const defaultSampleFlags = getNumberField(tfhd, "default_sample_flags");
@@ -437,7 +437,7 @@ export function getFragmentSampleTimeline(truns, tfhd) {
 /**
  * @param {number} totalSamples
  * @param {(sampleIndex: number) => import("./sample-utils.js").SampleClass} getKind
- * @returns {import("./analysis.js").SampleTimeline}
+ * @returns {import("./box_analysis.js").SampleTimeline}
  */
 export function buildSampleTimeline(totalSamples, getKind) {
   const counts = createSampleCounts();
@@ -533,7 +533,7 @@ function getSampleDependencyInfo(sdtp) {
  * @param {import("isobmff-inspector").ParsedBox | null | undefined} box
  * @param {string} arrayKey
  * @param {string} valueKey
- * @returns {import("./analysis.js").SampleValueRun[]}
+ * @returns {import("./box_analysis.js").SampleValueRun[]}
  */
 function getSampleValueRuns(box, arrayKey, valueKey) {
   return getStructArrayField(box, arrayKey)
@@ -545,7 +545,7 @@ function getSampleValueRuns(box, arrayKey, valueKey) {
 }
 
 /**
- * @param {import("./analysis.js").SampleSizeSource | null} sampleSizes
+ * @param {import("./box_analysis.js").SampleSizeSource | null} sampleSizes
  * @param {number} sampleIndex
  */
 function getSampleSizeAt(sampleSizes, sampleIndex) {
@@ -559,7 +559,7 @@ function getSampleSizeAt(sampleSizes, sampleIndex) {
 }
 
 /**
- * @param {import("./analysis.js").SampleValueRun[]} runs
+ * @param {import("./box_analysis.js").SampleValueRun[]} runs
  * @param {number} startSample
  * @param {number} endSample
  */
@@ -610,7 +610,7 @@ function getDecodeTimingWindow(runs, startSample, endSample) {
 }
 
 /**
- * @param {import("./analysis.js").SampleValueRun[]} runs
+ * @param {import("./box_analysis.js").SampleValueRun[]} runs
  * @param {number} startSample
  * @param {number} endSample
  * @param {number | null} fallbackValue

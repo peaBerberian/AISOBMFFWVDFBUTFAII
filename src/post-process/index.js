@@ -4,12 +4,12 @@ export default deriveMediaInfo;
 export { getSampleKindLabel, getSampleKindTitle } from "./sample-utils.js";
 
 /**
- * @typedef {import("./analysis.js").FragmentInfo} FragmentInfo
- * @typedef {import("./analysis.js").MediaInfo} MediaInfo
- * @typedef {import("./analysis.js").SampleTimeline} SampleTimeline
- * @typedef {import("./analysis.js").TrackInfo} TrackInfo
- * @typedef {import("./analysis.js").GopRun} GopRun
- * @typedef {import("./analysis.js").SampleRow} SampleRow
- * @typedef {import("./analysis.js").SampleView} SampleView
+ * @typedef {import("./box_analysis.js").FragmentInfo} FragmentInfo
+ * @typedef {import("./box_analysis.js").MediaInfo} MediaInfo
+ * @typedef {import("./box_analysis.js").SampleTimeline} SampleTimeline
+ * @typedef {import("./box_analysis.js").TrackInfo} TrackInfo
+ * @typedef {import("./box_analysis.js").GopRun} GopRun
+ * @typedef {import("./box_analysis.js").SampleRow} SampleRow
+ * @typedef {import("./box_analysis.js").SampleView} SampleView
  * @typedef {import("./sample-utils.js").SampleClass} SampleClass
  */

@@ -1,6 +1,19 @@
 import { getActualBoxSize } from "../utils/box_size.js";
 import { numberFormat } from "../utils/format.js";
 import {
+  findBoxes,
+  findFirstBox,
+  getBooleanField,
+  getField,
+  getFieldPrimitive,
+  getNumberArrayField,
+  getNumberField,
+  getStringField,
+  getStructArrayField,
+  hasBoxType,
+  toNullableNumber,
+} from "./box_access.js";
+import {
   analyzeFragmentTiming,
   analyzeSampleSizes,
   analyzeTrackTiming,
@@ -14,20 +27,7 @@ import {
   getTrackFragmentDefaults,
   getTrackFrameArrangement,
   getTrackSampleSizeSource,
-} from "./analysis.js";
-import {
-  findBoxes,
-  findFirstBox,
-  getBooleanField,
-  getField,
-  getFieldPrimitive,
-  getNumberArrayField,
-  getNumberField,
-  getStringField,
-  getStructArrayField,
-  hasBoxType,
-  toNullableNumber,
-} from "./box_access.js";
+} from "./box_analysis.js";
 import {
   AUDIO_SAMPLE_ENTRY_TYPES,
   getAudioDescription,
@@ -76,7 +76,7 @@ const ENCRYPTION_BOX_TYPES = new Set([
  * @param {{
  *   supplementalBoxes?: Array<import("isobmff-inspector").ParsedBox> | null,
  * }} [options]
- * @returns {import("./analysis.js").MediaInfo}
+ * @returns {import("./box_analysis.js").MediaInfo}
  */
 export default function deriveMediaInfo(boxes, options = {}) {
   const supplementalBoxes = options.supplementalBoxes ?? [];
@@ -116,7 +116,7 @@ export default function deriveMediaInfo(boxes, options = {}) {
   );
   const isFragmented = Boolean(findFirstBox(boxes, "mvex") || moofBoxes.length);
   const duration = durationFromBox(mvhd);
-  /** @type {import("./analysis.js").MediaInfo} */
+  /** @type {import("./box_analysis.js").MediaInfo} */
   const info = {
     segmentType: getSegmentType({ boxes, moov, moofBoxes }),
     majorBrand: getStringField(ftyp, "major_brand"),
@@ -152,7 +152,7 @@ export default function deriveMediaInfo(boxes, options = {}) {
  * @param {import("isobmff-inspector").ParsedBox} trak
  * @param {"selected" | "supplemental-init"} metadataSource
  * @param {boolean} includeSampleView
- * @returns {import("./analysis.js").TrackInfo}
+ * @returns {import("./box_analysis.js").TrackInfo}
  */
 function deriveTrackInfo(trak, metadataSource, includeSampleView) {
   const tkhd = findFirstBox([trak], "tkhd");
@@ -313,7 +313,7 @@ function deriveTrackInfo(trak, metadataSource, includeSampleView) {
  * @param {Map<string, number | null>} trackTimescales
  * @param {Map<string, string>} trackKinds
  * @param {Map<string, { defaultSampleDuration: number; defaultSampleSize: number }>} fragmentDefaults
- * @returns {import("./analysis.js").FragmentInfo[]}
+ * @returns {import("./box_analysis.js").FragmentInfo[]}
  */
 function deriveFragmentInfo(
   moof,
@@ -402,7 +402,7 @@ function deriveFragmentInfo(
 }
 
 /**
- * @param {import("./analysis.js").MediaInfo} info
+ * @param {import("./box_analysis.js").MediaInfo} info
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
  */
 function deriveHints(info, boxes) {
