@@ -56,6 +56,16 @@ class InspectionResultsViewClass {
     this.#results.setAttribute("aria-busy", isLoading ? "true" : "false");
   }
 
+  /**
+   * TODO: seems awkward here
+   */
+  finishRequest() {
+    this.#results.setAttribute("aria-busy", "false");
+  }
+
+  /**
+   * Clear the whole inspection UI.
+   */
   clear() {
     this.#abortCtrlr.abort();
     this.#abortCtrlr = new AbortController();
@@ -64,7 +74,10 @@ class InspectionResultsViewClass {
     this.#renderedBoxCount = 0;
   }
 
-  prepareForParsing() {
+  /**
+   * Setup the base UI for a new parsed file.
+   */
+  initializeForNewRender() {
     this.clear();
     this.#results.setAttribute("aria-busy", "true");
     this.#tabs.hidden = false;
@@ -74,11 +87,13 @@ class InspectionResultsViewClass {
   }
 
   /**
+   * Begin rendering the box that has just been encounted while parsing
+   * in the "box tree" that should be currently in view.
    * @param {PendingParsedBox} box
    * @param {number} depth
    * @param {string[]} path
    */
-  beginBox(box, depth, path) {
+  renderBoxTreeStart(box, depth, path) {
     this.#stack.length = depth;
     const shouldAutoOpen = this.#renderedBoxCount < AUTO_OPEN_BOX_LIMIT;
     this.#renderedBoxCount++;
@@ -101,17 +116,25 @@ class InspectionResultsViewClass {
   }
 
   /**
-   * @param {import("isobmff-inspector").ParsedBox} box
-   * @param {number} depth
-   * @param {string[]} path
-   * @returns {boolean}
+   * Once a box has been completely parsed, updated with potential new
+   * information since `renderBoxTreeStart` was called.
+   * This function returns `true` if it could complete the box. See return
+   * value documentation for the semantics of a `false` return value.
+   *
+   * @param {import("isobmff-inspector").ParsedBox} box - The full box
+   * metadata to add to the tree.
+   * @param {number} depth - The "depth" of the box, `0` being top-level. used
+   * for defensive reasons.
+   * @returns {boolean} - Returns `false` either if this box was never
+   * signaled through `renderBoxTreeStart`, or if it wasn't the last one
+   * encountered at that depth.
+   * In both of those cases, nothing new has been rendered.
+   * Returns `true` if it was the last "started" box at that depth and
+   * render the supplementary information.
    */
-  completeBox(box, depth, path) {
+  completeStartedBox(box, depth) {
     const current = this.#stack[depth];
     if (!current) {
-      if (depth !== 0) {
-        throw new Error(`missing started box for ${path.join("/")}`);
-      }
       return false;
     }
 
@@ -122,7 +145,7 @@ class InspectionResultsViewClass {
   /**
    * @param {import("isobmff-inspector").ParsedBox} box
    */
-  appendTopLevelBox(box) {
+  appendStandaloneTopLevelBox(box) {
     const view = new BoxTreeNodeView(box, {
       autoOpen: true,
     });
@@ -130,6 +153,8 @@ class InspectionResultsViewClass {
   }
 
   /**
+   * Add the given "notice" (e.g. warning / error proeminently featured on
+   * screen) to the UI.
    * @param {ParseNotice} notice
    */
   renderNotice(notice) {
@@ -145,6 +170,8 @@ class InspectionResultsViewClass {
   }
 
   /**
+   * To call once parsing is finished, to start rendering the full analysis
+   * UI on that file.
    * @param {{
    *   topLevelBoxes: Array<import("isobmff-inspector").ParsedBox>,
    *   supplementalMetadata?: {
@@ -153,7 +180,7 @@ class InspectionResultsViewClass {
    *   codecDetailsResults?: Array<any> | null,
    * } | null} [options]
    */
-  finalize(options = null) {
+  renderFullResults(options = null) {
     const topLevelBoxes = options?.topLevelBoxes ?? [];
     const supplementalMetadata = options?.supplementalMetadata ?? null;
     const renderOptions = supplementalMetadata
@@ -179,14 +206,13 @@ class InspectionResultsViewClass {
     this.#tabs.classList.add("is-visible");
   }
 
-  fail() {
+  /**
+   * To call if parsing failed, this will update the UI accordingly.
+   */
+  finalizeFailedRender() {
     this.#tabs.hidden = true;
     this.#tabs.classList.remove("is-reserved", "is-visible");
     this.#abortCtrlr.abort();
-  }
-
-  finishRequest() {
-    this.#results.setAttribute("aria-busy", "false");
   }
 
   #clearDom() {

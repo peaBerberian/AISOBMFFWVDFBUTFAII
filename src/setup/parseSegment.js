@@ -23,7 +23,7 @@ import InspectionSession from "./InspectionSession.js";
 export async function parseAndRenderSegment(input, run, options = {}) {
   const abortSignal = run.controller.signal;
   let boxCount = 0;
-  InspectionResultsView.prepareForParsing();
+  InspectionResultsView.initializeForNewRender();
   ProgressBar.updateStatus("parsing…");
 
   let completed = false;
@@ -82,7 +82,7 @@ export async function parseAndRenderSegment(input, run, options = {}) {
           inputHeuristicNotice = notice;
           InspectionResultsView.renderNotice(notice);
         }
-        InspectionResultsView.beginBox(box, depth, event.path);
+        InspectionResultsView.renderBoxTreeStart(box, depth, event.path);
         continue;
       }
 
@@ -94,20 +94,21 @@ export async function parseAndRenderSegment(input, run, options = {}) {
 
         const box = event.box;
         const depth = event.path.length - 1;
-        const started = InspectionResultsView.completeBox(
-          box,
-          depth,
-          event.path,
-        );
+        const wasStarted = InspectionResultsView.completeStartedBox(box, depth);
+        if (!wasStarted && depth !== 0) {
+          throw new Error(
+            `Unrecoverable invalidity for box ${event.path.join("/")}`,
+          );
+        }
         const completion = inspectionSession.onBoxComplete(box, depth, {
-          started,
+          started: wasStarted,
         });
-        if (!started) {
+        if (!wasStarted) {
           inputHeuristicNotice = completion.notice;
           if (completion.notice) {
             InspectionResultsView.renderNotice(completion.notice);
           }
-          InspectionResultsView.appendTopLevelBox(completion.box);
+          InspectionResultsView.appendStandaloneTopLevelBox(completion.box);
         }
       }
     }
@@ -122,7 +123,7 @@ export async function parseAndRenderSegment(input, run, options = {}) {
     const codecDetailsResults = inspectionSession.getCodecDetailsResults(
       supplementalMetadata?.boxes ?? [],
     );
-    InspectionResultsView.finalize({
+    InspectionResultsView.renderFullResults({
       topLevelBoxes,
       supplementalMetadata,
       codecDetailsResults,
@@ -133,7 +134,7 @@ export async function parseAndRenderSegment(input, run, options = {}) {
       return;
     }
     InspectionResultsView.clear();
-    InspectionResultsView.fail();
+    InspectionResultsView.finalizeFailedRender();
     const message = err instanceof Error ? err.message : err;
     ProgressBar.fail(`parse error: ${message}`);
     console.error("parse error", err);
