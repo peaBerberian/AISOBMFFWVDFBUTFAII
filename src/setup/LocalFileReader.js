@@ -42,11 +42,21 @@ export default class LocalFileReader {
    * @returns {AsyncIterable<Uint8Array>}
    */
   readRange(start, endExclusive) {
-    return createBlobChunkIterable(
-      this.#file.slice(start, endExclusive),
-      this.#signal,
+    return createLocalRangeReader(this.#file, this.#signal)(
+      start,
+      endExclusive,
     );
   }
+}
+
+/**
+ * @param {Blob} file
+ * @param {AbortSignal} signal
+ * @returns {(start: number, endExclusive: number) => AsyncIterable<Uint8Array>}
+ */
+export function createLocalRangeReader(file, signal) {
+  return (start, endExclusive) =>
+    createBlobChunkIterable(file.slice(start, endExclusive), signal);
 }
 
 /**

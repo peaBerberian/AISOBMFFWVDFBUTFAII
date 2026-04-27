@@ -1,6 +1,7 @@
 import { setInspectionSource } from "../ui/InspectionSourceElement.js";
 import ProgressBar from "../ui/ProgressBar.js";
 import { requireElementById } from "../utils/dom.js";
+import { createLocalDeferredAnalysisSource } from "./deferred_analysis_source.js";
 import {
   beginInspectionLifecycle,
   finishInspectionLifecycle,
@@ -25,7 +26,7 @@ export function parseLocalFile(file) {
     selectedValue: namedFile.name || "Unnamed file",
   });
   parseAndRenderSegment(reader.toParserInput(), run, {
-    rangeReader: reader.readRange.bind(reader),
+    deferredAnalysisSource: createLocalDeferredAnalysisSource(file),
   }).finally(() => {
     finishInspectionLifecycle(run);
   });

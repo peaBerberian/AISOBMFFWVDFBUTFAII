@@ -17,6 +17,8 @@ import {
 
 const MAX_ANALYZED_SAMPLES = 160;
 const MAX_ANALYZED_NALS = 4000;
+const MAX_DEFERRED_BATCH_SPAN = 256 * 1024;
+const MAX_DEFERRED_BATCH_GAP = 8 * 1024;
 
 /**
  * @typedef {{ index: number, offset: number, size: number }} SampleLocation
@@ -51,8 +53,8 @@ const MAX_ANALYZED_NALS = 4000;
  *   nalTypeCounts: Map<string, number>,
  *   sampleSequenceEntries: Array<{ sampleIndex: number, label: string }>,
  *   deferredLocations: SampleLocation[],
- *   localRereadSamples: number,
- *   localRereadFailed: boolean,
+ *   deferredRecoverySamples: number,
+ *   deferredRecoveryFailed: boolean,
  *   issues: string[],
  * }} TrackState
  */
@@ -104,6 +106,8 @@ export default class CodecDetailsCoordinator {
   #tracks = new Map();
   /** @type {Array<import("isobmff-inspector").ParsedBox>} */
   #topLevelBoxes = [];
+  /** @type {string | null} */
+  #deferredAnalysisBlockedReason = null;
 
   /**
    * @param {{
@@ -207,51 +211,29 @@ export default class CodecDetailsCoordinator {
     return this.#topLevelBoxes;
   }
 
-  /**
-   * @param {RangeReader} readRange
-   * @param {AbortSignal} abortSignal
-   */
-  async completeLocalFileAnalysis(readRange, abortSignal) {
+  getDeferredAnalysisState() {
+    let pendingTrackCount = 0;
+    let pendingSampleCount = 0;
+    let recoveredSampleCount = 0;
+
     for (const trackState of this.#tracks.values()) {
-      if (
-        abortSignal.aborted ||
-        trackState.protected ||
-        trackState.lengthSize == null
-      ) {
+      if (!canRecoverDeferredSamples(trackState)) {
+        recoveredSampleCount += trackState.deferredRecoverySamples;
         continue;
       }
-      while (
-        trackState.deferredLocations.length > 0 &&
-        trackState.analyzedSamples < MAX_ANALYZED_SAMPLES &&
-        trackState.nalCount < MAX_ANALYZED_NALS
-      ) {
-        if (abortSignal.aborted) {
-          return;
-        }
-        const location = trackState.deferredLocations.shift();
-        if (!location) {
-          break;
-        }
-        try {
-          await this.#analyzeSampleStream(
-            trackState,
-            location.index,
-            readRange(location.offset, location.offset + location.size),
-          );
-          if (abortSignal.aborted) {
-            return;
-          }
-          trackState.localRereadSamples++;
-        } catch (err) {
-          trackState.localRereadFailed = true;
-          const message = err instanceof Error ? err.message : String(err);
-          trackState.issues.push(
-            `local reread failed for sample ${location.index}: ${message}`,
-          );
-          break;
-        }
-      }
+      pendingTrackCount++;
+      pendingSampleCount += trackState.deferredLocations.length;
+      recoveredSampleCount += trackState.deferredRecoverySamples;
     }
+
+    return {
+      available:
+        this.#deferredAnalysisBlockedReason === null && pendingSampleCount > 0,
+      blockedReason: this.#deferredAnalysisBlockedReason,
+      pendingTrackCount,
+      pendingSampleCount,
+      recoveredSampleCount,
+    };
   }
 
   /**
@@ -273,8 +255,91 @@ export default class CodecDetailsCoordinator {
       result.nalTypes = payloadDetails.nalTypes;
       result.sampleSequence = payloadDetails.sampleSequence;
       result.issues = [...result.issues, ...payloadDetails.issues];
+      result.canDeepenPayloadFurther =
+        canRecoverDeferredSamples(trackState) &&
+        this.#deferredAnalysisBlockedReason === null;
     }
     return results;
+  }
+
+  /**
+   * @param {RangeReader} readRange
+   * @param {AbortSignal} abortSignal
+   * @param {{
+   *   mapErrorToBlockedReason?: ((err: unknown) => string | null) | undefined,
+   * }} [options]
+   */
+  async completeDeferredAnalysis(readRange, abortSignal, options = {}) {
+    for (const trackState of this.#tracks.values()) {
+      if (abortSignal.aborted || !canAnalyzeTrack(trackState)) {
+        continue;
+      }
+      while (canRecoverDeferredSamples(trackState)) {
+        if (abortSignal.aborted) {
+          return;
+        }
+        try {
+          await this.#recoverDeferredBatch(trackState, readRange, abortSignal);
+          if (abortSignal.aborted) {
+            return;
+          }
+        } catch (err) {
+          if (abortSignal.aborted) {
+            return;
+          }
+          const message = err instanceof Error ? err.message : String(err);
+          const blockedReason = options.mapErrorToBlockedReason?.(err) ?? null;
+          trackState.deferredRecoveryFailed = true;
+          if (blockedReason) {
+            this.#deferredAnalysisBlockedReason = blockedReason;
+          } else {
+            trackState.issues.push(
+              `deferred sample recovery failed: ${message}`,
+            );
+          }
+          break;
+        }
+      }
+      if (this.#deferredAnalysisBlockedReason !== null) {
+        return;
+      }
+    }
+  }
+
+  /**
+   * @param {TrackState} trackState
+   * @param {RangeReader} readRange
+   * @param {AbortSignal} abortSignal
+   */
+  async #recoverDeferredBatch(trackState, readRange, abortSignal) {
+    const batch = takeDeferredBatch(trackState);
+    if (!batch) {
+      return;
+    }
+
+    const batchBytes = await readAllChunks(
+      readRange(batch.start, batch.endExclusive),
+      abortSignal,
+    );
+    for (let index = 0; index < batch.locations.length; index++) {
+      if (!canContinueAnalyzing(trackState)) {
+        restoreDeferredLocations(
+          trackState,
+          batch.locations.slice(index),
+          batch.locations.length,
+        );
+        break;
+      }
+      const location = batch.locations[index];
+      const relativeStart = location.offset - batch.start;
+      const relativeEnd = relativeStart + location.size;
+      this.#analyzeSample(
+        trackState,
+        location.index,
+        batchBytes.subarray(relativeStart, relativeEnd),
+      );
+      trackState.deferredRecoverySamples++;
+    }
   }
 
   /**
@@ -708,19 +773,19 @@ export default class CodecDetailsCoordinator {
         "sample payload analysis unavailable because the selected samples are protected or encrypted",
       );
     } else if (trackState.analyzedSamples > 0) {
-      const usedLocalRereads = trackState.localRereadSamples > 0;
+      const usedDeferredRecovery = trackState.deferredRecoverySamples > 0;
       sampleFacts.push({
         label: "Analyzed Samples",
         value: String(trackState.analyzedSamples),
-        note: usedLocalRereads
-          ? "decoded from mapped sample payload bytes across the streaming pass and targeted local rereads"
+        note: usedDeferredRecovery
+          ? "decoded from mapped sample payload bytes across the streaming pass and targeted deferred byte rereads"
           : "decoded from mapped sample payload bytes during the streaming parse",
       });
       sampleFacts.push({
         label: "Analyzed NAL Units",
         value: String(trackState.nalCount),
-        note: usedLocalRereads
-          ? "total length-prefixed NAL units inspected across the streaming pass and local rereads"
+        note: usedDeferredRecovery
+          ? "total length-prefixed NAL units inspected across the streaming pass and targeted deferred byte rereads"
           : "total length-prefixed NAL units inspected in the current streaming window",
       });
       if (trackState.sampleClassCounts.size > 0) {
@@ -734,11 +799,11 @@ export default class CodecDetailsCoordinator {
           note: "decode-order slice classes inferred from AVC slice headers",
         });
       }
-      if (trackState.localRereadSamples > 0) {
+      if (trackState.deferredRecoverySamples > 0) {
         sampleFacts.push({
-          label: "Local Rereads",
-          value: String(trackState.localRereadSamples),
-          note: "sample payloads re-read from the local file after late metadata became available",
+          label: "Deferred Recovery Reads",
+          value: String(trackState.deferredRecoverySamples),
+          note: "targeted byte-span rereads performed after late metadata became available",
         });
       }
     }
@@ -747,17 +812,22 @@ export default class CodecDetailsCoordinator {
       sampleDetails.push(
         "some mapped sample payload bytes passed before codec metadata or sample mapping were ready, so the streaming pass could not inspect them",
       );
-      if (trackState.localRereadSamples > 0) {
+      if (trackState.deferredRecoverySamples > 0) {
         sampleDetails.push(
-          "local random-access rereads recovered part of that missed payload analysis without buffering the whole file",
+          "targeted deferred byte rereads recovered part of that missed payload analysis without buffering the whole resource",
         );
       }
+    }
+
+    if (this.#deferredAnalysisBlockedReason !== null) {
+      sampleDetails.push(this.#deferredAnalysisBlockedReason);
     }
 
     if (
       trackState.deferredLocations.length > 0 &&
       !trackState.protected &&
-      !trackState.localRereadFailed
+      !trackState.deferredRecoveryFailed &&
+      this.#deferredAnalysisBlockedReason === null
     ) {
       sampleDetails.push(
         "some deferred sample ranges remain unanalyzed because the codec analysis window limit was reached",
@@ -841,10 +911,121 @@ function createTrackState(trackId) {
     sampleSequenceEntries:
       /** @type {Array<{ sampleIndex: number, label: string }>} */ ([]),
     deferredLocations: /** @type {SampleLocation[]} */ ([]),
-    localRereadSamples: 0,
-    localRereadFailed: false,
+    deferredRecoverySamples: 0,
+    deferredRecoveryFailed: false,
     issues: /** @type {string[]} */ ([]),
   };
+}
+
+/**
+ * @param {TrackState} trackState
+ * @returns {boolean}
+ */
+function canAnalyzeTrack(trackState) {
+  return !trackState.protected && trackState.lengthSize != null;
+}
+
+/**
+ * @param {TrackState} trackState
+ * @returns {boolean}
+ */
+function canContinueAnalyzing(trackState) {
+  return (
+    trackState.analyzedSamples < MAX_ANALYZED_SAMPLES &&
+    trackState.nalCount < MAX_ANALYZED_NALS
+  );
+}
+
+/**
+ * @param {TrackState} trackState
+ * @returns {boolean}
+ */
+function canRecoverDeferredSamples(trackState) {
+  return (
+    canAnalyzeTrack(trackState) &&
+    trackState.deferredLocations.length > 0 &&
+    canContinueAnalyzing(trackState)
+  );
+}
+
+/**
+ * @param {TrackState} trackState
+ * @returns {{ start: number, endExclusive: number, locations: SampleLocation[] } | null}
+ */
+function takeDeferredBatch(trackState) {
+  const first = trackState.deferredLocations.shift();
+  if (!first) {
+    return null;
+  }
+
+  /** @type {SampleLocation[]} */
+  const locations = [first];
+  const start = first.offset;
+  let endExclusive = first.offset + first.size;
+  let maxSamplesRemaining =
+    MAX_ANALYZED_SAMPLES - trackState.analyzedSamples - 1;
+
+  while (
+    maxSamplesRemaining > 0 &&
+    trackState.deferredLocations.length > 0 &&
+    canContinueAnalyzing(trackState)
+  ) {
+    const next = trackState.deferredLocations[0];
+    const gap = next.offset - endExclusive;
+    const nextEndExclusive = next.offset + next.size;
+    if (gap > MAX_DEFERRED_BATCH_GAP) {
+      break;
+    }
+    if (nextEndExclusive - start > MAX_DEFERRED_BATCH_SPAN) {
+      break;
+    }
+    locations.push(next);
+    endExclusive = nextEndExclusive;
+    trackState.deferredLocations.shift();
+    maxSamplesRemaining--;
+  }
+
+  return {
+    start,
+    endExclusive,
+    locations,
+  };
+}
+
+/**
+ * @param {TrackState} trackState
+ * @param {SampleLocation[]} locations
+ * @param {number} expectedCount
+ */
+function restoreDeferredLocations(trackState, locations, expectedCount) {
+  if (!locations.length) {
+    return;
+  }
+  trackState.deferredLocations.unshift(...locations);
+  if (trackState.deferredLocations.length > expectedCount) {
+    trackState.deferredLocations.sort(
+      (left, right) => left.offset - right.offset,
+    );
+  }
+}
+
+/**
+ * @param {AsyncIterable<Uint8Array>} chunks
+ * @param {AbortSignal} abortSignal
+ * @returns {Promise<Uint8Array>}
+ */
+async function readAllChunks(chunks, abortSignal) {
+  /** @type {Uint8Array[]} */
+  const parts = [];
+  let totalLength = 0;
+  for await (const chunk of chunks) {
+    if (abortSignal.aborted) {
+      return createEmptyUint8Array();
+    }
+    parts.push(chunk);
+    totalLength += chunk.length;
+  }
+  return concatChunks(parts, totalLength);
 }
 
 /**

@@ -1,6 +1,10 @@
 import { parseEvents } from "isobmff-inspector";
 import InspectionResultsView from "../ui/InspectionResultsView.js";
 import ProgressBar from "../ui/ProgressBar.js";
+import {
+  beginInspectionLifecycle,
+  finishInspectionLifecycle,
+} from "./InspectionLifecycle.js";
 import InspectionSession from "./InspectionSession.js";
 
 /**
@@ -18,7 +22,7 @@ import InspectionSession from "./InspectionSession.js";
  *   supplementalMetadataPromise?: Promise<{
  *     boxes: Array<import("isobmff-inspector").ParsedBox>,
  *   } | null>,
- *   rangeReader?: ((start: number, endExclusive: number) => AsyncIterable<Uint8Array>) | null,
+ *   deferredAnalysisSource?: import("./deferred_analysis_source.js").DeferredAnalysisSource | null,
  * }} [options]
  */
 export async function parseAndRenderSegment(input, run, options = {}) {
@@ -120,10 +124,10 @@ export async function parseAndRenderSegment(input, run, options = {}) {
       InspectionResultsView.renderNotice(emptyInputNotice);
     }
 
-    if (options.rangeReader) {
-      ProgressBar.updateStatus("deepening codec analysis by reading back…");
-      await inspectionSession.completeLocalFileAnalysis(
-        options.rangeReader,
+    if (options.deferredAnalysisSource?.mode === "automatic") {
+      ProgressBar.updateStatus(options.deferredAnalysisSource.progressMessage);
+      await inspectionSession.completeDeferredAnalysis(
+        options.deferredAnalysisSource.createRangeReader(abortSignal),
         abortSignal,
       );
       if (abortSignal.aborted) {
@@ -135,10 +139,19 @@ export async function parseAndRenderSegment(input, run, options = {}) {
     const codecDetailsResults = inspectionSession.getCodecDetailsResults(
       supplementalMetadata?.boxes ?? [],
     );
+    const deferredAnalysisAction =
+      options.deferredAnalysisSource?.mode === "manual"
+        ? createDeferredAnalysisAction(
+            inspectionSession,
+            options.deferredAnalysisSource,
+            supplementalMetadata?.boxes ?? [],
+          )
+        : null;
     InspectionResultsView.renderFullResults({
       topLevelBoxes,
       supplementalMetadata,
       codecDetailsResults,
+      deferredAnalysisAction,
     });
     completed = true;
   } catch (err) {
@@ -164,6 +177,65 @@ export async function parseAndRenderSegment(input, run, options = {}) {
       }
     }
   }
+}
+
+/**
+ * @param {InspectionSession} inspectionSession
+ * @param {import("./deferred_analysis_source.js").DeferredAnalysisSource} deferredAnalysisSource
+ * @param {Array<import("isobmff-inspector").ParsedBox>} supplementalBoxes
+ * @returns {import("./deferred_analysis_source.js").DeferredAnalysisAction}
+ */
+function createDeferredAnalysisAction(
+  inspectionSession,
+  deferredAnalysisSource,
+  supplementalBoxes,
+) {
+  return {
+    state: inspectionSession.getDeferredAnalysisState(),
+    triggerLabel: deferredAnalysisSource.triggerLabel ?? "Deepen analysis",
+    async run() {
+      const deferredRun = beginInspectionLifecycle({
+        preserveResultsOnAbort: true,
+      });
+      ProgressBar.start(deferredAnalysisSource.progressMessage);
+      ProgressBar.startEasing();
+
+      try {
+        const previousState = inspectionSession.getDeferredAnalysisState();
+        await inspectionSession.completeDeferredAnalysis(
+          deferredAnalysisSource.createRangeReader(
+            deferredRun.controller.signal,
+          ),
+          deferredRun.controller.signal,
+          {
+            mapErrorToBlockedReason:
+              deferredAnalysisSource.mapErrorToBlockedReason,
+          },
+        );
+        if (deferredRun.controller.signal.aborted) {
+          return null;
+        }
+        const nextState = inspectionSession.getDeferredAnalysisState();
+        const nextResults =
+          inspectionSession.getCodecDetailsResults(supplementalBoxes);
+        if (nextState.blockedReason) {
+          ProgressBar.fail(nextState.blockedReason);
+        } else if (
+          nextState.recoveredSampleCount > previousState.recoveredSampleCount
+        ) {
+          ProgressBar.end(deferredAnalysisSource.successMessage);
+        } else {
+          ProgressBar.end("Codec details refreshed.");
+        }
+        return {
+          state: nextState,
+          results: nextResults,
+        };
+      } finally {
+        finishInspectionLifecycle(deferredRun);
+      }
+    },
+  };
 }
 
 /**

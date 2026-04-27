@@ -74,6 +74,7 @@ const HEVC_NAL_TYPE_NAMES = new Map([
  *   nalTypes: Array<{ label: string, count: number }>,
  *   sampleSequence: string[],
  *   issues: string[],
+ *   canDeepenPayloadFurther?: boolean,
  * }} CodecTrackDetails
  *
  * @typedef {{
@@ -161,6 +162,7 @@ export default function deriveCodecDetails(boxes, options = {}) {
       issues: [
         "This looks like a standalone media fragment without an init segment. Sample entry definitions and decoder configuration are usually carried in the init segment, so codec-specific analysis is limited here.",
       ],
+      canDeepenPayloadFurther: false,
     });
   }
 
@@ -364,6 +366,7 @@ function deriveTrackCodecDetails(trak, boxes, moofs, trexDefaults, bytes) {
       ...sampleIssues,
       ...(sampleAnalysis?.issues ?? []),
     ],
+    canDeepenPayloadFurther: false,
   };
 }
 
@@ -487,6 +490,7 @@ function buildGenericTrackCodecDetails(input) {
     nalTypes: [],
     sampleSequence: [],
     issues: [...codecMetadata.issues],
+    canDeepenPayloadFurther: false,
   };
 }
 
@@ -658,6 +662,7 @@ function deriveAc3CodecMetadata(dac3) {
   const sampleRate = getAc3SampleRate(getNumberField(dac3, "fscod"));
   const channelMode = getAc3ChannelMode(getNumberField(dac3, "acmod"));
   const lfe = getNumberField(dac3, "lfeon") === 1;
+	// XXX TODO: To check if still here that one
   const bitrate = getNumberField(dac3, "data_rate_kbps");
   /** @type {CodecFact[]} */
   const overviewFacts = [];

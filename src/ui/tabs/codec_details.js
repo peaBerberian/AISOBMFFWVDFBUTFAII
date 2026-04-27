@@ -2,10 +2,17 @@ import { el, requireElementById } from "../../utils/dom.js";
 import { numberFormat } from "../../utils/format.js";
 
 /**
+ * @typedef {import("../../setup/deferred_analysis_source.js").DeferredAnalysisAction} DeferredAnalysisAction
+ * @typedef {import("../../setup/deferred_analysis_source.js").DeferredAnalysisState} DeferredAnalysisState
+ * @typedef {import("../../setup/deferred_analysis_source.js").DeferredAnalysisRunResult} DeferredAnalysisRunResult
+ */
+
+/**
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
  * @param {{
  *   supplementalBoxes?: Array<import("isobmff-inspector").ParsedBox> | null,
  *   results?: Array<any> | null,
+ *   deferredAnalysisAction?: DeferredAnalysisAction | null,
  * }} [options]
  * @returns {boolean}
  */
@@ -16,7 +23,7 @@ export default function renderCodecDetails(boxes, options = {}) {
     return false;
   }
 
-  const results = options.results ?? [];
+  let results = options.results ?? [];
   if (!results.length) {
     return false;
   }
@@ -33,6 +40,11 @@ export default function renderCodecDetails(boxes, options = {}) {
   }
   picker.body.appendChild(sourceSelect);
   controls.appendChild(picker.wrap);
+  const deferredActionState = {
+    busy: false,
+    error: "",
+    action: options.deferredAnalysisAction ?? null,
+  };
 
   const summary = el("div", "codec-summary");
   const content = el("div", "codec-content");
@@ -50,12 +62,50 @@ export default function renderCodecDetails(boxes, options = {}) {
   render();
   return true;
 
+  async function triggerDeferredAnalysis() {
+    if (!deferredActionState.action || deferredActionState.busy) {
+      return;
+    }
+    deferredActionState.busy = true;
+    deferredActionState.error = "";
+    render();
+    try {
+      const next = await deferredActionState.action.run();
+      if (!next) {
+        return;
+      }
+      results = next.results;
+      deferredActionState.action = {
+        ...deferredActionState.action,
+        state: next.state,
+      };
+      state.result =
+        results.find(
+          (result) => result.trackLabel === state.result.trackLabel,
+        ) ?? results[0];
+    } catch (err) {
+      deferredActionState.error =
+        err instanceof Error ? err.message : String(err);
+    } finally {
+      deferredActionState.busy = false;
+      render();
+    }
+  }
+
   function render() {
     sourceSelect.value = state.result.trackLabel;
     sourceSelect.disabled = results.length === 1;
     summary.replaceChildren(renderSummary(state.result));
     content.replaceChildren();
     const merged = mergeDetailItems(state.result);
+    appendIfPresent(
+      content,
+      renderDeferredAnalysisSection(
+        state.result,
+        deferredActionState,
+        triggerDeferredAnalysis,
+      ),
+    );
     appendIfPresent(
       content,
       renderFactGridSection("Overview", state.result.overviewFacts),
@@ -100,6 +150,59 @@ function renderSummary(result) {
   addStat(wrap, "codec", result.codecLabel);
   addStat(wrap, "focus", result.description);
   return wrap;
+}
+
+/**
+ * @param {any} result
+ * @param {{
+ *   busy: boolean,
+ *   error: string,
+ *   action: DeferredAnalysisAction | null,
+ * }} deferredActionState
+ * @param {() => void} onClick
+ * @returns {HTMLElement | null}
+ */
+function renderDeferredAnalysisSection(result, deferredActionState, onClick) {
+  const action = deferredActionState.action;
+  const shouldShow =
+    action &&
+    (deferredActionState.busy ||
+      Boolean(deferredActionState.error) ||
+      action.state.available);
+  if (!shouldShow || !action || !result.canDeepenPayloadFurther) {
+    return null;
+  }
+
+  const section = createSection("Deferred Payload Analysis");
+  const intro = el("p", "codec-deferred-status");
+  intro.textContent =
+    "Some mapped sample bytes passed before the codec analysis had enough metadata. You can revisit only those deferred spans instead of reloading the whole resource.";
+  section.body.appendChild(intro);
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "codec-deferred-button";
+  button.disabled = deferredActionState.busy;
+  button.textContent = deferredActionState.busy
+    ? "Reading deferred spans..."
+    : (action.triggerLabel ?? "Deepen analysis");
+  button.onclick = onClick;
+  section.body.appendChild(button);
+
+  const status = el("div", "codec-deferred-status");
+  if (deferredActionState.error) {
+    status.textContent = deferredActionState.error;
+    status.className = "codec-deferred-status codec-deferred-status-warn";
+    section.body.appendChild(status);
+    return section.section;
+  }
+  const trackCount = numberFormat(action.state.pendingTrackCount);
+  const sampleCount = numberFormat(action.state.pendingSampleCount);
+  status.textContent = deferredActionState.busy
+    ? `Fetching up to ${sampleCount} deferred sample range(s) across ${trackCount} track(s).`
+    : `${sampleCount} deferred sample range(s) remain across ${trackCount} track(s).`;
+  section.body.appendChild(status);
+  return section.section;
 }
 
 /**

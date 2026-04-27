@@ -124,12 +124,20 @@ export default class InspectionSession {
   /**
    * @param {(start: number, endExclusive: number) => AsyncIterable<Uint8Array>} readRange
    * @param {AbortSignal} abortSignal
+   * @param {{
+   *   mapErrorToBlockedReason?: ((err: unknown) => string | null) | undefined,
+   * }} [options]
    */
-  async completeLocalFileAnalysis(readRange, abortSignal) {
-    await this.#codecCoordinator.completeLocalFileAnalysis(
+  async completeDeferredAnalysis(readRange, abortSignal, options = {}) {
+    await this.#codecCoordinator.completeDeferredAnalysis(
       readRange,
       abortSignal,
+      options,
     );
+  }
+
+  getDeferredAnalysisState() {
+    return this.#codecCoordinator.getDeferredAnalysisState();
   }
 
   /**

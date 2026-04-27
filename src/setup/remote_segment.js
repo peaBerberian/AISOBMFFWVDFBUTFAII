@@ -4,6 +4,7 @@ import { hideSegmentChooser } from "../ui/PlaylistSegmentChooser.js";
 import ProgressBar from "../ui/ProgressBar.js";
 import { createAbortableAsyncIterable } from "../utils/abortables.js";
 import { formatSegmentSourceValue } from "../utils/format.js";
+import { createRemoteDeferredAnalysisSource } from "./deferred_analysis_source.js";
 import {
   finishInspectionLifecycle,
   isCurrentInspection,
@@ -122,6 +123,10 @@ export function inspectRemoteSegment(
         : Promise.resolve(null);
       return parseAndRenderSegment(segmentInput, run, {
         supplementalMetadataPromise,
+        deferredAnalysisSource: createRemoteDeferredAnalysisSource(
+          segmentUrl,
+          byteRange,
+        ),
       });
     })
     .catch((err) => {
