@@ -95,7 +95,7 @@ function appendIfPresent(parent, child) {
  * }} result
  */
 function renderSummary(result) {
-  const wrap = el("div", "info-summary");
+  const wrap = el("div", "stat-grid codec-summary");
   addStat(wrap, "track", result.title);
   addStat(wrap, "codec", result.codecLabel);
   addStat(wrap, "focus", result.description);
@@ -277,17 +277,17 @@ function getSpecificParameterSetDetails(parameterSets) {
  */
 function createSection(title) {
   const section = /** @type {HTMLDetailsElement} */ (
-    el("details", "info-section")
+    el("details", "section codec-section")
   );
   section.open = true;
-  const summary = el("summary", "info-section-title");
+  const summary = el("summary", "section-title codec-section-title");
   const caret = el("span", "box-caret");
   caret.setAttribute("aria-hidden", "true");
-  const label = el("span", "info-section-label");
+  const label = el("span", "section-label codec-section-label");
   label.textContent = title;
   summary.appendChild(caret);
   summary.appendChild(label);
-  const body = el("div", "info-section-body");
+  const body = el("div", "section-body codec-section-body");
   section.appendChild(summary);
   section.appendChild(body);
   return { section, body };
@@ -299,10 +299,10 @@ function createSection(title) {
  * @param {string} value
  */
 function addStat(parent, label, value) {
-  const item = el("div", "info-stat");
-  const labelEl = el("span", "info-stat-label");
+  const item = el("div", "stat-card codec-stat");
+  const labelEl = el("span", "stat-label codec-stat-label");
   labelEl.textContent = label;
-  const valueEl = el("span", "info-stat-value");
+  const valueEl = el("span", "stat-value codec-stat-value");
   valueEl.textContent = value;
   item.appendChild(labelEl);
   item.appendChild(valueEl);

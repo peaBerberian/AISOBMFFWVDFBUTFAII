@@ -9,6 +9,7 @@
     "format": "biome format --write .",
     "lint": "biome check .",
     "min": "AISOBMFFWVDFBUTFAII_MINIFY=true node scripts/build.mjs",
+    "start": "node scripts/start.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "watch": "node scripts/build.mjs --watch"
   },

@@ -273,17 +273,17 @@ function getRowDetail(row, showNonMdatShare) {
  */
 function createSizeSection(title) {
   const section = /** @type {HTMLDetailsElement} */ (
-    el("details", "size-section")
+    el("details", "section size-section")
   );
   section.open = true;
-  const summary = el("summary", "size-section-title");
+  const summary = el("summary", "section-title size-section-title");
   const caret = el("span", "box-caret");
   caret.setAttribute("aria-hidden", "true");
-  const label = el("span", "size-section-label");
+  const label = el("span", "section-label size-section-label");
   label.textContent = title;
   summary.appendChild(caret);
   summary.appendChild(label);
-  const body = el("div", "size-section-body");
+  const body = el("div", "section-body size-section-body");
   section.appendChild(summary);
   section.appendChild(body);
   return { section, body };
@@ -405,26 +405,26 @@ export default function renderSizeChart(boxes) {
   container.appendChild(overviewSection.section);
   const summary = el(
     "div",
-    `size-summary${showNonMdatShare ? "" : " size-summary-no-excluded"}`,
+    `stat-grid size-summary${showNonMdatShare ? "" : " size-summary-no-excluded"}`,
   );
   summary.innerHTML = `
-    <div class="size-stat">
-      <span class="size-stat-label">total</span>
-      <span class="size-stat-value">${esc(fmtBytes(total))}</span>
+    <div class="stat-card size-stat">
+      <span class="stat-label size-stat-label">total</span>
+      <span class="stat-value size-stat-value">${esc(fmtBytes(total))}</span>
     </div>
-    <div class="size-stat">
-      <span class="size-stat-label">boxes</span>
-      <span class="size-stat-value">${flattenedRows.length}</span>
+    <div class="stat-card size-stat">
+      <span class="stat-label size-stat-label">boxes</span>
+      <span class="stat-value size-stat-value">${flattenedRows.length}</span>
     </div>
-    <div class="size-stat">
-      <span class="size-stat-label">largest</span>
-      <span class="size-stat-value">${largestBox ? `${esc(largestBox.type)} ${fmtPct(largestPct * 100)}` : "n/a"}</span>
+    <div class="stat-card size-stat">
+      <span class="stat-label size-stat-label">largest</span>
+      <span class="stat-value size-stat-value">${largestBox ? `${esc(largestBox.type)} ${fmtPct(largestPct * 100)}` : "n/a"}</span>
     </div>
     ${
       showNonMdatShare
-        ? `<div class="size-stat">
-      <span class="size-stat-label">excluding mdat</span>
-      <span class="size-stat-value">${esc(fmtBytes(nonMdatTotal))}</span>
+        ? `<div class="stat-card size-stat">
+      <span class="stat-label size-stat-label">excluding mdat</span>
+      <span class="stat-value size-stat-value">${esc(fmtBytes(nonMdatTotal))}</span>
     </div>`
         : ""
     }

@@ -33,7 +33,7 @@ export default function renderMediaInfo(boxes, options = {}) {
  */
 function renderSummary(info) {
   const section = createSection("summary");
-  const summary = el("div", "info-summary");
+  const summary = el("div", "stat-grid info-summary");
   addStat(summary, "type", info.segmentType);
   addStat(summary, "duration", info.durationLabel);
   addStat(summary, "tracks", String(info.trackCount));
@@ -274,17 +274,17 @@ function renderIssues(boxes) {
  */
 function createSection(title) {
   const section = /** @type {HTMLDetailsElement} */ (
-    el("details", "info-section")
+    el("details", "section info-section")
   );
   section.open = true;
-  const summary = el("summary", "info-section-title");
+  const summary = el("summary", "section-title info-section-title");
   const caret = el("span", "box-caret");
   caret.setAttribute("aria-hidden", "true");
-  const label = el("span", "info-section-label");
+  const label = el("span", "section-label info-section-label");
   label.textContent = title;
   summary.appendChild(caret);
   summary.appendChild(label);
-  const body = el("div", "info-section-body");
+  const body = el("div", "section-body info-section-body");
   section.appendChild(summary);
   section.appendChild(body);
   return { section, body };
@@ -299,10 +299,10 @@ function addStat(parent, label, value) {
   if (!shouldShowStat(value)) {
     return;
   }
-  const item = el("div", "info-stat");
-  const labelEl = el("span", "info-stat-label");
+  const item = el("div", "stat-card info-stat");
+  const labelEl = el("span", "stat-label info-stat-label");
   labelEl.textContent = label;
-  const valueEl = el("span", "info-stat-value");
+  const valueEl = el("span", "stat-value info-stat-value");
   valueEl.textContent = value;
   item.appendChild(labelEl);
   item.appendChild(valueEl);

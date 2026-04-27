@@ -87,6 +87,7 @@ playlist chooser lifecycle.
 CSS is split by feature ownership:
 
 - `base.css`: variables, reset, and page-wide defaults.
+- `shared.css`: shared section, caret, and stat-card primitives reused across tabs.
 - `progress.css`: progress bar, status line, and cancel button.
 - `shell.css`: header, source selection, tabs, and general shell layout.
 - `playlist.css`: DASH/HLS chooser cards and controls.
@@ -97,8 +98,9 @@ CSS is split by feature ownership:
 - `sizes.css`: size summaries, size map, and sortable box-size tables.
 - `codec.css`: style specific to the "codec details" tab
 
-When adding or removing a CSS source file, update the `styleSources` list in
-`scripts/build.mjs`. The explicit list defines the final source order.
+`scripts/build.mjs` picks up every `.css` file in `src/styles` automatically.
+`base.css` and `shared.css` are forced to the front; the remaining CSS files are
+concatenated in alphabetical order.
 
 Prefer adding styles to the file that owns the rendered UI. Reuse existing CSS
 variables before introducing new colors or spacing constants.
