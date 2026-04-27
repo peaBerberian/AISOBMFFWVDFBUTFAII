@@ -21,6 +21,11 @@ export function switchToTab(tabName) {
   }
 
   updateTabIndicator();
+  document.dispatchEvent(
+    new CustomEvent("tabchange", {
+      detail: { tabName },
+    }),
+  );
 }
 
 export function initializeTabNavigation() {

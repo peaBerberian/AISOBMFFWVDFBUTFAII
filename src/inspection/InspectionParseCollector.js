@@ -1,6 +1,7 @@
 import deriveCodecDetails, {
   CodecDetailsCoordinator,
 } from "../post-process/codec-details/index.js";
+import ByteViewCollector from "./byte-view/ByteViewCollector.js";
 
 const USUAL_FIRST_BOX_TYPES = new Set([
   "ftyp",
@@ -18,17 +19,14 @@ const USUAL_FIRST_BOX_TYPES = new Set([
 ]);
 
 /**
- * Handle transitive data while parsing a segment allowing for advanced
- * analysis.
+ * Collects parser-stream facts that need to survive parsing.
  *
  * For example media segment may contain a huge amount of media data we may
- * not want to keep all in memory. To handle this, `InspectionSession` can be
- * made aware of chunked parsed data as it is read, and determine through its
- * own algorithms what needs to be kept and what does not need to.
- *
- * Once parsing has been done
+ * not want to keep all in memory. Feature-specific collectors decide what
+ * small slices of streaming data should be kept for completed inspection views.
  */
-export default class InspectionSession {
+export default class InspectionParseCollector {
+  #byteViewCollector;
   #codecCoordinator;
   /** @type {Array<import("isobmff-inspector").ParsedBox>} */
   #topLevelBoxes = [];
@@ -45,6 +43,7 @@ export default class InspectionSession {
    * }} [options]
    */
   constructor(options = {}) {
+    this.#byteViewCollector = new ByteViewCollector();
     this.#codecCoordinator = new CodecDetailsCoordinator(options);
     this.#strictFirstBoxValidation = options.strictFirstBoxValidation ?? false;
     this.#recoverIncompleteTopLevelBoxes =
@@ -84,7 +83,7 @@ export default class InspectionSession {
   /**
    * @param {import("isobmff-inspector").ParsedBox} box
    * @param {number} depth
-   * @param {{ started?: boolean }} [options]
+   * @param {{ started?: boolean, path?: string[] }} [options]
    * @returns {{
    *   box: import("isobmff-inspector").ParsedBox,
    *   notice: null | { severity: "warning" | "error", message: string },
@@ -92,6 +91,7 @@ export default class InspectionSession {
    */
   onBoxComplete(box, depth, options = {}) {
     if (depth !== 0) {
+      this.#byteViewCollector.onBoxComplete(box, options.path ?? [box.type]);
       return { box, notice: null };
     }
     const started = options.started ?? this.#openTopLevelBox;
@@ -107,6 +107,10 @@ export default class InspectionSession {
     }
     this.#topLevelBoxes.push(completedBox);
     this.#codecCoordinator.onTopLevelBoxComplete(completedBox);
+    this.#byteViewCollector.onBoxComplete(
+      completedBox,
+      options.path ?? [box.type],
+    );
     return { box: completedBox, notice };
   }
 
@@ -119,6 +123,18 @@ export default class InspectionSession {
       start: info.payloadAbsoluteOffset,
       bytes,
     });
+    this.#byteViewCollector.excludeByteRange(
+      info.payloadAbsoluteOffset,
+      info.payloadAbsoluteOffset + bytes.byteLength,
+    );
+  }
+
+  /**
+   * @param {number} absoluteOffset
+   * @param {Uint8Array} bytes
+   */
+  captureByteViewInputChunk(absoluteOffset, bytes) {
+    this.#byteViewCollector.captureInputChunk(absoluteOffset, bytes);
   }
 
   /**
@@ -143,6 +159,10 @@ export default class InspectionSession {
 
   getTopLevelBoxes() {
     return this.#topLevelBoxes;
+  }
+
+  getByteViewRenderData() {
+    return this.#byteViewCollector.toRenderData();
   }
 
   /**

@@ -21,19 +21,19 @@ export default class LocalFileReader {
   }
 
   /**
-   * @returns {import("isobmff-inspector").ISOBMFFInput}
+   * @returns {AsyncIterable<Uint8Array>}
    */
   toParserInput() {
     const streamableFile = /** @type {{ stream?: Blob["stream"] }} */ (
       this.#file
     );
-    if (typeof streamableFile.stream !== "function") {
-      return this.#file;
+    if (typeof streamableFile.stream === "function") {
+      return createAbortableAsyncIterable(
+        streamableFile.stream.call(this.#file),
+        this.#signal,
+      );
     }
-    return createAbortableAsyncIterable(
-      streamableFile.stream.call(this.#file),
-      this.#signal,
-    );
+    return createBlobChunkIterable(this.#file, this.#signal);
   }
 
   /**

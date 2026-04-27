@@ -1,7 +1,3 @@
-import InspectionResultsView from "../ui/InspectionResultsView.js";
-import { setInspectionSource } from "../ui/InspectionSourceElement.js";
-import { showDashSegmentChooser } from "../ui/PlaylistSegmentChooser.js";
-import ProgressBar from "../ui/ProgressBar.js";
 import {
   parseMPDFromString,
   parseMPDFromURL,
@@ -14,28 +10,36 @@ import {
  * segment chooser UI.
  *
  * @param {string} sourceUrl
- * @param {{ text: string | null }} probe
- * @param {import("./InspectionLifecycle.js").InspectionRun} run
+ * @param {{ text: string | null }} probeResult
  * @param {(
  *   segmentUrl: string,
  *   byteRange: [number, number|undefined]|undefined,
  *   companionInit: { url: string, byteRange: [number, number|undefined]|undefined } | undefined
  * ) => void} onSegmentChosen
+ * @param {(action: import("../inspection/InspectionSourceHandle.js").SourceAction) => void} dispatch
+ * @param {AbortSignal} signal
  * @returns {Promise<void>}
  */
-export async function handleDashSource(sourceUrl, probe, run, onSegmentChosen) {
-  const signal = run.controller.signal;
-
-  setInspectionSource({
-    selectedLabel: "DASH manifest",
-    selectedValue: sourceUrl,
+export async function handleDashSource(
+  sourceUrl,
+  probeResult,
+  onSegmentChosen,
+  dispatch,
+  signal,
+) {
+  dispatch({
+    type: "manifest-loading",
+    source: {
+      selectedLabel: "DASH manifest",
+      selectedValue: sourceUrl,
+    },
+    status: { message: "Loading DASH manifest…" },
   });
-  ProgressBar.updateStatus("Loading DASH manifest…");
 
   try {
     const tree =
-      probe.text !== null
-        ? parseMPDFromString(probe.text, sourceUrl, signal)
+      probeResult.text !== null
+        ? parseMPDFromString(probeResult.text, sourceUrl, signal)
         : await parseMPDFromURL(sourceUrl, signal);
 
     if (signal.aborted) {
@@ -43,46 +47,68 @@ export async function handleDashSource(sourceUrl, probe, run, onSegmentChosen) {
     }
 
     if (countDashChoices(tree) === 0) {
-      InspectionResultsView.clear();
-      ProgressBar.fail("No ISOBMFF segments found in DASH manifest.");
+      const error = new Error("No ISOBMFF segments found in DASH manifest.");
+      dispatch({
+        type: "source-resolution-failed",
+        error,
+        status: { message: error.message, state: "error" },
+      });
       return;
     }
 
-    ProgressBar.end("DASH manifest loaded.");
-    InspectionResultsView.clear();
-
     const renderChooser = () => {
-      showDashSegmentChooser(
+      dispatch({
+        type: "segment-choices-available",
+        sourceKind: "dash",
         sourceUrl,
         tree,
-        onSegmentChosen,
-        async (representation) => {
-          ProgressBar.start("Loading DASH segment list...");
-          ProgressBar.startEasing();
+        onInspect: onSegmentChosen,
+        status: { message: "DASH manifest loaded.", state: "success" },
+        async onLoadRepresentation(representation) {
+          dispatch({
+            type: "segment-list-loading",
+            status: {
+              message: "Loading DASH segment list...",
+              state: "start",
+              easing: true,
+            },
+          });
           try {
             await resolveIndexForRepresentation(representation, signal);
             if (signal.aborted) {
               return;
             }
-            ProgressBar.end("DASH segment list loaded");
+            dispatch({
+              type: "segment-list-loaded",
+              status: { message: "DASH segment list loaded", state: "success" },
+            });
             renderChooser();
           } catch (err) {
             if (!signal.aborted) {
               const message = err instanceof Error ? err.message : err;
-              ProgressBar.fail(`segment list error: ${message}`);
+              dispatch({
+                type: "segment-list-failed",
+                status: {
+                  message: `segment list error: ${message}`,
+                  state: "error",
+                },
+              });
               throw err;
             }
           }
         },
-      );
+      });
     };
 
     renderChooser();
   } catch (err) {
     if (!signal.aborted) {
-      InspectionResultsView.clear();
       const message = err instanceof Error ? err.message : err;
-      ProgressBar.fail(`Manifest error: ${message}`);
+      dispatch({
+        type: "source-resolution-failed",
+        error: err instanceof Error ? err : new Error(String(err)),
+        status: { message: `Manifest error: ${message}`, state: "error" },
+      });
       throw err;
     }
   }

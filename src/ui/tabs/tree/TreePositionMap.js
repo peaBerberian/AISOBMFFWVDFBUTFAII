@@ -3,8 +3,8 @@ import {
   getAdvertisedBoxSize,
   hasDistinctActualBoxSize,
 } from "../../../utils/box_size.js";
+import { fmtBytes } from "../../../utils/bytes.js";
 import { el } from "../../../utils/dom.js";
-import { fmtBytes } from "../utils.js";
 import { getBoxNodeKey, openBoxBody } from "./BoxTreeNodeView.js";
 
 const TREE_MAP_COLORS = [

@@ -1,6 +1,7 @@
 import deriveMediaInfo from "./read.js";
 export default deriveMediaInfo;
 
+export { deriveInspectionProjections } from "./projections.js";
 export { getSampleKindLabel, getSampleKindTitle } from "./sample-utils.js";
 
 /**
