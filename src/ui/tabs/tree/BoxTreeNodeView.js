@@ -3,8 +3,13 @@ import {
   getAdvertisedBoxSize,
   hasDistinctActualBoxSize,
 } from "../../../utils/box_size.js";
+import {
+  getByteViewBoxKey,
+  getByteViewFieldId,
+  hasByteViewSpan,
+} from "../../../utils/byte_view.js";
+import { fmtBytes } from "../../../utils/bytes.js";
 import { el, esc } from "../../../utils/dom.js";
-import { fmtBytes } from "../utils.js";
 import {
   getPsshPreviewField,
   getPsshSystemIdLabel,
@@ -153,8 +158,10 @@ function renderBoxTreeNode(box, options = {}) {
   };
 
   const makeHeader = () => {
+    const boxKey = getByteViewBoxKey(box);
     const header = el("span", "box-header");
     const typeSpan = el("span", "box-type");
+    typeSpan.dataset.byteFieldId = `${boxKey}|header.type`;
     typeSpan.textContent = box.type;
     header.appendChild(typeSpan);
     if (box.name) {
@@ -163,6 +170,7 @@ function renderBoxTreeNode(box, options = {}) {
       header.appendChild(nameSpan);
     }
     const sizeSpan = el("span", "box-size");
+    sizeSpan.dataset.byteFieldId = `${boxKey}|header.size`;
     sizeSpan.textContent = getDisplayBoxSize(box);
     if (hasDistinctActualBoxSize(box)) {
       sizeSpan.title = `actual ${fmtBytes(getActualBoxSize(box))}, announced ${fmtBytes(getAdvertisedBoxSize(box))}`;
@@ -186,13 +194,19 @@ function renderBoxTreeNode(box, options = {}) {
 
     if (hasValues) {
       const tbl = /** @type {HTMLTableElement} */ (el("table", "values-table"));
-      for (const v of displayFields) {
+      for (let index = 0; index < displayFields.length; index++) {
+        const v = displayFields[index];
         const row = tbl.insertRow();
         row.className = "box-value-line";
+        const fieldId = getByteViewFieldId(box, [index]);
+        if (fieldId && hasByteViewSpan(v)) {
+          row.dataset.byteFieldId = fieldId;
+        }
         const keyCell = row.insertCell();
         renderKeyCell(keyCell, v);
         const valCell = row.insertCell();
-        valCell.appendChild(renderValue(v, { box }));
+        valCell.appendChild(renderValue(v, { box, pathIndices: [index] }));
+        appendByteViewAction(valCell, fieldId);
       }
       body.appendChild(tbl);
     }
@@ -292,12 +306,7 @@ function assignBoxNodeMetadata(element, box) {
  * @returns {string}
  */
 export function getBoxNodeKey(box) {
-  const offset = Number(box.offset);
-  const size = getAdvertisedBoxSize(box);
-  if (!Number.isFinite(offset) || !Number.isFinite(size)) {
-    return "";
-  }
-  return `${offset}:${size}:${box.type}`;
+  return getByteViewBoxKey(box);
 }
 
 /**
@@ -334,7 +343,7 @@ export function openBoxBody(details) {
 
 /**
  * @param {import("isobmff-inspector").ParsedField | PsshPreviewField | null} f
- * @param {{ box?: RenderedBox }} [options]
+ * @param {{ box?: RenderedBox, pathIndices?: number[] }} [options]
  * @returns {HTMLElement}
  */
 function renderValue(f, options = {}) {
@@ -481,8 +490,22 @@ function renderValue(f, options = {}) {
           for (let index = start; index < end; index++) {
             const sf = structFields[index];
             const row = tbl.insertRow();
+            const pathIndices = (options.pathIndices ?? []).concat(index);
+            if (options.box && hasByteViewSpan(sf)) {
+              row.dataset.byteFieldId = getByteViewFieldId(
+                options.box,
+                pathIndices,
+              );
+            }
             renderKeyCell(row.insertCell(), sf);
-            row.insertCell().appendChild(renderValue(sf, options));
+            const valueCell = row.insertCell();
+            valueCell.appendChild(
+              renderValue(sf, {
+                ...options,
+                pathIndices,
+              }),
+            );
+            appendByteViewAction(valueCell, row.dataset.byteFieldId ?? "");
           }
         },
       });
@@ -514,7 +537,12 @@ function renderValue(f, options = {}) {
             const lbl = el("span", "arr-label");
             lbl.textContent = `[${index}] `;
             row.appendChild(lbl);
-            row.appendChild(renderValue(item, options));
+            row.appendChild(
+              renderValue(item, {
+                ...options,
+                pathIndices: (options.pathIndices ?? []).concat(index),
+              }),
+            );
             wrap.appendChild(row);
           }
         },
@@ -809,6 +837,42 @@ function hidePropertyTooltip() {
   }
   tooltip.classList.remove("is-visible");
   tooltip.setAttribute("aria-hidden", "true");
+}
+
+/**
+ * @param {HTMLTableCellElement} cell
+ * @param {string} fieldId
+ */
+function appendByteViewAction(cell, fieldId) {
+  if (!fieldId) {
+    return;
+  }
+  const button = /** @type {HTMLButtonElement} */ (
+    el("button", "byte-view-jump-button")
+  );
+  button.type = "button";
+  button.dataset.byteFieldId = fieldId;
+  button.disabled = !isByteViewReady();
+  button.textContent = "0x";
+  button.setAttribute("aria-label", "Show this field in Byte View");
+  button.title = "Show this field in Byte View";
+  button.addEventListener("click", (evt) => {
+    evt.stopPropagation();
+    document.dispatchEvent(
+      new CustomEvent("byteviewfocusrequest", {
+        detail: { fieldId },
+      }),
+    );
+  });
+  cell.appendChild(button);
+}
+
+/**
+ * @returns {boolean}
+ */
+function isByteViewReady() {
+  const results = document.getElementById("results");
+  return results?.dataset.byteViewReady === "true";
 }
 
 /**

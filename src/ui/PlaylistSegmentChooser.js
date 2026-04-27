@@ -28,7 +28,7 @@ const chooserElt = requireElementById("segment-chooser", HTMLElement);
 
 /**
  * @param {string} sourceUrl
- * @param {import("../setup/extractors/dash/types.js").DashTree} tree
+ * @param {import("../sources/extractors/dash/types.js").DashTree} tree
  * @param {(
  *   segmentUrl: string,
  *   byteRange: [number, number|undefined]|undefined,
@@ -37,7 +37,7 @@ const chooserElt = requireElementById("segment-chooser", HTMLElement);
  *     byteRange: [number, number|undefined]|undefined,
  *   },
  * ) => void} onInspect
- * @param {(representation: import("../setup/extractors/dash/types.js").RepresentationTree) => Promise<void> | void} [onLoadRepresentation]
+ * @param {(representation: import("../sources/extractors/dash/types.js").RepresentationTree) => Promise<void> | void} [onLoadRepresentation]
  */
 export function showDashSegmentChooser(
   sourceUrl,
@@ -124,7 +124,7 @@ export function showDashSegmentChooser(
 
 /**
  * @param {string} sourceUrl
- * @param {import("../setup/extractors/hls/index.js").ExtractionResult} extraction
+ * @param {import("../sources/extractors/hls/index.js").ExtractionResult} extraction
  * @param {(
  *   segmentUrl: string,
  *   byteRange: [number, number|undefined]|undefined,
@@ -133,7 +133,7 @@ export function showDashSegmentChooser(
  *     byteRange: [number, number|undefined]|undefined,
  *   },
  * ) => void} onInspect
- * @param {(result: import("../setup/extractors/hls/index.js").PlaylistResult) => Promise<void> | void} [onLoadResult]
+ * @param {(result: import("../sources/extractors/hls/index.js").PlaylistResult) => Promise<void> | void} [onLoadResult]
  */
 export function showHlsSegmentChooser(
   sourceUrl,
@@ -190,10 +190,6 @@ export function showHlsSegmentChooser(
 export function hideSegmentChooser() {
   chooserElt.hidden = true;
   chooserElt.replaceChildren();
-}
-
-export function hasVisibleSegmentChooser() {
-  return !chooserElt.hidden;
 }
 
 /**
@@ -460,7 +456,7 @@ function createChoiceCard(card, onInspect) {
 }
 
 /**
- * @param {import("../setup/extractors/hls/index.js").PlaylistResult} result
+ * @param {import("../sources/extractors/hls/index.js").PlaylistResult} result
  * @returns {SegmentChoice[]}
  */
 function collectHlsChoices(result) {
@@ -513,7 +509,7 @@ function collectHlsChoices(result) {
 }
 
 /**
- * @param {import("../setup/extractors/hls/index.js").PlaylistResult} result
+ * @param {import("../sources/extractors/hls/index.js").PlaylistResult} result
  * @param {number} resultIndex
  */
 function formatHlsTitle(result, resultIndex) {
@@ -537,7 +533,7 @@ function formatHlsTitle(result, resultIndex) {
 }
 
 /**
- * @param {import("../setup/extractors/hls/index.js").PlaylistResult} result
+ * @param {import("../sources/extractors/hls/index.js").PlaylistResult} result
  * @returns {Array<[string, string]>}
  */
 function getHlsFields(result) {
@@ -578,7 +574,7 @@ function getHlsFields(result) {
 }
 
 /**
- * @param {import("../setup/extractors/dash/types.js").RepresentationTree} representation
+ * @param {import("../sources/extractors/dash/types.js").RepresentationTree} representation
  * @param {number} representationIndex
  */
 function formatDashTitle(representation, representationIndex) {
@@ -591,7 +587,7 @@ function formatDashTitle(representation, representationIndex) {
 }
 
 /**
- * @param {import("../setup/extractors/dash/types.js").SegmentItem} segment
+ * @param {import("../sources/extractors/dash/types.js").SegmentItem} segment
  * @param {number} segmentIndex
  */
 function formatDashSegmentLabel(segment, segmentIndex) {
@@ -599,7 +595,7 @@ function formatDashSegmentLabel(segment, segmentIndex) {
 }
 
 /**
- * @param {import("../setup/extractors/hls/index.js").ISOBMFFSegment} segment
+ * @param {import("../sources/extractors/hls/index.js").ISOBMFFSegment} segment
  * @param {number} segmentIndex
  */
 function formatHlsSegmentLabel(segment, segmentIndex) {
@@ -615,7 +611,7 @@ function formatHlsSegmentLabel(segment, segmentIndex) {
 }
 
 /**
- * @param {import("../setup/extractors/dash/types.js").SegmentItem[]} segments
+ * @param {import("../sources/extractors/dash/types.js").SegmentItem[]} segments
  */
 function getDashCompanionInitSegment(segments) {
   const initSegment = segments.find((segment) => segment.type === "init");

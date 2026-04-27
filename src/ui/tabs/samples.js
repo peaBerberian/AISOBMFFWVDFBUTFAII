@@ -1,9 +1,9 @@
 import deriveMediaInfo, {
   getSampleKindTitle,
 } from "../../post-process/index.js";
+import { fmtBytes } from "../../utils/bytes.js";
 import { el, requireElementById } from "../../utils/dom.js";
 import { numberFormat } from "../../utils/format.js";
-import { fmtBytes } from "./utils.js";
 
 const DEFAULT_SAMPLE_COUNT = 200;
 const MAX_RENDERED_SAMPLE_COUNT = 5000;
@@ -55,6 +55,7 @@ const SAMPLE_COLUMNS = [
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
  * @param {{
  *   supplementalBoxes?: Array<import("isobmff-inspector").ParsedBox> | null,
+ *   mediaInfo?: import("../../post-process/index.js").MediaInfo,
  * }} [options]
  * @returns {boolean}
  */
@@ -65,7 +66,7 @@ export default function renderSampleView(boxes, options = {}) {
     return false;
   }
 
-  const info = deriveMediaInfo(boxes, options);
+  const info = options.mediaInfo ?? deriveMediaInfo(boxes, options);
   if (!info.sampleViews.length) {
     return false;
   }

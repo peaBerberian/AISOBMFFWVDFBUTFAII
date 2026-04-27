@@ -3,8 +3,8 @@ import {
   getAdvertisedBoxSize,
   hasDistinctActualBoxSize,
 } from "../../utils/box_size.js";
+import { fmtBytes } from "../../utils/bytes.js";
 import { el, esc, requireElementById } from "../../utils/dom.js";
-import { fmtBytes } from "./utils.js";
 
 const CHART_COLORS = [
   "#1F6FB8",

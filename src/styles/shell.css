@@ -349,6 +349,12 @@ input[type="file"]::file-selector-button:hover,
 }
 
 @media (max-width: 680px) {
+  .project-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
   #selection {
     grid-template-columns: 1fr;
     align-items: stretch;

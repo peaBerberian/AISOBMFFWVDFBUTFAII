@@ -1,7 +1,3 @@
-import InspectionResultsView from "../ui/InspectionResultsView.js";
-import { setInspectionSource } from "../ui/InspectionSourceElement.js";
-import { showHlsSegmentChooser } from "../ui/PlaylistSegmentChooser.js";
-import ProgressBar from "../ui/ProgressBar.js";
 import {
   extractISOBMFFPlaylistMetadata,
   extractISOBMFFPlaylistMetadataFromString,
@@ -14,28 +10,36 @@ import {
  * segment chooser UI.
  *
  * @param {string} sourceUrl
- * @param {{ text: string | null }} probe
- * @param {import("./InspectionLifecycle.js").InspectionRun} run
+ * @param {{ text: string | null }} probeResult
  * @param {(
  *   segmentUrl: string,
  *   byteRange: [number, number|undefined]|undefined,
  *   companionInit: { url: string, byteRange: [number, number|undefined]|undefined } | undefined
  * ) => void} onSegmentChosen
+ * @param {(action: import("../inspection/InspectionSourceHandle.js").SourceAction) => void} dispatch
+ * @param {AbortSignal} signal
  * @returns {Promise<void>}
  */
-export async function handleHlsSource(sourceUrl, probe, run, onSegmentChosen) {
-  const signal = run.controller.signal;
-
-  setInspectionSource({
-    selectedLabel: "HLS playlist",
-    selectedValue: sourceUrl,
+export async function handleHlsSource(
+  sourceUrl,
+  probeResult,
+  onSegmentChosen,
+  dispatch,
+  signal,
+) {
+  dispatch({
+    type: "manifest-loading",
+    source: {
+      selectedLabel: "HLS playlist",
+      selectedValue: sourceUrl,
+    },
+    status: { message: "Loading HLS playlist…" },
   });
-  ProgressBar.updateStatus("Loading HLS playlist…");
 
   try {
     const extraction =
-      probe.text !== null
-        ? extractISOBMFFPlaylistMetadataFromString(probe.text, sourceUrl)
+      probeResult.text !== null
+        ? extractISOBMFFPlaylistMetadataFromString(probeResult.text, sourceUrl)
         : await extractISOBMFFPlaylistMetadata(sourceUrl, signal);
 
     if (signal.aborted) {
@@ -43,46 +47,68 @@ export async function handleHlsSource(sourceUrl, probe, run, onSegmentChosen) {
     }
 
     if (countHlsChoices(extraction) === 0) {
-      InspectionResultsView.clear();
-      ProgressBar.fail("No ISOBMFF segments found in HLS playlist.");
+      const error = new Error("No ISOBMFF segments found in HLS playlist.");
+      dispatch({
+        type: "source-resolution-failed",
+        error,
+        status: { message: error.message, state: "error" },
+      });
       return;
     }
 
-    ProgressBar.end("HLS playlist loaded.");
-    InspectionResultsView.clear();
-
     const renderChooser = () => {
-      showHlsSegmentChooser(
+      dispatch({
+        type: "segment-choices-available",
+        sourceKind: "hls",
         sourceUrl,
         extraction,
-        onSegmentChosen,
-        async (result) => {
-          ProgressBar.start("Loading HLS segment list...");
-          ProgressBar.startEasing();
+        onInspect: onSegmentChosen,
+        status: { message: "HLS playlist loaded.", state: "success" },
+        async onLoadResult(result) {
+          dispatch({
+            type: "segment-list-loading",
+            status: {
+              message: "Loading HLS segment list...",
+              state: "start",
+              easing: true,
+            },
+          });
           try {
             await resolveMediaPlaylist(result, signal);
             if (signal.aborted) {
               return;
             }
-            ProgressBar.end("HLS segment list loaded");
+            dispatch({
+              type: "segment-list-loaded",
+              status: { message: "HLS segment list loaded", state: "success" },
+            });
             renderChooser();
           } catch (err) {
             if (!signal.aborted) {
               const message = err instanceof Error ? err.message : err;
-              ProgressBar.fail(`playlist error: ${message}`);
+              dispatch({
+                type: "segment-list-failed",
+                status: {
+                  message: `playlist error: ${message}`,
+                  state: "error",
+                },
+              });
               throw err;
             }
           }
         },
-      );
+      });
     };
 
     renderChooser();
   } catch (err) {
     if (!signal.aborted) {
-      InspectionResultsView.clear();
       const message = err instanceof Error ? err.message : err;
-      ProgressBar.fail(`playlist error: ${message}`);
+      dispatch({
+        type: "source-resolution-failed",
+        error: err instanceof Error ? err : new Error(String(err)),
+        status: { message: `playlist error: ${message}`, state: "error" },
+      });
       throw err;
     }
   }

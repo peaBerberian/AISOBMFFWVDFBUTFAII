@@ -22,19 +22,31 @@ Avoid duplicating parser logic here unless it is clearly UI-facing.
 ## Important Files
 
 - `src/index.js`: app entry point
-- `src/setup/parseSegment.js`: consumes parser events and delegates
-   parsed-result rendering to the inspection results view.
-- `src/setup/filetype_detection.js`: probes remote resources and classifies them (as
+- `src/inspection/InspectionCoordinator.js`: singleton coordinator for the
+  single active inspection; bridges inspection events to UI side effects.
+- `src/inspection/parseInspectionStream.js`: streams parser events into
+  `InspectionParseHandle` without importing UI modules.
+- `src/inspection/InspectionParseCollector.js`: parse-time collection of facts
+  that need to survive parsing without retaining whole media payloads.
+- `src/inspection/byte-view/*.js`: byte-view capture and lookup APIs.
+- `src/sources/filetype_detection.js`: probes remote resources and classifies them (as
   DASH, HLS, direct ISOBMFF content...) before the main inspection flow.
-- `src/setup/extractors/dash/*.js`: DASH manifest parsing and ISOBMFF segment
+- `src/sources/dash_resource.js`: resolves DASH source choices and reports
+  source-resolution actions.
+- `src/sources/hls_resource.js`: resolves HLS source choices and reports
+  source-resolution actions.
+- `src/sources/local_file.js`: streams local files into inspection parsing.
+- `src/sources/extractors/dash/*.js`: DASH manifest parsing and ISOBMFF segment
   extraction.
-- `src/setup/extractors/hls/*.js`: HLS playlist parsing and ISOBMFF resource
+- `src/sources/extractors/hls/*.js`: HLS playlist parsing and ISOBMFF resource
   extraction.
 - `src/post-process/**/*.js`: derived analysis built from parsed boxes.
+- `src/ui/SourceControls.js`: DOM wiring for local-file, drag/drop, URL, and
+  example-source controls.
 - `src/ui/ProgressBar.js`: progress, status, easing, and cancel-button state.
 - `src/ui/InspectionResultsView.js`: owns the whole results area lifecycle:
-  stale/loading state, chooser-time clearing, parse-time preparation,
-  incremental box tree mounting, notices, and derived tab finalization.
+  stale/loading state, parse-time preparation, incremental box tree mounting,
+  notices, and derived tab finalization.
 - `src/ui/PlaylistSegmentChooser.js`: chooser UI for DASH/HLS segment
   selection.
 - `src/ui/tabs/index.js`: tab-level exports and navigation wiring.
@@ -70,17 +82,26 @@ The main runtime flow is:
 
 1. `src/index.js` starts a new inspection lifecycle and aborts any previous one.
 2. Local files are streamed directly, while remote URLs are first classified by
-   `src/setup/filetype_detection.js`.
+   `src/sources/filetype_detection.js`.
 3. DASH and HLS sources are resolved into selectable segment resources before
    inspection continues.
-4. `src/setup/parseSegment.js` streams parser events and forwards parsed UI
-   updates to `src/ui/InspectionResultsView.js`.
-5. `src/ui/InspectionResultsView.js` owns the results shell and derived tabs,
+4. `src/inspection/parseInspectionStream.js` streams parser events into
+   `InspectionParseHandle`; parser events and payload chunks use specialized
+   ingestion methods for the hot path.
+5. `src/inspection/InspectionCoordinator.js` receives inspection events and
+   updates `ProgressBar`, `InspectionResultsView`, `InspectionSourceElement`,
+   and `PlaylistSegmentChooser`.
+6. `src/ui/InspectionResultsView.js` owns the results shell and derived tabs,
    including incremental box-tree mounting and post-parse rendering.
 
 Keep the single-active-inspection model intact. New work should continue to
 respect the shared `AbortController`, progress UI, stale-results handling, and
 playlist chooser lifecycle.
+
+Keep UI side effects out of `src/sources`. Source modules should fetch, probe,
+resolve, and stream source data, then report semantic transitions through the
+inspection. DOM wiring belongs in `src/ui` modules, and coordinator-owned UI
+side effects should stay in `InspectionCoordinator`.
 
 ## CSS Organization
 
@@ -130,9 +151,10 @@ tab-specific controls should be created with local nullable state and clear
 creation branches instead of pretending they are permanent shell elements.
 
 Keep results-shell ownership centralized. If work needs to clear, reserve,
-finalize, or mark the inspection results area as stale/loading, route that
-through `src/ui/InspectionResultsView.js` instead of open-coding DOM resets in
-`src/index.js` or `src/parseAndRenderSegment.js`.
+finalize, or mark the inspection results area as stale/loading, route that as
+an inspection action/event handled by `src/inspection/InspectionCoordinator.js`
+instead of open-coding DOM resets in `src/index.js`, `src/sources`, or parser
+streaming code.
 
 Do not use `querySelector` or `querySelectorAll`. Prefer IDs plus
 `requireElementById` for shell elements, `getElementsByClassName` with explicit
@@ -155,8 +177,9 @@ Remote URL inspection is intentionally two-stage:
   parser
 
 The box tree renders incrementally from parser events through
-`InspectionResultsView`. Derived tabs are rendered after parsing finishes, using
-the accumulated top-level boxes.
+`InspectionParseHandle` events handled by `InspectionCoordinator`. Derived tabs
+are rendered after parsing finishes, using completed projections from
+`src/post-process/projections.js` and the accumulated top-level boxes.
 
 The samples tab is conditional. It is shown only when post-processed media info
 can expose sample views worth rendering.
@@ -175,9 +198,9 @@ data.
 format, filter, annotate, summarize, and visualize parsed data, but should not
 reimplement parser behavior that belongs in that dependency.
 
-The DASH and HLS extractors in this repository are source-selection helpers for
-the UI. They should stay focused on resolving inspectable ISOBMFF resources, not
-on building a general-purpose streaming client.
+The DASH and HLS extractors in this repository are source-selection helpers.
+They should stay focused on resolving inspectable ISOBMFF resources, not on
+building a general-purpose streaming client or rendering UI.
 
 Network access is browser `fetch` from user-provided URLs. Keep the app
 compatible with static hosting and client-only execution.

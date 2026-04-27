@@ -2,14 +2,15 @@ import deriveMediaInfo, {
   getSampleKindLabel,
   getSampleKindTitle,
 } from "../../../post-process/index.js";
+import { fmtBytes } from "../../../utils/bytes.js";
 import { el, requireElementById } from "../../../utils/dom.js";
 import { numberFormat } from "../../../utils/format.js";
-import { fmtBytes } from "../utils.js";
 
 /**
  * @param {Array<import("isobmff-inspector").ParsedBox>} boxes
  * @param {{
  *   supplementalBoxes?: Array<import("isobmff-inspector").ParsedBox> | null,
+ *   mediaInfo?: import("../../../post-process/index.js").MediaInfo,
  * }} [options]
  */
 export default function renderMediaInfo(boxes, options = {}) {
@@ -19,7 +20,7 @@ export default function renderMediaInfo(boxes, options = {}) {
     return;
   }
 
-  const info = deriveMediaInfo(boxes, options);
+  const info = options.mediaInfo ?? deriveMediaInfo(boxes, options);
   container.appendChild(renderSummary(info));
   container.appendChild(renderGops(info));
   container.appendChild(renderFragments(info.fragments));

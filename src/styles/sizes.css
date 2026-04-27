@@ -431,12 +431,6 @@
 }
 
 @media (max-width: 600px) {
-  .project-header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
-  }
-
   .size-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

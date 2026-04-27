@@ -1,6 +1,8 @@
+import ByteViewIndex from "../inspection/byte-view/ByteViewIndex.js";
 import { requireElementById } from "../utils/dom.js";
 import {
   BoxTreeNodeView,
+  ByteViewTab,
   renderCodecDetails,
   renderMediaInfo,
   renderSampleView,
@@ -27,6 +29,9 @@ class InspectionResultsViewClass {
   #boxesPanel = requireElementById("tab-boxes", HTMLElement);
   #infoPanel = requireElementById("tab-info", HTMLElement);
   #wrapper = requireElementById("file-description", HTMLElement);
+  #byteTabButton = requireElementById("tab-button-bytes", HTMLButtonElement);
+  #bytePanel = requireElementById("tab-bytes", HTMLElement);
+  #byteView = requireElementById("byte-view", HTMLElement);
   #mediaInfo = requireElementById("media-info", HTMLElement);
   #codecTabButton = requireElementById(
     "tab-button-codec-details",
@@ -80,6 +85,7 @@ class InspectionResultsViewClass {
   initializeForNewRender() {
     this.clear();
     this.#results.setAttribute("aria-busy", "true");
+    this.#setByteViewAvailability(false, null);
     this.#tabs.hidden = false;
     switchToTab("boxes");
     this.#tabs.classList.add("is-reserved");
@@ -178,6 +184,8 @@ class InspectionResultsViewClass {
    *     boxes: Array<import("isobmff-inspector").ParsedBox>,
    *   } | null,
    *   codecDetailsResults?: Array<any> | null,
+   *   byteViewData?: import("../inspection/byte-view/ByteViewCollector.js").ByteViewRenderData | null,
+   *   projections?: import("../post-process/projections.js").InspectionProjections | null,
    * } | null} [options]
    */
   renderFullResults(options = null) {
@@ -186,14 +194,21 @@ class InspectionResultsViewClass {
     const renderOptions = supplementalMetadata
       ? { supplementalBoxes: supplementalMetadata.boxes }
       : {};
-    renderMediaInfo(topLevelBoxes, renderOptions);
+    const projections = options?.projections ?? null;
+    renderMediaInfo(topLevelBoxes, {
+      ...renderOptions,
+      mediaInfo: projections?.mediaInfo,
+    });
     const hasCodecDetails = renderCodecDetails(topLevelBoxes, {
       ...renderOptions,
       results: options?.codecDetailsResults ?? null,
     });
     this.#codecTabButton.hidden = !hasCodecDetails;
     this.#codecPanel.hidden = !hasCodecDetails;
-    const hasSampleView = renderSampleView(topLevelBoxes, renderOptions);
+    const hasSampleView = renderSampleView(topLevelBoxes, {
+      ...renderOptions,
+      mediaInfo: projections?.mediaInfo,
+    });
     this.#sampleTabButton.hidden = !hasSampleView;
     this.#sampleTabPanel.hidden = !hasSampleView;
     renderSizeChart(topLevelBoxes);
@@ -202,6 +217,12 @@ class InspectionResultsViewClass {
       this.#wrapper,
       this.#abortCtrlr.signal,
     );
+    const byteViewData = options?.byteViewData ?? null;
+    ByteViewTab.render(byteViewData, {
+      treeRoot: this.#wrapper,
+      abortSignal: this.#abortCtrlr.signal,
+    });
+    this.#setByteViewAvailability(byteViewData !== null, byteViewData);
     this.#tabs.classList.remove("is-reserved");
     this.#tabs.classList.add("is-visible");
   }
@@ -212,16 +233,21 @@ class InspectionResultsViewClass {
   finalizeFailedRender() {
     this.#tabs.hidden = true;
     this.#tabs.classList.remove("is-reserved", "is-visible");
+    this.#setByteViewAvailability(false, null);
     this.#abortCtrlr.abort();
   }
 
   #clearDom() {
     this.#resultNotices.replaceChildren();
     this.#restorePanelRoot(this.#boxesPanel, this.#wrapper);
+    this.#restorePanelRoot(this.#bytePanel, this.#byteView);
     this.#restorePanelRoot(this.#infoPanel, this.#mediaInfo);
     this.#restorePanelRoot(this.#codecPanel, this.#codecDetails);
     this.#restorePanelRoot(this.#sampleTabPanel, this.#sampleView);
     this.#restorePanelRoot(this.#sizesPanel, this.#sizeChart);
+    ByteViewTab.reset();
+    this.#byteTabButton.hidden = true;
+    this.#bytePanel.hidden = true;
     this.#codecTabButton.hidden = true;
     this.#codecPanel.hidden = true;
     this.#sampleTabButton.hidden = true;
@@ -231,6 +257,49 @@ class InspectionResultsViewClass {
     this.#results.classList.remove("is-stale-loading");
     this.#results.inert = false;
     this.#results.setAttribute("aria-busy", "false");
+    this.#setByteViewAvailability(false, null);
+  }
+
+  /**
+   * @param {boolean} isAvailable
+   * @param {import("../inspection/byte-view/ByteViewCollector.js").ByteViewRenderData | null} byteViewData
+   */
+  #setByteViewAvailability(isAvailable, byteViewData) {
+    this.#results.dataset.byteViewReady = isAvailable ? "true" : "false";
+    const byteIndex = new ByteViewIndex(byteViewData);
+    const buttons = this.#results.getElementsByClassName(
+      "byte-view-jump-button",
+    );
+    for (let index = 0; index < buttons.length; index++) {
+      const button = buttons[index];
+      if (button instanceof HTMLButtonElement) {
+        if (!isAvailable || !byteViewData) {
+          button.disabled = true;
+          button.title = "Byte View is not available for this inspection";
+          continue;
+        }
+        const fieldId = button.dataset.byteFieldId ?? "";
+        const field = byteIndex.getFieldById(fieldId);
+        const isCaptured =
+          !!field &&
+          byteIndex.doesRangeOverlapCapturedBytes(
+            field.offset,
+            field.endExclusive,
+          );
+        button.disabled = !isCaptured;
+        if (!field || !isCaptured) {
+          button.title =
+            "Byte View did not retain this field because it is outside the capture limit";
+          continue;
+        }
+        button.title = byteIndex.isRangeFullyCaptured(
+          field.offset,
+          field.endExclusive,
+        )
+          ? "Show this field in Byte View"
+          : "Show retained bytes for this field in Byte View";
+      }
+    }
   }
 
   /**

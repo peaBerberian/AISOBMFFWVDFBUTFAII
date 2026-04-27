@@ -1,35 +1,4 @@
-import { setInspectionSource } from "../ui/InspectionSourceElement.js";
-import ProgressBar from "../ui/ProgressBar.js";
 import { requireElementById } from "../utils/dom.js";
-import {
-  beginInspectionLifecycle,
-  finishInspectionLifecycle,
-} from "./InspectionLifecycle.js";
-import LocalFileReader from "./LocalFileReader.js";
-import { parseAndRenderSegment } from "./parseSegment.js";
-
-/**
- * Parse a local file while preserving the app's single active parse lifecycle.
- * @param {Blob} file
- */
-export function parseLocalFile(file) {
-  const run = beginInspectionLifecycle();
-  const signal = run.controller.signal;
-  const namedFile = /** @type {{ name?: string }} */ (file);
-  const reader = new LocalFileReader(file, signal);
-
-  ProgressBar.start("Loading local file...");
-  ProgressBar.startEasing();
-  setInspectionSource({
-    selectedLabel: "Local file",
-    selectedValue: namedFile.name || "Unnamed file",
-  });
-  parseAndRenderSegment(reader.toParserInput(), run, {
-    rangeReader: reader.readRange.bind(reader),
-  }).finally(() => {
-    finishInspectionLifecycle(run);
-  });
-}
 
 /**
  * @param {DataTransfer | null} dataTransfer
