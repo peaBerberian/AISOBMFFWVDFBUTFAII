@@ -3,9 +3,10 @@ import {
   getAdvertisedBoxSize,
   hasDistinctActualBoxSize,
 } from "../../../utils/box_size.js";
+import { getByteViewBoxKey } from "../../../utils/byte_view.js";
 import { fmtBytes } from "../../../utils/bytes.js";
 import { el } from "../../../utils/dom.js";
-import { getBoxNodeKey, openBoxBody } from "./BoxTreeNodeView.js";
+import { openBoxBody } from "./box_opening.js";
 
 const TREE_MAP_COLORS = [
   "var(--box-map-color-1)",
@@ -404,7 +405,7 @@ function flattenBoxes(boxes) {
       const size = getActualBoxSize(box);
       const offset = Number(box.offset ?? 0);
       const rowPath = `${path}/${box.type}[${index}]`;
-      const key = getBoxNodeKey(box);
+      const key = getByteViewBoxKey(box);
       const nonMdatSize = getMapBoxSize(box, "excluding-mdat");
       out.push({
         box,
@@ -447,7 +448,7 @@ function layoutExcludingMdatNodes(
   const total = getBoxesTotalSize(boxes, "excluding-mdat");
   let cursor = startPct;
   for (const box of boxes) {
-    const row = rowsByKey.get(getBoxNodeKey(box));
+    const row = rowsByKey.get(getByteViewBoxKey(box));
     const boxSize = getMapBoxSize(box, "excluding-mdat");
     const heightPct = total > 0 ? (boxSize / total) * parentHeightPct : 0;
     const marker = EXCLUDED_SHARE_BOX_TYPES.has(box.type);
