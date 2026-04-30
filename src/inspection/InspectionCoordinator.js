@@ -12,6 +12,15 @@ import ProgressBar from "../ui/ProgressBar.js";
 import InspectionParseHandle from "./InspectionParseHandle.js";
 import InspectionSourceHandle from "./InspectionSourceHandle.js";
 
+const PROGRESS_PHASE_RANGES = {
+  probe: [0, 0.1],
+  manifest: [0.1, 0.25],
+  resolve: [0.25, 0.35],
+  parse: [0.35, 0.88],
+  analyze: [0.88, 0.94],
+  render: [0.94, 0.98],
+};
+
 /**
  * Per-inspection app state. Only one inspection may be current at a time.
  *
@@ -188,7 +197,8 @@ class InspectionCoordinatorClass {
     switch (event.state) {
       case "start":
         ProgressBar.start(event.message);
-        if (event.easing) {
+        this.#applyProgressEstimate(event);
+        if (event.easing && !event.progress) {
           ProgressBar.startEasing();
         }
         break;
@@ -203,11 +213,54 @@ class InspectionCoordinatorClass {
         break;
       case "update":
         ProgressBar.updateStatus(event.message);
+        this.#applyProgressEstimate(event);
         break;
     }
+  }
+
+  /**
+   * @param {Extract<import("./InspectionParseHandle.js").InspectionEvent, { type: "status" }>} event
+   */
+  #applyProgressEstimate(event) {
+    const progress = event.progress;
+    if (!progress) {
+      return;
+    }
+    const ratio = getProgressRatio(progress);
+    if (ratio === null) {
+      return;
+    }
+    ProgressBar.setProgress(ratio, undefined);
   }
 }
 
 const InspectionCoordinator = new InspectionCoordinatorClass();
 
 export default InspectionCoordinator;
+
+/**
+ * @param {import("./InspectionParseHandle.js").InspectionProgressInput} progress
+ * @returns {number | null}
+ */
+function getProgressRatio(progress) {
+  const range = PROGRESS_PHASE_RANGES[progress.phase];
+  if (!range) {
+    return null;
+  }
+  const [start, end] = range;
+  if (
+    typeof progress.loadedBytes === "number" &&
+    typeof progress.totalBytes === "number" &&
+    progress.totalBytes > 0
+  ) {
+    const byteRatio = Math.max(
+      0,
+      Math.min(progress.loadedBytes / progress.totalBytes, 1),
+    );
+    return start + (end - start) * byteRatio;
+  }
+  if (typeof progress.ratio === "number") {
+    return start + (end - start) * Math.max(0, Math.min(progress.ratio, 1));
+  }
+  return progress.indeterminate ? end : start;
+}

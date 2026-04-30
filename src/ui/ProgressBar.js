@@ -40,6 +40,8 @@ class ProgressBarClass {
   #easingRaf = null;
   /** @type {number} */
   #percent = 0;
+  /** @type {number} */
+  #targetPercent = 0;
   #isStarted = false;
 
   constructor() {
@@ -110,20 +112,40 @@ class ProgressBarClass {
     progressBarWrapperElt.style.backgroundColor =
       "var(--color-border-tertiary)";
     this.#percent = 0;
+    this.#targetPercent = 0;
     this.#setProgressSemantics(true, null);
     progressBarElt.style.backgroundColor = "var(--color-accent-blue)";
     progressBarElt.style.width = "0%";
+    progressBarElt.getBoundingClientRect();
     this.#restartRaf = requestAnimationFrame(() => {
       this.#restartRaf = null;
-      this.#percent = 5;
+      this.#percent = Math.max(this.#percent, 5);
+      this.#targetPercent = Math.max(this.#targetPercent, 5);
       progressBarElt.style.transition = "width 0.3s ease";
-      progressBarElt.style.width = "5%";
+      progressBarElt.style.width = `${this.#percent}%`;
     });
   }
 
   startEasing() {
+    this.#targetPercent = Math.max(this.#targetPercent, 90);
+    this.#setProgressSemantics(true, null);
+    this.#startProgressAnimation();
+  }
+
+  #startProgressAnimation() {
+    if (this.#easingRaf !== null) {
+      return;
+    }
     const tick = () => {
-      this.#percent += (90 - this.#percent) * 0.02;
+      const delta = this.#targetPercent - this.#percent;
+      if (Math.abs(delta) < 0.05) {
+        this.#percent = this.#targetPercent;
+        progressBarElt.style.width = `${this.#percent}%`;
+        this.#easingRaf = null;
+        return;
+      }
+      const easingFactor = delta > 0 ? 0.08 : 0.2;
+      this.#percent += delta * easingFactor;
       progressBarElt.style.width = `${this.#percent}%`;
       this.#easingRaf = requestAnimationFrame(tick);
     };
@@ -136,10 +158,12 @@ class ProgressBarClass {
    */
   setProgress(ratio, msg) {
     if (ratio !== undefined) {
-      this.#stopEasing();
-      this.#percent = Math.min(ratio, 0.99) * 100;
-      progressBarElt.style.width = `${this.#percent}%`;
-      this.#setProgressSemantics(true, this.#percent);
+      this.#targetPercent = Math.max(
+        this.#targetPercent,
+        Math.min(ratio, 0.99) * 100,
+      );
+      this.#setProgressSemantics(true, this.#targetPercent);
+      this.#startProgressAnimation();
     }
     if (msg !== undefined) {
       statusLineElt.textContent = msg;
@@ -192,6 +216,7 @@ class ProgressBarClass {
       color === "var(--color-accent-orange)" ? "is-error" : "is-warning",
     );
     this.#percent = 100;
+    this.#targetPercent = 100;
     this.#setProgressSemantics(true, this.#percent);
     this.#isStarted = false;
     progressBarElt.style.width = "100%";
@@ -211,6 +236,7 @@ class ProgressBarClass {
     this.#hideCancelButton();
     this.#setToastState("is-success");
     this.#percent = 100;
+    this.#targetPercent = 100;
     this.#setProgressSemantics(true, this.#percent);
     this.#isStarted = false;
     progressBarElt.style.width = "100%";

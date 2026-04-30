@@ -16,11 +16,12 @@ import InspectionParseCollector from "./InspectionParseCollector.js";
  *     boxes: Array<import("isobmff-inspector").ParsedBox>,
  *   } | null>,
  *   rangeReader?: ((start: number, endExclusive: number) => AsyncIterable<Uint8Array>) | null,
+ *   inputTotalBytes?: number | null,
  * }} [options]
  */
 export async function parseInspectionStream(input, inspection, options = {}) {
   const abortSignal = inspection.controller.signal;
-  inspection.signalParseBegin();
+  inspection.signalParseBegin({ inputTotalBytes: options.inputTotalBytes });
 
   let supplementalMetadata = null;
   if (options.supplementalMetadataPromise) {
@@ -40,10 +41,14 @@ export async function parseInspectionStream(input, inspection, options = {}) {
     }
   }
   inspection.prepareParseCollector(supplementalMetadata);
-  const byteTrackedInput = trackByteInput(
-    input,
-    inspection.captureByteViewInputChunk.bind(inspection),
+  const progressReporter = createParseProgressReporter(
+    inspection,
+    options.inputTotalBytes ?? null,
   );
+  const byteTrackedInput = trackByteInput(input, (absoluteOffset, chunk) => {
+    inspection.captureByteViewInputChunk(absoluteOffset, chunk);
+    progressReporter(absoluteOffset + chunk.byteLength);
+  });
 
   try {
     for await (const event of parseEvents(byteTrackedInput, {
@@ -87,6 +92,7 @@ export async function parseInspectionStream(input, inspection, options = {}) {
     }
 
     inspection.addEmptyInputNotice();
+    progressReporter(options.inputTotalBytes ?? null, true);
 
     if (options.rangeReader) {
       await inspection.completeLocalFileAnalysis(
@@ -111,6 +117,42 @@ export async function parseInspectionStream(input, inspection, options = {}) {
       inspection.signalParseSuccess();
     }
   }
+}
+
+/**
+ * @param {import("./InspectionParseHandle.js").default} inspection
+ * @param {number | null} totalBytes
+ * @returns {(loadedBytes: number | null, force?: boolean) => void}
+ */
+function createParseProgressReporter(inspection, totalBytes) {
+  let lastReportTime = 0;
+  let lastReportedBytes = 0;
+  const byteStep =
+    typeof totalBytes === "number" && totalBytes > 0
+      ? Math.max(totalBytes / 100, 256 * 1024)
+      : 1024 * 1024;
+  return (loadedBytes, force = false) => {
+    if (loadedBytes === null) {
+      return;
+    }
+    const now = performance.now();
+    if (
+      !force &&
+      loadedBytes - lastReportedBytes < byteStep &&
+      now - lastReportTime < 120
+    ) {
+      return;
+    }
+    lastReportTime = now;
+    lastReportedBytes = loadedBytes;
+    inspection.reportStatus({
+      message: "parsing…",
+      progress:
+        typeof totalBytes === "number" && totalBytes > 0
+          ? { phase: "parse", loadedBytes, totalBytes }
+          : { phase: "parse", indeterminate: true },
+    });
+  };
 }
 
 /**

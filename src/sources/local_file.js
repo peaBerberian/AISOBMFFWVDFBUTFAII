@@ -22,11 +22,15 @@ export function parseLocalFile(file) {
     status: {
       message: "Loading local file...",
       state: "start",
-      easing: true,
+      progress:
+        file.size > 0
+          ? { phase: "parse", loadedBytes: 0, totalBytes: file.size }
+          : { phase: "parse", indeterminate: true },
     },
   });
   parseInspectionStream(reader.toParserInput(), parseHandle, {
     rangeReader: reader.readRange.bind(reader),
+    inputTotalBytes: file.size,
   }).finally(() => {
     InspectionCoordinator.finish(parseHandle);
   });

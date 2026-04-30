@@ -33,7 +33,11 @@ export async function handleHlsSource(
       selectedLabel: "HLS playlist",
       selectedValue: sourceUrl,
     },
-    status: { message: "Loading HLS playlist…" },
+    status: {
+      message: "Loading HLS playlist…",
+      state: "start",
+      progress: { phase: "manifest", indeterminate: true },
+    },
   });
 
   try {
@@ -63,14 +67,18 @@ export async function handleHlsSource(
         sourceUrl,
         extraction,
         onInspect: onSegmentChosen,
-        status: { message: "HLS playlist loaded.", state: "success" },
+        status: {
+          message: "HLS playlist loaded.",
+          state: "success",
+          progress: { phase: "manifest", ratio: 1 },
+        },
         async onLoadResult(result) {
           dispatch({
             type: "segment-list-loading",
             status: {
               message: "Loading HLS segment list...",
               state: "start",
-              easing: true,
+              progress: { phase: "resolve", indeterminate: true },
             },
           });
           try {
@@ -80,7 +88,11 @@ export async function handleHlsSource(
             }
             dispatch({
               type: "segment-list-loaded",
-              status: { message: "HLS segment list loaded", state: "success" },
+              status: {
+                message: "HLS segment list loaded",
+                state: "success",
+                progress: { phase: "resolve", ratio: 1 },
+              },
             });
             renderChooser();
           } catch (err) {
