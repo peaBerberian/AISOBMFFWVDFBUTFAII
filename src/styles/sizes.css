@@ -153,6 +153,8 @@
   padding: 0 4px;
   border: 0;
   border-left: 2px solid var(--map-color);
+  outline: 1px solid transparent;
+  outline-offset: -1px;
   background: color-mix(in srgb, var(--map-color) 18%, var(--map-mix-surface));
   color: var(--color-text-primary);
   font-family: var(--font-mono);
@@ -163,21 +165,21 @@
   cursor: pointer;
   transition:
     background 120ms ease,
-    opacity 120ms ease,
-    outline-color 120ms ease;
+    opacity 120ms ease;
 }
 
 .size-map-box:hover,
 .size-map-box.preview {
-  outline: 1px solid
-    color-mix(in srgb, var(--map-color) 58%, var(--map-mix-surface));
-  outline-offset: -1px;
+  outline-color: color-mix(
+    in srgb,
+    var(--map-color) 58%,
+    var(--map-mix-surface)
+  );
   background: color-mix(in srgb, var(--map-color) 24%, var(--map-mix-surface));
 }
 
 .size-map-box.active {
-  outline: 1px solid var(--map-color);
-  outline-offset: -1px;
+  outline-color: var(--map-color);
   background: color-mix(in srgb, var(--map-color) 28%, var(--map-mix-surface));
 }
 
