@@ -44,3 +44,25 @@ export function el(tag, cls, html) {
   }
   return e;
 }
+
+/**
+ * @param {string} label
+ * @param {string} value
+ * @param {{
+ *   itemClass: string,
+ *   labelClass: string,
+ *   valueClass: string,
+ * }} classes
+ */
+export function createStatElement(label, value, classes) {
+  const item = el("div", classes.itemClass);
+  const labelEl = el("span", classes.labelClass);
+  labelEl.textContent = label;
+  const valueEl = el("span", classes.valueClass);
+  valueEl.textContent = value;
+  valueEl.title = value;
+  valueEl.setAttribute("aria-label", `${label}: ${value}`);
+  item.appendChild(labelEl);
+  item.appendChild(valueEl);
+  return item;
+}

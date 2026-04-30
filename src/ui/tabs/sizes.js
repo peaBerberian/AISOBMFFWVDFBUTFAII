@@ -4,7 +4,12 @@ import {
   hasDistinctActualBoxSize,
 } from "../../utils/box_size.js";
 import { fmtBytes } from "../../utils/bytes.js";
-import { el, esc, requireElementById } from "../../utils/dom.js";
+import {
+  createStatElement,
+  el,
+  esc,
+  requireElementById,
+} from "../../utils/dom.js";
 
 const CHART_COLORS = [
   "var(--box-map-color-1)",
@@ -290,6 +295,21 @@ function createSizeSection(title) {
 }
 
 /**
+ * @param {HTMLElement} parent
+ * @param {string} label
+ * @param {string} value
+ */
+function addSizeStat(parent, label, value) {
+  parent.appendChild(
+    createStatElement(label, value, {
+      itemClass: "stat-card size-stat",
+      labelClass: "stat-label size-stat-label",
+      valueClass: "stat-value size-stat-value",
+    }),
+  );
+}
+
+/**
  * @param {string} label
  * @param {SizeMapScale} scale
  * @param {string} ariaLabel
@@ -407,28 +427,16 @@ export default function renderSizeChart(boxes) {
     "div",
     `stat-grid size-summary${showNonMdatShare ? "" : " size-summary-no-excluded"}`,
   );
-  summary.innerHTML = `
-    <div class="stat-card size-stat">
-      <span class="stat-label size-stat-label">total</span>
-      <span class="stat-value size-stat-value">${esc(fmtBytes(total))}</span>
-    </div>
-    <div class="stat-card size-stat">
-      <span class="stat-label size-stat-label">boxes</span>
-      <span class="stat-value size-stat-value">${flattenedRows.length}</span>
-    </div>
-    <div class="stat-card size-stat">
-      <span class="stat-label size-stat-label">largest</span>
-      <span class="stat-value size-stat-value">${largestBox ? `${esc(largestBox.type)} ${fmtPct(largestPct * 100)}` : "n/a"}</span>
-    </div>
-    ${
-      showNonMdatShare
-        ? `<div class="stat-card size-stat">
-      <span class="stat-label size-stat-label">excluding mdat</span>
-      <span class="stat-value size-stat-value">${esc(fmtBytes(nonMdatTotal))}</span>
-    </div>`
-        : ""
-    }
-  `;
+  addSizeStat(summary, "total", fmtBytes(total));
+  addSizeStat(summary, "boxes", String(flattenedRows.length));
+  addSizeStat(
+    summary,
+    "largest",
+    largestBox ? `${largestBox.type} ${fmtPct(largestPct * 100)}` : "n/a",
+  );
+  if (showNonMdatShare) {
+    addSizeStat(summary, "excluding mdat", fmtBytes(nonMdatTotal));
+  }
   overviewSection.body.appendChild(summary);
 
   const overviewControls = el("div", "size-scale-controls");

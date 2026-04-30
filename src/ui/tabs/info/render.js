@@ -3,7 +3,11 @@ import deriveMediaInfo, {
   getSampleKindTitle,
 } from "../../../post-process/index.js";
 import { fmtBytes } from "../../../utils/bytes.js";
-import { el, requireElementById } from "../../../utils/dom.js";
+import {
+  createStatElement,
+  el,
+  requireElementById,
+} from "../../../utils/dom.js";
 import { numberFormat } from "../../../utils/format.js";
 
 /**
@@ -300,14 +304,13 @@ function addStat(parent, label, value) {
   if (!shouldShowStat(value)) {
     return;
   }
-  const item = el("div", "stat-card info-stat");
-  const labelEl = el("span", "stat-label info-stat-label");
-  labelEl.textContent = label;
-  const valueEl = el("span", "stat-value info-stat-value");
-  valueEl.textContent = value;
-  item.appendChild(labelEl);
-  item.appendChild(valueEl);
-  parent.appendChild(item);
+  parent.appendChild(
+    createStatElement(label, value, {
+      itemClass: "stat-card info-stat",
+      labelClass: "stat-label info-stat-label",
+      valueClass: "stat-value info-stat-value",
+    }),
+  );
 }
 
 /**

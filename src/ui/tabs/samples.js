@@ -2,7 +2,7 @@ import deriveMediaInfo, {
   getSampleKindTitle,
 } from "../../post-process/index.js";
 import { fmtBytes } from "../../utils/bytes.js";
-import { el, requireElementById } from "../../utils/dom.js";
+import { createStatElement, el, requireElementById } from "../../utils/dom.js";
 import { numberFormat } from "../../utils/format.js";
 
 const DEFAULT_SAMPLE_COUNT = 200;
@@ -506,15 +506,11 @@ function renderSummary(
  * @param {string} value
  */
 function createSummaryStat(label, value) {
-  // TODO: add hint with value?
-  const stat = el("div", "samples-stat");
-  const title = el("span", "samples-stat-label");
-  title.textContent = label;
-  const body = el("span", "samples-stat-value");
-  body.textContent = value;
-  stat.appendChild(title);
-  stat.appendChild(body);
-  return stat;
+  return createStatElement(label, value, {
+    itemClass: "samples-stat",
+    labelClass: "samples-stat-label",
+    valueClass: "samples-stat-value",
+  });
 }
 
 /**

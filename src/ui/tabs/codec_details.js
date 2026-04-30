@@ -1,4 +1,4 @@
-import { el, requireElementById } from "../../utils/dom.js";
+import { createStatElement, el, requireElementById } from "../../utils/dom.js";
 import { numberFormat } from "../../utils/format.js";
 
 /**
@@ -299,14 +299,13 @@ function createSection(title) {
  * @param {string} value
  */
 function addStat(parent, label, value) {
-  const item = el("div", "stat-card codec-stat");
-  const labelEl = el("span", "stat-label codec-stat-label");
-  labelEl.textContent = label;
-  const valueEl = el("span", "stat-value codec-stat-value");
-  valueEl.textContent = value;
-  item.appendChild(labelEl);
-  item.appendChild(valueEl);
-  parent.appendChild(item);
+  parent.appendChild(
+    createStatElement(label, value, {
+      itemClass: "stat-card codec-stat",
+      labelClass: "stat-label codec-stat-label",
+      valueClass: "stat-value codec-stat-value",
+    }),
+  );
 }
 
 /**
