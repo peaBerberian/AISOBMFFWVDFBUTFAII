@@ -11,10 +11,11 @@ import {
 import { fmtBytes } from "../../../utils/bytes.js";
 import { el, esc } from "../../../utils/dom.js";
 import {
-  getPsshPreviewField,
-  getPsshSystemIdLabel,
-  renderPsshPreviewField,
-} from "./pssh/index.js";
+  getDisplayFields,
+  getFieldAnnotation,
+  getPsshSystemIdInfo,
+} from "./box_decorations.js";
+import { renderPsshPreviewField } from "./pssh/index.js";
 
 const AUTO_OPEN_FIELD_LIMIT = 80;
 const COLLAPSIBLE_TEXT_LIMIT = 160;
@@ -361,7 +362,7 @@ function renderValue(f, options = {}) {
     return s;
   }
 
-  const psshSystemIdInfo = getRenderedPsshSystemIdInfo(f, options.box);
+  const psshSystemIdInfo = getPsshSystemIdInfo(options.box, f);
   if (psshSystemIdInfo) {
     return renderPsshSystemIdValue(
       psshSystemIdInfo.value,
@@ -369,6 +370,19 @@ function renderValue(f, options = {}) {
     );
   }
 
+  const formattedValue = formatValueFromKind(f, options);
+  const fieldAnnotation = getFieldAnnotation(options.box, f);
+  return fieldAnnotation !== null
+    ? renderAnnotatedValue(formattedValue, fieldAnnotation)
+    : formattedValue;
+}
+
+/**
+ * @param {import("isobmff-inspector").ParsedField} f
+ * @param {{ box?: RenderedBox, pathIndices?: number[] }} [options]
+ * @returns {HTMLElement}
+ */
+function formatValueFromKind(f, options = {}) {
   switch (f.kind) {
     case "number":
     case "bigint": {
@@ -377,12 +391,11 @@ function renderValue(f, options = {}) {
       return s;
     }
 
-    case "bytes": {
+    case "bytes":
       return renderBytesValue(f.value, { className: "vv-str" });
-    }
-    case "string": {
+
+    case "string":
       return renderStringValue(f.value, { className: "vv-str" });
-    }
 
     case "boolean": {
       const s = el("span", "vv-bool");
@@ -610,23 +623,17 @@ function renderIncrementalCollection(options) {
 }
 
 /**
- * @param {RenderedBox} box
- * @returns {Array<import("isobmff-inspector").ParsedBoxValue | PsshPreviewField>}
+ * @param {HTMLElement} valueElement
+ * @param {string} annotation
+ * @returns {HTMLElement}
  */
-function getDisplayFields(box) {
-  /** @type {Array<import("isobmff-inspector").ParsedBoxValue | PsshPreviewField>} */
-  const values = [...(box.values ?? [])];
-  if (box.type !== "pssh") {
-    return values;
-  }
-
-  const preview = getPsshPreviewField(
-    /** @type {import("isobmff-inspector").ParsedBox} */ (box),
-  );
-  if (preview) {
-    values.push(preview);
-  }
-  return values;
+function renderAnnotatedValue(valueElement, annotation) {
+  const wrap = el("div", "annotated-value");
+  wrap.appendChild(valueElement);
+  const note = el("span", "value-annotation");
+  note.textContent = annotation;
+  wrap.appendChild(note);
+  return wrap;
 }
 
 /**
@@ -647,28 +654,6 @@ function renderStringValue(value, options) {
 function renderBytesValue(value, options) {
   const text = `${value}`;
   return outputPotentiallyLongString(text, options);
-}
-
-/**
- * @param {import("isobmff-inspector").ParsedField} field
- * @param {RenderedBox | undefined} box
- * @returns {{ value: string, label: string } | null}
- */
-function getRenderedPsshSystemIdInfo(field, box) {
-  if (
-    box?.type !== "pssh" ||
-    !("key" in field) ||
-    field.key !== "systemID" ||
-    !("value" in field) ||
-    typeof field.value !== "string"
-  ) {
-    return null;
-  }
-  const label = getPsshSystemIdLabel(field.value);
-  if (!label) {
-    return null;
-  }
-  return { value: field.value, label };
 }
 
 /**

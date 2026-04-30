@@ -232,6 +232,27 @@
   display: block;
 }
 
+.annotated-value {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.value-annotation {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border: 0.5px solid
+    color-mix(in srgb, var(--color-border-secondary) 70%, transparent);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
 .vv-collapsible {
   width: 100%;
 }
