@@ -54,15 +54,15 @@
   min-width: 2px;
   height: 100%;
   border-right: 1px solid var(--color-background-primary);
-  background: var(--color-accent-blue);
+  background: var(--color-viz-1);
 }
 
 .info-gop-segment:nth-child(2n) {
-  background: var(--color-accent-green);
+  background: var(--color-viz-2);
 }
 
 .info-gop-segment:nth-child(3n) {
-  background: var(--color-accent-orange);
+  background: var(--color-viz-3);
 }
 
 .info-frame-arrangement {
@@ -107,26 +107,58 @@
 }
 
 .info-sample-sync {
-  border-color: color-mix(in srgb, var(--color-accent-blue) 55%, white);
-  background: color-mix(in srgb, var(--color-accent-blue) 18%, white);
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent-blue) 55%,
+    var(--color-mix-surface)
+  );
+  background: color-mix(
+    in srgb,
+    var(--color-accent-blue) 18%,
+    var(--color-mix-surface)
+  );
   color: var(--color-accent-blue);
 }
 
 .info-sample-reordered {
-  border-color: color-mix(in srgb, var(--color-accent-orange) 55%, white);
-  background: color-mix(in srgb, var(--color-accent-orange) 18%, white);
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent-orange) 55%,
+    var(--color-mix-surface)
+  );
+  background: color-mix(
+    in srgb,
+    var(--color-accent-orange) 18%,
+    var(--color-mix-surface)
+  );
   color: var(--color-accent-orange);
 }
 
 .info-sample-discardable {
-  border-color: color-mix(in srgb, var(--color-accent-purple) 50%, white);
-  background: color-mix(in srgb, var(--color-accent-purple) 15%, white);
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent-purple) 50%,
+    var(--color-mix-surface)
+  );
+  background: color-mix(
+    in srgb,
+    var(--color-accent-purple) 15%,
+    var(--color-mix-surface)
+  );
   color: var(--color-accent-purple);
 }
 
 .info-sample-dependent {
-  border-color: color-mix(in srgb, var(--color-accent-green) 50%, white);
-  background: color-mix(in srgb, var(--color-accent-green) 15%, white);
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent-green) 50%,
+    var(--color-mix-surface)
+  );
+  background: color-mix(
+    in srgb,
+    var(--color-accent-green) 15%,
+    var(--color-mix-surface)
+  );
   color: var(--color-accent-green);
 }
 

@@ -77,7 +77,11 @@
 }
 
 .byte-view-jump-button:hover {
-  color: color-mix(in srgb, var(--color-text-primary) 88%, white);
+  color: color-mix(
+    in srgb,
+    var(--color-text-primary) 88%,
+    var(--color-mix-surface)
+  );
   border-color: color-mix(
     in srgb,
     var(--color-border-tertiary) 88%,
@@ -89,7 +93,7 @@
     var(--color-background-secondary)
   );
   opacity: 1;
-  box-shadow: 0 0 0 2px rgba(55, 138, 221, 0.1);
+  box-shadow: 0 0 0 2px var(--focus-ring);
   transform: translateY(-1px);
 }
 
@@ -99,7 +103,7 @@
   background: var(--color-background-primary);
   opacity: 1;
   outline: none;
-  box-shadow: 0 0 0 2px rgba(55, 138, 221, 0.16);
+  box-shadow: 0 0 0 2px var(--focus-ring);
   transform: translateY(-1px);
 }
 
@@ -111,9 +115,8 @@
 
 @keyframes byte-view-reveal-pulse {
   0% {
-    background: color-mix(in srgb, var(--color-accent-blue) 18%, transparent);
-    box-shadow: inset 0 0 0 1px
-      color-mix(in srgb, var(--color-accent-blue) 28%, transparent);
+    background: var(--color-selection-bg);
+    box-shadow: inset 0 0 0 1px var(--color-selection-border);
   }
 
   100% {
@@ -170,7 +173,7 @@
   border-color: var(--color-text-tertiary);
   opacity: 1;
   outline: none;
-  box-shadow: 0 0 0 2px rgba(55, 138, 221, 0.16);
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .property-tooltip {
@@ -181,7 +184,7 @@
   max-width: min(320px, 70vw);
   padding: 6px 8px;
   border: 0.5px solid var(--color-border-secondary);
-  border-radius: 4px;
+  border-radius: var(--border-radius-md);
   background: var(--color-text-primary);
   color: var(--color-background-primary);
   font-family: var(--font-sans);
@@ -280,7 +283,7 @@
   border-color: var(--color-text-tertiary);
   color: var(--color-text-primary);
   outline: none;
-  box-shadow: 0 0 0 2px rgba(55, 138, 221, 0.16);
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .vv-more-status {
@@ -308,8 +311,12 @@
   align-items: center;
   padding: 1px 6px;
   border-radius: 999px;
-  background: #e6f1fb;
-  color: #185fa5;
+  background: color-mix(
+    in srgb,
+    var(--color-accent-blue) 14%,
+    var(--color-mix-surface)
+  );
+  color: var(--color-accent-blue);
   font-size: 10px;
   line-height: 1.4;
   white-space: normal;
@@ -328,7 +335,7 @@
 }
 
 .pssh-preview-decoded .pssh-preview-badge {
-  color: #185fa5;
+  color: var(--color-accent-blue);
 }
 
 .pssh-preview-unparseable .pssh-preview-badge,
@@ -391,9 +398,17 @@
 }
 
 .flag-chip.on {
-  background: #e6f1fb;
-  border-color: #b5d4f4;
-  color: #185fa5;
+  background: color-mix(
+    in srgb,
+    var(--color-accent-blue) 14%,
+    var(--color-mix-surface)
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent-blue) 42%,
+    var(--color-border-tertiary)
+  );
+  color: var(--color-accent-blue);
 }
 
 .bits-row {

@@ -7,15 +7,15 @@ import { fmtBytes } from "../../utils/bytes.js";
 import { el, esc, requireElementById } from "../../utils/dom.js";
 
 const CHART_COLORS = [
-  "#1F6FB8",
-  "#147D64",
-  "#B45120",
-  "#9A6700",
-  "#7445D1",
-  "#B83F6A",
-  "#5F7F16",
-  "#B91C1C",
-  "#6F6E69",
+  "var(--box-map-color-1)",
+  "var(--box-map-color-2)",
+  "var(--box-map-color-3)",
+  "var(--box-map-color-4)",
+  "var(--box-map-color-5)",
+  "var(--box-map-color-6)",
+  "var(--box-map-color-7)",
+  "var(--box-map-color-8)",
+  "var(--box-map-color-9)",
 ];
 
 const EXCLUDED_SHARE_BOX_TYPES = new Set(["mdat"]);

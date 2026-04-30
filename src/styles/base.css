@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --font-sans:
     system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono:
@@ -7,6 +8,7 @@
   --color-background-primary: #ffffff;
   --color-background-secondary: #f6f8fa;
   --color-background-hover: #fcfcfe;
+  --color-panel-tint: var(--color-background-primary);
   --color-border-secondary: #b7c0cb;
   --color-border-tertiary: #d8dee6;
   --color-text-primary: #1f2328;
@@ -18,6 +20,42 @@
   --color-accent-purple: #7445d1;
   --color-accent-red: #b91c1c;
   --color-accent-yellow: #9a6700;
+  --color-theme-accent: var(--color-accent-blue);
+  --color-selection-bg: color-mix(
+    in srgb,
+    var(--color-theme-accent) 10%,
+    var(--color-background-primary)
+  );
+  --color-selection-border: color-mix(
+    in srgb,
+    var(--color-theme-accent) 36%,
+    transparent
+  );
+  --color-selection-fg: var(--color-text-primary);
+  --shadow-panel: 0 10px 28px
+    color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+  --focus-ring: color-mix(in srgb, var(--color-accent-blue) 45%, transparent);
+  --color-mix-surface: white;
+  --status-active-bg: #f3f9ff;
+  --status-success-bg: #f1fbf3;
+  --status-warning-bg: #fff8e8;
+  --status-error-bg: #fff3ef;
+  --tree-guide-color: var(--color-border-tertiary);
+  --tree-guide-open-color: var(--color-border-secondary);
+  --map-mix-surface: white;
+  --map-grid-line-color: var(--color-border-tertiary);
+  --color-viz-1: var(--color-accent-blue);
+  --color-viz-2: var(--color-accent-green);
+  --color-viz-3: var(--color-accent-orange);
+  --box-map-color-1: #1f6fb8;
+  --box-map-color-2: #147d64;
+  --box-map-color-3: #b45120;
+  --box-map-color-4: #9a6700;
+  --box-map-color-5: #7445d1;
+  --box-map-color-6: #b83f6a;
+  --box-map-color-7: #5f7f16;
+  --box-map-color-8: #b91c1c;
+  --box-map-color-9: #6f6e69;
   --border-radius-md: 4px;
   --border-radius-lg: 6px;
 }
@@ -34,6 +72,17 @@ body {
   font-family: var(--font-mono, monospace);
   font-size: 13px;
   color: var(--color-text-primary);
-  background: transparent;
+  background: var(--color-background-primary);
   padding: 0 1rem 0 1rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }

@@ -6,7 +6,8 @@
 }
 
 .byte-view-banner {
-  border: 1px solid color-mix(in srgb, var(--color-accent-yellow) 32%, white);
+  border: 1px solid
+    color-mix(in srgb, var(--color-accent-yellow) 32%, var(--color-mix-surface));
   background: color-mix(
     in srgb,
     var(--color-accent-yellow) 10%,
@@ -82,7 +83,11 @@
   gap: 8px;
   padding: 8px 10px;
   border: 0.5px solid
-    color-mix(in srgb, var(--color-border-tertiary) 80%, white);
+    color-mix(
+      in srgb,
+      var(--color-border-tertiary) 80%,
+      var(--color-mix-surface)
+    );
   border-radius: 999px;
   background: color-mix(
     in srgb,
@@ -157,13 +162,13 @@
 .byte-highlight-overlay.is-selected {
   background: color-mix(
     in srgb,
-    var(--byte-highlight-accent, var(--color-accent-blue)) 17%,
+    var(--byte-highlight-accent, var(--color-theme-accent)) 17%,
     transparent
   );
   box-shadow: inset 0 0 0 1px
     color-mix(
       in srgb,
-      var(--byte-highlight-accent, var(--color-accent-blue)) 30%,
+      var(--byte-highlight-accent, var(--color-theme-accent)) 30%,
       transparent
     );
 }
@@ -171,13 +176,13 @@
 .byte-highlight-overlay.is-hovered {
   background: color-mix(
     in srgb,
-    var(--byte-highlight-accent, var(--color-accent-blue)) 11%,
+    var(--byte-highlight-accent, var(--color-theme-accent)) 11%,
     transparent
   );
   box-shadow: inset 0 0 0 1px
     color-mix(
       in srgb,
-      var(--byte-highlight-accent, var(--color-accent-blue)) 20%,
+      var(--byte-highlight-accent, var(--color-theme-accent)) 20%,
       transparent
     );
 }
@@ -268,7 +273,8 @@
 .byte-semantic-partial-note {
   margin: 0 14px 14px;
   padding: 8px 10px;
-  border: 0.5px solid color-mix(in srgb, var(--color-accent-yellow) 22%, white);
+  border: 0.5px solid
+    color-mix(in srgb, var(--color-accent-yellow) 22%, var(--color-mix-surface));
   border-radius: 10px;
   background: color-mix(
     in srgb,

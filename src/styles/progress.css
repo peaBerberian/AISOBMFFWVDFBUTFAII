@@ -41,7 +41,7 @@
     var(--color-background-primary) 98%,
     transparent
   );
-  box-shadow: 0 8px 24px rgb(31 35 40 / 16%);
+  box-shadow: var(--shadow-panel);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
   font-size: 13px;
@@ -54,22 +54,22 @@
 
 #status-line.is-active {
   border-color: var(--color-accent-blue);
-  background: #f3f9ff;
+  background: var(--status-active-bg);
 }
 
 #status-line.is-success {
   border-color: var(--color-accent-green);
-  background: #f1fbf3;
+  background: var(--status-success-bg);
 }
 
 #status-line.is-warning {
   border-color: var(--color-accent-yellow);
-  background: #fff8e8;
+  background: var(--status-warning-bg);
 }
 
 #status-line.is-error {
   border-color: var(--color-accent-orange);
-  background: #fff3ef;
+  background: var(--status-error-bg);
 }
 
 #progress-cancel-button {
@@ -83,7 +83,7 @@
     var(--color-background-primary) 98%,
     transparent
   );
-  box-shadow: 0 8px 24px rgb(31 35 40 / 16%);
+  box-shadow: var(--shadow-panel);
   color: var(--color-text-secondary);
   font-family: var(--font-sans);
   font-size: 12px;
@@ -110,7 +110,7 @@
 }
 
 #progress-cancel-button:focus-visible {
-  outline: 2px solid color-mix(in srgb, #1f6fb8 45%, transparent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 

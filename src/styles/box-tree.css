@@ -31,7 +31,7 @@
 .tree-position-panel:hover {
   opacity: 1;
   border-color: var(--color-border-secondary);
-  box-shadow: 0 6px 18px rgb(31 35 40 / 0.08);
+  box-shadow: var(--shadow-panel);
 }
 
 .tree-position-panel[hidden] {
@@ -76,8 +76,16 @@
   border-radius: 999px;
   background: linear-gradient(
     to bottom,
-    color-mix(in srgb, var(--color-background-primary) 92%, white),
-    color-mix(in srgb, var(--color-background-secondary) 90%, white)
+    color-mix(
+      in srgb,
+      var(--color-background-primary) 92%,
+      var(--color-mix-surface)
+    ),
+    color-mix(
+      in srgb,
+      var(--color-background-secondary) 90%,
+      var(--color-mix-surface)
+    )
   );
   color: var(--color-text-tertiary);
   font-family: var(--font-sans);
@@ -104,7 +112,7 @@
 .tree-position-toggle:focus-visible,
 .tree-position-scale:focus-visible,
 .tree-position-block:focus-visible {
-  outline: 2px solid color-mix(in srgb, #1f6fb8 45%, transparent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -149,8 +157,8 @@
       to right,
       transparent 0,
       transparent calc(100% - 12px),
-      var(--color-border-tertiary) calc(100% - 12px),
-      var(--color-border-tertiary) calc(100% - 11px),
+      var(--map-grid-line-color) calc(100% - 12px),
+      var(--map-grid-line-color) calc(100% - 11px),
       transparent calc(100% - 11px)
     ),
     linear-gradient(
@@ -172,19 +180,32 @@
   border: 0;
   border-left: 2px solid var(--tree-map-color);
   border-radius: 3px;
-  background: color-mix(in srgb, var(--tree-map-color) 18%, white);
+  background: color-mix(
+    in srgb,
+    var(--tree-map-color) 18%,
+    var(--map-mix-surface)
+  );
   color: transparent;
   cursor: pointer;
 }
 
 .tree-position-block:hover,
 .tree-position-block.is-current {
-  background: color-mix(in srgb, var(--tree-map-color) 24%, white);
-  outline: 1px solid color-mix(in srgb, var(--tree-map-color) 55%, white);
+  background: color-mix(
+    in srgb,
+    var(--tree-map-color) 24%,
+    var(--map-mix-surface)
+  );
+  outline: 1px solid
+    color-mix(in srgb, var(--tree-map-color) 55%, var(--map-mix-surface));
 }
 
 .tree-position-block.is-current {
-  background: color-mix(in srgb, var(--tree-map-color) 30%, white);
+  background: color-mix(
+    in srgb,
+    var(--tree-map-color) 30%,
+    var(--map-mix-surface)
+  );
   outline: 1px solid var(--tree-map-color);
 }
 
@@ -212,14 +233,14 @@
 
 .box-node,
 .vv-collapsible {
-  border-left: 1.5px solid var(--color-border-tertiary);
+  border-left: 1.5px solid var(--tree-guide-color);
   margin: 2px 0;
   padding-left: 10px;
 }
 
 .box-node[open],
 .vv-collapsible[open] {
-  border-left-color: var(--color-border-secondary);
+  border-left-color: var(--tree-guide-open-color);
 }
 
 .box-node > summary,
@@ -236,7 +257,7 @@
 
 .box-node > summary:focus-visible,
 .vv-collapsible > summary:focus-visible {
-  outline: 2px solid color-mix(in srgb, #1f6fb8 45%, transparent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 

@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <meta
     name="description"
     content="Inspect MP4 and ISOBMFF files directly in your browser. View box trees, parsed metadata fields, byte offsets, box sizes, and fragmented MP4 segment structure without uploading files."
@@ -16,6 +17,18 @@
   >
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://peaberberian.github.io/AISOBMFFWVDFBUTFAII/">
+  <script>
+    (() => {
+      try {
+        const theme = window.localStorage.getItem("aisobmff-inspector-theme");
+        if (theme === "foundry" || theme === "dark") {
+          document.documentElement.dataset.theme = theme;
+        }
+      } catch {
+        // Keep the default light theme when storage is unavailable.
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="style.css" media="screen">
   <title>MP4 Box Inspector - ISOBMFF / Fragmented MP4 Analyzer</title>
   <script type="application/ld+json">
@@ -37,6 +50,14 @@
   <header class="project-header">
     <h1 id="title">MP4 Box Inspector</h1>
     <nav class="project-links" aria-label="Project links">
+      <div class="theme-control">
+        <label class="theme-label" for="theme-select">Theme</label>
+        <select id="theme-select" class="theme-select" name="theme">
+          <option value="light">Light</option>
+          <option value="foundry">Foundry</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
       <a
         class="github-link"
         href="https://github.com/peaBerberian/AISOBMFFWVDFBUTFAII"

@@ -58,6 +58,9 @@ export function initializeTabNavigation() {
 
   updateTabIndicator();
   window.addEventListener("resize", updateTabIndicator);
+  document.addEventListener("themechange", () => {
+    requestAnimationFrame(updateTabIndicator);
+  });
 }
 
 /**

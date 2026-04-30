@@ -147,7 +147,7 @@
 .segment-choice-button:focus-visible,
 .segment-choice-chip:focus-visible,
 .compact-source > summary:focus-visible {
-  outline: 2px solid color-mix(in srgb, #1f6fb8 45%, transparent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -204,9 +204,13 @@
 }
 
 .segment-choice-chip.is-active {
-  border-color: var(--color-accent-blue);
-  background: color-mix(in srgb, var(--color-accent-blue) 10%, white);
-  color: var(--color-accent-blue);
+  border-color: var(--color-theme-accent);
+  background: color-mix(
+    in srgb,
+    var(--color-theme-accent) 10%,
+    var(--color-mix-surface)
+  );
+  color: var(--color-theme-accent);
 }
 
 .compact-source {

@@ -5,9 +5,11 @@ import {
   initializeFileReaderInput,
   initializeUrlInput,
 } from "./ui/SourceControls.js";
+import { initializeThemeControls } from "./ui/ThemeControls.js";
 import { initializeTabNavigation } from "./ui/tabs/index.js";
 import { requireElementById } from "./utils/dom.js";
 
+initializeThemeControls();
 initializeFileReaderInput(parseLocalFile);
 initializeFileDrop(parseLocalFile);
 initializeUrlInput(inspectRemoteSource);

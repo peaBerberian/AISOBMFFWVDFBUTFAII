@@ -58,12 +58,50 @@ input[type="file"]:focus-visible,
 #url-button:focus-visible,
 .example-source-button:focus-visible,
 .tab:focus-visible {
-  outline: 2px solid color-mix(in srgb, #1f6fb8 45%, transparent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
 .github-stars-count {
   color: var(--color-text-tertiary);
+}
+
+.theme-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+}
+
+.theme-label {
+  color: var(--color-text-tertiary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.theme-select {
+  min-height: 26px;
+  padding: 3px 24px 3px 8px;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+  background: var(--color-background-primary);
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.theme-select:hover {
+  color: var(--color-text-primary);
+  background: var(--color-background-secondary);
+  border-color: var(--color-border-secondary);
+}
+
+.theme-select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 #selection {
@@ -171,7 +209,7 @@ input[type="file"]::file-selector-button:hover,
 }
 
 #url-input:focus-visible {
-  outline-color: color-mix(in srgb, #1f6fb8 45%, transparent);
+  outline-color: var(--focus-ring);
 }
 
 #url-button {
@@ -288,7 +326,7 @@ input[type="file"]::file-selector-button:hover,
   left: 0;
   width: var(--active-tab-width);
   height: 2px;
-  background: var(--color-text-primary);
+  background: var(--color-theme-accent);
   content: "";
   pointer-events: none;
   transform: translateX(var(--active-tab-left));
