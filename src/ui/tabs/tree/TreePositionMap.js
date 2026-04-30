@@ -599,9 +599,9 @@ function ensureTreeMapLayout(treeRoot) {
   treePane.appendChild(treeRoot);
   panel.appendChild(summary);
   panel.appendChild(content);
+  content.appendChild(details);
   content.appendChild(viewport);
   viewport.appendChild(map);
-  content.appendChild(details);
 
   return { panel, summary, details, viewport, map, treePane, content };
 }
