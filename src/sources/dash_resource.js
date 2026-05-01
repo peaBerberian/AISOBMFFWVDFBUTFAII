@@ -29,11 +29,11 @@ export async function handleDashSource(
 ) {
   dispatch({
     type: "manifest-loading",
+    sourceKind: "dash",
     source: {
       selectedLabel: "DASH manifest",
       selectedValue: sourceUrl,
     },
-    status: { message: "Loading DASH manifest…" },
   });
 
   try {
@@ -51,7 +51,6 @@ export async function handleDashSource(
       dispatch({
         type: "source-resolution-failed",
         error,
-        status: { message: error.message, state: "error" },
       });
       return;
     }
@@ -63,15 +62,10 @@ export async function handleDashSource(
         sourceUrl,
         tree,
         onInspect: onSegmentChosen,
-        status: { message: "DASH manifest loaded.", state: "success" },
         async onLoadRepresentation(representation) {
           dispatch({
             type: "segment-list-loading",
-            status: {
-              message: "Loading DASH segment list...",
-              state: "start",
-              easing: true,
-            },
+            sourceKind: "dash",
           });
           try {
             await resolveIndexForRepresentation(representation, signal);
@@ -80,18 +74,15 @@ export async function handleDashSource(
             }
             dispatch({
               type: "segment-list-loaded",
-              status: { message: "DASH segment list loaded", state: "success" },
+              sourceKind: "dash",
             });
             renderChooser();
           } catch (err) {
             if (!signal.aborted) {
-              const message = err instanceof Error ? err.message : err;
               dispatch({
                 type: "segment-list-failed",
-                status: {
-                  message: `segment list error: ${message}`,
-                  state: "error",
-                },
+                sourceKind: "dash",
+                error: err instanceof Error ? err : new Error(String(err)),
               });
               throw err;
             }
@@ -100,14 +91,16 @@ export async function handleDashSource(
       });
     };
 
+    dispatch({
+      type: "manifest-loaded",
+      sourceKind: "dash",
+    });
     renderChooser();
   } catch (err) {
     if (!signal.aborted) {
-      const message = err instanceof Error ? err.message : err;
       dispatch({
         type: "source-resolution-failed",
         error: err instanceof Error ? err : new Error(String(err)),
-        status: { message: `Manifest error: ${message}`, state: "error" },
       });
       throw err;
     }

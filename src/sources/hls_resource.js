@@ -29,11 +29,11 @@ export async function handleHlsSource(
 ) {
   dispatch({
     type: "manifest-loading",
+    sourceKind: "hls",
     source: {
       selectedLabel: "HLS playlist",
       selectedValue: sourceUrl,
     },
-    status: { message: "Loading HLS playlist…" },
   });
 
   try {
@@ -51,7 +51,6 @@ export async function handleHlsSource(
       dispatch({
         type: "source-resolution-failed",
         error,
-        status: { message: error.message, state: "error" },
       });
       return;
     }
@@ -63,15 +62,10 @@ export async function handleHlsSource(
         sourceUrl,
         extraction,
         onInspect: onSegmentChosen,
-        status: { message: "HLS playlist loaded.", state: "success" },
         async onLoadResult(result) {
           dispatch({
             type: "segment-list-loading",
-            status: {
-              message: "Loading HLS segment list...",
-              state: "start",
-              easing: true,
-            },
+            sourceKind: "hls",
           });
           try {
             await resolveMediaPlaylist(result, signal);
@@ -80,18 +74,15 @@ export async function handleHlsSource(
             }
             dispatch({
               type: "segment-list-loaded",
-              status: { message: "HLS segment list loaded", state: "success" },
+              sourceKind: "hls",
             });
             renderChooser();
           } catch (err) {
             if (!signal.aborted) {
-              const message = err instanceof Error ? err.message : err;
               dispatch({
                 type: "segment-list-failed",
-                status: {
-                  message: `playlist error: ${message}`,
-                  state: "error",
-                },
+                sourceKind: "hls",
+                error: err instanceof Error ? err : new Error(String(err)),
               });
               throw err;
             }
@@ -100,14 +91,16 @@ export async function handleHlsSource(
       });
     };
 
+    dispatch({
+      type: "manifest-loaded",
+      sourceKind: "hls",
+    });
     renderChooser();
   } catch (err) {
     if (!signal.aborted) {
-      const message = err instanceof Error ? err.message : err;
       dispatch({
         type: "source-resolution-failed",
         error: err instanceof Error ? err : new Error(String(err)),
-        status: { message: `playlist error: ${message}`, state: "error" },
       });
       throw err;
     }

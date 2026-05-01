@@ -7,7 +7,7 @@
  */
 export default class InspectionSourceHandle {
   #hasActiveChooser = false;
-  /** @type {import("./InspectionParseHandle.js").InspectionEventListener|null} */
+  /** @type {SourceInspectionEventListener|null} */
   onEvent = null;
 
   get hasActiveChooser() {
@@ -20,7 +20,7 @@ export default class InspectionSourceHandle {
   dispatch(action) {
     switch (action.type) {
       case "remote-probe-started":
-        this.#reportStatus(action.status);
+        this.#dispatchEvent({ type: "remote-probe-started" });
         break;
       case "local-file-selected":
         this.#hasActiveChooser = false;
@@ -28,18 +28,25 @@ export default class InspectionSourceHandle {
           type: "source",
           source: action.source,
         });
-        this.#reportStatus(action.status);
         break;
       case "manifest-loading":
         this.#dispatchEvent({
           type: "source",
           source: action.source,
         });
-        this.#reportStatus(action.status);
+        this.#dispatchEvent({
+          type: "manifest-load-started",
+          manifestKind: action.sourceKind,
+        });
+        break;
+      case "manifest-loaded":
+        this.#dispatchEvent({
+          type: "manifest-load-complete",
+          manifestKind: action.sourceKind,
+        });
         break;
       case "segment-choices-available":
         this.#hasActiveChooser = true;
-        this.#reportStatus(action.status);
         this.#dispatchEvent({ type: "render-clear" });
         if (action.sourceKind === "dash") {
           this.#dispatchEvent({
@@ -60,9 +67,23 @@ export default class InspectionSourceHandle {
         }
         break;
       case "segment-list-loading":
+        this.#dispatchEvent({
+          type: "segment-list-load-started",
+          sourceKind: action.sourceKind,
+        });
+        break;
       case "segment-list-loaded":
+        this.#dispatchEvent({
+          type: "segment-list-load-complete",
+          sourceKind: action.sourceKind,
+        });
+        break;
       case "segment-list-failed":
-        this.#reportStatus(action.status);
+        this.#dispatchEvent({
+          type: "segment-list-load-failed",
+          sourceKind: action.sourceKind,
+          error: action.error,
+        });
         break;
       case "segment-fetch-started":
         this.#hasActiveChooser = false;
@@ -71,16 +92,13 @@ export default class InspectionSourceHandle {
           type: "source",
           source: action.source,
         });
-        if (action.status) {
-          this.#reportStatus(action.status);
+        if (action.hasRemoteFetch) {
+          this.#dispatchEvent({ type: "segment-fetch-started" });
         }
         break;
       case "source-resolution-failed":
         this.#dispatchEvent({ type: "render-clear" });
         this.error(action.error);
-        if (action.status) {
-          this.#reportStatus(action.status);
-        }
         break;
     }
   }
@@ -93,19 +111,7 @@ export default class InspectionSourceHandle {
   }
 
   /**
-   * @param {import("./InspectionParseHandle.js").InspectionStatusInput} status
-   */
-  #reportStatus(status) {
-    this.#dispatchEvent({
-      type: "status",
-      message: status.message,
-      state: status.state ?? "update",
-      easing: status.easing,
-    });
-  }
-
-  /**
-   * @param {import("./InspectionParseHandle.js").InspectionEvent} event
+   * @param {SourceInspectionEvent} event
    */
   #dispatchEvent(event) {
     this.onEvent?.(event);
@@ -115,21 +121,99 @@ export default class InspectionSourceHandle {
 /**
  * @typedef {Object} RemoteProbeStartedAction
  * @property {"remote-probe-started"} type
- * @property {import("./InspectionParseHandle.js").InspectionStatusInput} status
  */
 
 /**
  * @typedef {Object} LocalFileSelectedAction
  * @property {"local-file-selected"} type
  * @property {import("./InspectionParseHandle.js").InspectionSource} source
- * @property {import("./InspectionParseHandle.js").InspectionStatusInput} status
  */
 
 /**
  * @typedef {Object} ManifestLoadingAction
  * @property {"manifest-loading"} type
+ * @property {"dash" | "hls"} sourceKind
  * @property {import("./InspectionParseHandle.js").InspectionSource} source
- * @property {import("./InspectionParseHandle.js").InspectionStatusInput} status
+ */
+
+/**
+ * @typedef {Object} ManifestLoadedAction
+ * @property {"manifest-loaded"} type
+ * @property {"dash" | "hls"} sourceKind
+ */
+
+/**
+ * @typedef {Object} SourceRemoteProbeStartedEvent
+ * @property {"remote-probe-started"} type
+ */
+
+/**
+ * @typedef {Object} SourceInspectionSourceEvent
+ * @property {"source"} type
+ * @property {import("./InspectionParseHandle.js").InspectionSource} source
+ */
+
+/**
+ * @typedef {Object} SourceManifestLoadStartedEvent
+ * @property {"manifest-load-started"} type
+ * @property {"dash" | "hls"} manifestKind
+ */
+
+/**
+ * @typedef {Object} SourceManifestLoadCompleteEvent
+ * @property {"manifest-load-complete"} type
+ * @property {"dash" | "hls"} manifestKind
+ */
+
+/**
+ * @typedef {Object} SourceSegmentListLoadStartedEvent
+ * @property {"segment-list-load-started"} type
+ * @property {"dash" | "hls"} sourceKind
+ */
+
+/**
+ * @typedef {Object} SourceSegmentListLoadCompleteEvent
+ * @property {"segment-list-load-complete"} type
+ * @property {"dash" | "hls"} sourceKind
+ */
+
+/**
+ * @typedef {Object} SourceSegmentListLoadFailedEvent
+ * @property {"segment-list-load-failed"} type
+ * @property {"dash" | "hls"} sourceKind
+ * @property {Error} error
+ */
+
+/**
+ * @typedef {Object} SourceSegmentFetchStartedEvent
+ * @property {"segment-fetch-started"} type
+ */
+
+/**
+ * @typedef {Object} SourceInspectionErrorEvent
+ * @property {"error"} type
+ * @property {Error} error
+ * @property {string} message
+ */
+
+/** @typedef {{ type: "chooser-hide" | "render-clear" }} SourceSimpleEvent */
+
+/**
+ * @typedef {Object} SourceInspectionDashChooserEvent
+ * @property {"chooser-dash"} type
+ * @property {string} sourceUrl
+ * @property {import("../sources/extractors/dash/types.js").DashTree} tree
+ * @property {SegmentInspectCallback} onInspect
+ * @property {(representation: import("../sources/extractors/dash/types.js").RepresentationTree) => Promise<void> | void} [onLoadRepresentation]
+ */
+
+/**
+ * @typedef {Object} SourceInspectionHlsChooserEvent
+ * @property {"chooser-hls"} type
+ * @property {string} sourceUrl
+ * @property {import("../sources/extractors/hls/index.js").ExtractionResult} extraction
+ * @property {SegmentInspectCallback} onInspect
+ * @property {(result: import("../sources/extractors/hls/index.js").PlaylistResult) => Promise<void> | void} [onLoadResult]
  */
 
 /**
@@ -140,7 +224,6 @@ export default class InspectionSourceHandle {
  * @property {import("../sources/extractors/dash/types.js").DashTree} tree
  * @property {SegmentInspectCallback} onInspect
  * @property {(representation: import("../sources/extractors/dash/types.js").RepresentationTree) => Promise<void> | void} [onLoadRepresentation]
- * @property {import("./InspectionParseHandle.js").InspectionStatusInput} status
  */
 
 /**
@@ -151,21 +234,19 @@ export default class InspectionSourceHandle {
  * @property {import("../sources/extractors/hls/index.js").ExtractionResult} extraction
  * @property {SegmentInspectCallback} onInspect
  * @property {(result: import("../sources/extractors/hls/index.js").PlaylistResult) => Promise<void> | void} [onLoadResult]
- * @property {import("./InspectionParseHandle.js").InspectionStatusInput} status
  */
 
 /**
  * @typedef {Object} SegmentFetchStartedAction
  * @property {"segment-fetch-started"} type
  * @property {import("./InspectionParseHandle.js").InspectionSource} source
- * @property {import("./InspectionParseHandle.js").InspectionStatusInput} [status]
+ * @property {boolean} hasRemoteFetch
  */
 
 /**
  * @typedef {Object} SourceResolutionFailedAction
  * @property {"source-resolution-failed"} type
  * @property {Error} error
- * @property {import("./InspectionParseHandle.js").InspectionStatusInput} [status]
  */
 
 /**
@@ -175,7 +256,8 @@ export default class InspectionSourceHandle {
  *   companionInit?: { url: string, byteRange: [number, number | undefined] | undefined }
  * ) => void} SegmentInspectCallback
  *
- * @typedef {{ type: "segment-list-loading" | "segment-list-failed" | "segment-list-loaded", status: import("./InspectionParseHandle.js").InspectionStatusInput }} SegmentListStatusAction
+ * @typedef {{ type: "segment-list-loading" | "segment-list-loaded", sourceKind: "dash" | "hls" }} SegmentListProgressAction
+ * @typedef {{ type: "segment-list-failed", sourceKind: "dash" | "hls", error: Error }} SegmentListFailedAction
  */
 
 /**
@@ -183,10 +265,29 @@ export default class InspectionSourceHandle {
  *   RemoteProbeStartedAction |
  *   LocalFileSelectedAction |
  *   ManifestLoadingAction |
+ *   ManifestLoadedAction |
  *   DashSegmentChoicesAvailableAction |
  *   HlsSegmentChoicesAvailableAction |
- *   SegmentListStatusAction |
+ *   SegmentListProgressAction |
+ *   SegmentListFailedAction |
  *   SegmentFetchStartedAction |
  *   SourceResolutionFailedAction
  * )} SourceAction
+ *
+ * @typedef {(
+ *   SourceRemoteProbeStartedEvent |
+ *   SourceInspectionSourceEvent |
+ *   SourceManifestLoadStartedEvent |
+ *   SourceManifestLoadCompleteEvent |
+ *   SourceSegmentListLoadStartedEvent |
+ *   SourceSegmentListLoadCompleteEvent |
+ *   SourceSegmentListLoadFailedEvent |
+ *   SourceSegmentFetchStartedEvent |
+ *   SourceInspectionErrorEvent |
+ *   SourceSimpleEvent |
+ *   SourceInspectionDashChooserEvent |
+ *   SourceInspectionHlsChooserEvent
+ * )} SourceInspectionEvent
+ *
+ * @typedef {(event: SourceInspectionEvent) => void} SourceInspectionEventListener
  */

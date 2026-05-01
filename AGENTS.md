@@ -107,6 +107,19 @@ resolve, and stream source data, then report semantic transitions through the
 inspection. DOM wiring belongs in `src/ui` modules, and coordinator-owned UI
 side effects should stay in `InspectionCoordinator`.
 
+Keep progress policy centralized in `InspectionCoordinator`. Phase weights,
+mapping from semantic inspection events to progress phases, and user-facing
+progress wording should live there rather than in source or parse workflow
+modules.
+
+Source and parse modules should report semantic lifecycle facts and byte facts,
+such as probe started, manifest loading started/completed, segment fetch
+started, bytes loaded, or bytes consumed. They should not choose progress
+phases, percentages, or other `ProgressBar` display policy.
+
+`src/ui/ProgressBar.js` should stay focused on display mechanics only:
+monotonic progress animation, reset/fade/cancel state, and ARIA attributes.
+
 ## CSS Organization
 
 CSS is split by feature ownership:

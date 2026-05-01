@@ -39,6 +39,7 @@ const ISOBMFF_BOX_TYPES = new Set([
  *   kind: "dash" | "hls" | "segment",
  *   text: string | null,
  *   stream: AsyncIterable<Uint8Array> | null,
+ *   totalBytes: number | null,
  * }} RemoteSourceProbe
  */
 
@@ -58,6 +59,7 @@ export async function probeRemoteSource(sourceUrl, signal) {
   const contentType = normalizeContentType(
     response.headers.get("content-type"),
   );
+  const totalBytes = parseContentLength(response.headers.get("content-length"));
   const prefix = await readResponsePrefix(
     response,
     REMOTE_PROBE_BYTE_COUNT,
@@ -75,6 +77,7 @@ export async function probeRemoteSource(sourceUrl, signal) {
       kind,
       text: await responseWithPrefixToText(prefix.bytes, prefix.reader, signal),
       stream: null,
+      totalBytes: null,
     };
   }
 
@@ -82,6 +85,7 @@ export async function probeRemoteSource(sourceUrl, signal) {
     kind,
     text: null,
     stream: createPrefixedAsyncIterable(prefix.bytes, prefix.reader, signal),
+    totalBytes,
   };
 }
 
@@ -110,6 +114,18 @@ export function getRemoteSourceKind(sourceUrl) {
  */
 function normalizeContentType(contentType) {
   return contentType?.split(";", 1)[0].trim().toLowerCase() ?? "";
+}
+
+/**
+ * @param {string | null} value
+ * @returns {number | null}
+ */
+function parseContentLength(value) {
+  if (value === null) {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
 /**

@@ -5,7 +5,7 @@ import { createAbortableAsyncIterable } from "../utils/abortables.js";
  * @param {string} url
  * @param {[number, number|undefined]|undefined} byteRange
  * @param {AbortSignal} signal
- * @returns {Promise<AsyncIterable<Uint8Array>>}
+ * @returns {Promise<{ input: AsyncIterable<Uint8Array>, totalBytes: number | null }>}
  */
 async function fetchSegmentInput(url, byteRange, signal) {
   /** @type {HeadersInit} */
@@ -23,13 +23,20 @@ async function fetchSegmentInput(url, byteRange, signal) {
     const errMsg = `HTTP ${r.status}${r.statusText ? ` ${r.statusText}` : ""}`;
     throw new Error(`fetch error: ${errMsg}`);
   }
+  const totalBytes = getResponseByteLength(r.headers, byteRange);
   if (r.body) {
-    return createAbortableAsyncIterable(r.body, signal);
+    return {
+      input: createAbortableAsyncIterable(r.body, signal),
+      totalBytes,
+    };
   }
   return {
-    async *[Symbol.asyncIterator]() {
-      yield new Uint8Array(await r.arrayBuffer());
+    input: {
+      async *[Symbol.asyncIterator]() {
+        yield new Uint8Array(await r.arrayBuffer());
+      },
     },
+    totalBytes,
   };
 }
 
@@ -39,7 +46,11 @@ async function fetchSegmentInput(url, byteRange, signal) {
  * @returns {Promise<{ boxes: Array<import("isobmff-inspector").ParsedBox> }>}
  */
 async function loadSupplementalInitMetadata(segment, signal) {
-  const input = await fetchSegmentInput(segment.url, segment.byteRange, signal);
+  const { input } = await fetchSegmentInput(
+    segment.url,
+    segment.byteRange,
+    signal,
+  );
   const boxes = await parseSegmentWithoutRender(input, signal);
   return { boxes };
 }
@@ -56,6 +67,7 @@ async function loadSupplementalInitMetadata(segment, signal) {
  * @param {AbortSignal} signal
  * @returns {Promise<{
  *   segmentData: AsyncIterable<Uint8Array>;
+ *   segmentTotalBytes: number | null;
  *   companionDataPromise: Promise<{ boxes: Array<import("isobmff-inspector").ParsedBox> } | null>
  * }>}
  */
@@ -68,14 +80,68 @@ export default function fetchRemoteSegment(
   const fetchProm =
     typeof input === "string"
       ? fetchSegmentInput(input, byteRange, signal)
-      : Promise.resolve(input);
+      : Promise.resolve({ input, totalBytes: inferByteRangeLength(byteRange) });
   return fetchProm.then((segmentInput) => {
     const supplementalMetadataPromise = companionInit
       ? loadSupplementalInitMetadata(companionInit, signal)
       : Promise.resolve(null);
     return {
-      segmentData: segmentInput,
+      segmentData: segmentInput.input,
+      segmentTotalBytes: segmentInput.totalBytes,
       companionDataPromise: supplementalMetadataPromise,
     };
   });
+}
+
+/**
+ * @param {Headers} headers
+ * @param {[number, number|undefined]|undefined} byteRange
+ * @returns {number | null}
+ */
+function getResponseByteLength(headers, byteRange) {
+  const contentRange = headers.get("content-range");
+  const rangeLength = parseContentRangeLength(contentRange);
+  if (rangeLength !== null) {
+    return rangeLength;
+  }
+  const contentLength = headers.get("content-length");
+  if (contentLength !== null) {
+    const parsed = Number(contentLength);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+  return inferByteRangeLength(byteRange);
+}
+
+/**
+ * @param {string | null} contentRange
+ * @returns {number | null}
+ */
+function parseContentRangeLength(contentRange) {
+  const match = contentRange?.match(/^bytes\s+(\d+)-(\d+)\//i);
+  if (!match) {
+    return null;
+  }
+  const start = Number(match[1]);
+  const end = Number(match[2]);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+    return null;
+  }
+  return end - start + 1;
+}
+
+/**
+ * @param {[number, number|undefined]|undefined} byteRange
+ * @returns {number | null}
+ */
+function inferByteRangeLength(byteRange) {
+  if (byteRange === undefined) {
+    return null;
+  }
+  const [start, end] = byteRange;
+  if (end === undefined || end < start) {
+    return null;
+  }
+  return end - start + 1;
 }

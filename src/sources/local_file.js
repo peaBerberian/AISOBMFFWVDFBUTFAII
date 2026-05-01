@@ -19,14 +19,10 @@ export function parseLocalFile(file) {
       selectedLabel: "Local file",
       selectedValue: namedFile.name || "Unnamed file",
     },
-    status: {
-      message: "Loading local file...",
-      state: "start",
-      easing: true,
-    },
   });
   parseInspectionStream(reader.toParserInput(), parseHandle, {
     rangeReader: reader.readRange.bind(reader),
+    inputTotalBytes: file.size,
   }).finally(() => {
     InspectionCoordinator.finish(parseHandle);
   });

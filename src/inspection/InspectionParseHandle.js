@@ -10,7 +10,7 @@ import InspectionParseCollector from "./InspectionParseCollector.js";
 export default class InspectionParseHandle {
   #controller = new AbortController();
   #isCurrentCallback;
-  /** @type {InspectionEventListener|null} */
+  /** @type {ParseInspectionEventListener|null} */
   onEvent = null;
   /** @type {Array<InspectionNotice>} */
   #notices = [];
@@ -73,10 +73,16 @@ export default class InspectionParseHandle {
     return this.#isCurrentCallback(this);
   }
 
-  // TODO: Remove the need for that step?
-  signalParseBegin() {
+  /**
+   * TODO: Remove the need for that step?
+   * @param {{ inputTotalBytes?: number | null }} [options]
+   */
+  signalParseBegin(options = {}) {
     this.#dispatchEvent({ type: "render-initialize" });
-    this.reportStatus({ message: "parsing…" });
+    this.#dispatchEvent({
+      type: "parse-started",
+      inputTotalBytes: options.inputTotalBytes ?? null,
+    });
   }
 
   /**
@@ -91,6 +97,18 @@ export default class InspectionParseHandle {
   // TODO: Remove the need for that step?
   signalParseSuccess() {
     this.#dispatchEvent({ type: "render-finish-request" });
+  }
+
+  /**
+   * @param {number} loadedBytes
+   * @param {number | null} totalBytes
+   */
+  signalParseByteProgress(loadedBytes, totalBytes) {
+    this.#dispatchEvent({
+      type: "parse-byte-progress",
+      loadedBytes,
+      totalBytes,
+    });
   }
 
   /**
@@ -140,8 +158,9 @@ export default class InspectionParseHandle {
   onParserBoxComplete(box, depth, path) {
     this.#parsedBoxCount++;
     if (this.#parsedBoxCount % 5 === 0) {
-      this.reportStatus({
-        message: `parsed ${this.#parsedBoxCount} boxes…`,
+      this.#dispatchEvent({
+        type: "parse-box-count-updated",
+        boxCount: this.#parsedBoxCount,
       });
     }
     const wasStarted = this.#startedParserBoxesByDepth[depth] === true;
@@ -196,7 +215,7 @@ export default class InspectionParseHandle {
    * @param {AbortSignal} abortSignal
    */
   async completeLocalFileAnalysis(readRange, abortSignal) {
-    this.reportStatus({ message: "deepening codec analysis by reading back…" });
+    this.#dispatchEvent({ type: "analysis-started" });
     await this.#requireParseCollector().completeLocalFileAnalysis(
       readRange,
       abortSignal,
@@ -221,6 +240,7 @@ export default class InspectionParseHandle {
   }
 
   completeFromParseCollector() {
+    this.#dispatchEvent({ type: "render-started" });
     const parseCollector = this.#requireParseCollector();
     const topLevelBoxes = parseCollector.getTopLevelBoxes();
     const supplementalMetadata = this.#supplementalMetadata;
@@ -247,18 +267,6 @@ export default class InspectionParseHandle {
   }
 
   /**
-   * @param {InspectionStatusInput} status
-   */
-  reportStatus(status) {
-    this.#dispatchEvent({
-      type: "status",
-      message: status.message,
-      state: status.state ?? "update",
-      easing: status.easing,
-    });
-  }
-
-  /**
    * @param {Error} error
    */
   failInspection(error) {
@@ -266,7 +274,7 @@ export default class InspectionParseHandle {
   }
 
   /**
-   * @param {InspectionEvent} event
+   * @param {ParseInspectionEvent} event
    */
   #dispatchEvent(event) {
     this.onEvent?.(event);
@@ -287,10 +295,6 @@ export default class InspectionParseHandle {
  */
 
 /**
- * @typedef {"start" | "update" | "success" | "warning" | "error"} InspectionStatusState
- */
-
-/**
  * @typedef {Object} InspectionResult
  * @property {Array<import("isobmff-inspector").ParsedBox>} topLevelBoxes
  * @property {{ boxes: Array<import("isobmff-inspector").ParsedBox> } | null} supplementalMetadata
@@ -306,14 +310,6 @@ export default class InspectionParseHandle {
  * @property {string} [originLabel]
  * @property {string} [originValue]
  * @property {Array<{ label: string, value: string }>} [extraSources]
- */
-
-/**
- * @typedef {Object} InspectionStatusEvent
- * @property {"status"} type
- * @property {string} message
- * @property {InspectionStatusState} state
- * @property {boolean} [easing]
  */
 
 /**
@@ -340,6 +336,35 @@ export default class InspectionParseHandle {
  */
 
 /**
+ * @typedef {Object} InspectionParseStartedEvent
+ * @property {"parse-started"} type
+ * @property {number | null} inputTotalBytes
+ */
+
+/**
+ * @typedef {Object} InspectionParseByteProgressEvent
+ * @property {"parse-byte-progress"} type
+ * @property {number} loadedBytes
+ * @property {number | null} totalBytes
+ */
+
+/**
+ * @typedef {Object} InspectionParseBoxCountUpdatedEvent
+ * @property {"parse-box-count-updated"} type
+ * @property {number} boxCount
+ */
+
+/**
+ * @typedef {Object} InspectionAnalysisStartedEvent
+ * @property {"analysis-started"} type
+ */
+
+/**
+ * @typedef {Object} InspectionRenderStartedEvent
+ * @property {"render-started"} type
+ */
+
+/**
  * @typedef {Object} InspectionResultEvent
  * @property {"result"} type
  * @property {InspectionResult} result
@@ -353,63 +378,22 @@ export default class InspectionParseHandle {
  * @property {string} message
  */
 
-/**
- * @typedef {Object} InspectionSourceEvent
- * @property {"source"} type
- * @property {InspectionSource} source
- */
-
-/**
- * @typedef {Object} InspectionDashChooserEvent
- * @property {"chooser-dash"} type
- * @property {string} sourceUrl
- * @property {import("../sources/extractors/dash/types.js").DashTree} tree
- * @property {SegmentInspectCallback} onInspect
- * @property {(representation: import("../sources/extractors/dash/types.js").RepresentationTree) => Promise<void> | void} [onLoadRepresentation]
- */
-
-/**
- * @typedef {Object} InspectionHlsChooserEvent
- * @property {"chooser-hls"} type
- * @property {string} sourceUrl
- * @property {import("../sources/extractors/hls/index.js").ExtractionResult} extraction
- * @property {SegmentInspectCallback} onInspect
- * @property {(result: import("../sources/extractors/hls/index.js").PlaylistResult) => Promise<void> | void} [onLoadResult]
- */
-
-/**
- * @typedef {Object} InspectionStatusInput
- * @property {string} message
- * @property {InspectionStatusState} [state]
- * @property {boolean} [easing]
- */
-
-/**
-/**
- * @typedef {(
- *   segmentUrl: string,
- *   byteRange: [number, number | undefined] | undefined,
- *   companionInit?: { url: string, byteRange: [number, number | undefined] | undefined }
- * ) => void} SegmentInspectCallback
- *
- * @typedef {{ type: "chooser-hide" }} InspectionChooserHideEvent
- * @typedef {{ type: "render-initialize" | "render-clear" | "render-finish-request" | "render-failed" }} InspectionRenderEvent
- */
+/** @typedef {{ type: "render-initialize" | "render-clear" | "render-finish-request" | "render-failed" }} ParseInspectionRenderEvent */
 
 /**
  * @typedef {(
- *   InspectionStatusEvent |
  *   InspectionNoticeEvent |
  *   InspectionParserBoxStartEvent |
  *   InspectionParserBoxCompleteEvent |
+ *   InspectionParseStartedEvent |
+ *   InspectionParseByteProgressEvent |
+ *   InspectionParseBoxCountUpdatedEvent |
+ *   InspectionAnalysisStartedEvent |
+ *   InspectionRenderStartedEvent |
  *   InspectionResultEvent |
  *   InspectionErrorEvent |
- *   InspectionSourceEvent |
- *   InspectionChooserHideEvent |
- *   InspectionDashChooserEvent |
- *   InspectionHlsChooserEvent |
- *   InspectionRenderEvent
- * )} InspectionEvent
+ *   ParseInspectionRenderEvent
+ * )} ParseInspectionEvent
  *
- * @typedef {(event: InspectionEvent) => void} InspectionEventListener
+ * @typedef {(event: ParseInspectionEvent) => void} ParseInspectionEventListener
  */

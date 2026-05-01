@@ -42,11 +42,6 @@ async function inspectRemoteUrl(
 
   sourceHandle.dispatch({
     type: "remote-probe-started",
-    status: {
-      message: "Probing remote source…",
-      state: "start",
-      easing: true,
-    },
   });
 
   const probeResult = await probeRemoteSource(sourceUrl, signal);
@@ -73,7 +68,6 @@ async function inspectRemoteUrl(
         selectedValue: segmentUrl,
         originValue: sourceUrl,
         originLabel: originKindLabel,
-        status: { message: "Fetching segment..." },
       },
     );
   };
@@ -107,9 +101,7 @@ async function inspectRemoteUrl(
     {
       selectedLabel: "Remote resource",
       selectedValue: sourceUrl,
-      status: companionInit
-        ? { message: "Fetching segment...", state: "start", easing: true }
-        : { message: "fetching…" },
+      totalBytes: probeResult.totalBytes,
     },
   );
 }
@@ -125,7 +117,7 @@ async function inspectRemoteUrl(
  *   selectedValue: string,
  *   originLabel?: string,
  *   originValue?: string,
- *   status?: import("./InspectionParseHandle.js").InspectionStatusInput,
+ *   totalBytes?: number | null,
  * }} source
  * @returns {Promise<void>}
  */
@@ -162,13 +154,17 @@ function inspectRemoteSegment(
           ]
         : undefined,
     },
-    status: source.status,
+    hasRemoteFetch:
+      typeof input === "string" ||
+      companionInit !== undefined ||
+      byteRange !== undefined,
   });
 
   return fetchRemoteSegment(input, byteRange, companionInit, signal)
-    .then(({ segmentData, companionDataPromise }) =>
+    .then(({ segmentData, segmentTotalBytes, companionDataPromise }) =>
       parseInspectionStream(segmentData, parseHandle, {
         supplementalMetadataPromise: companionDataPromise,
+        inputTotalBytes: segmentTotalBytes ?? source.totalBytes ?? null,
       }),
     )
     .catch((err) => {
@@ -210,6 +206,5 @@ function failSourceResolution(parseHandle, sourceHandle, err) {
   sourceHandle.dispatch({
     type: "source-resolution-failed",
     error,
-    status: { message: error.message, state: "error" },
   });
 }
