@@ -24,10 +24,13 @@ Avoid duplicating parser logic here unless it is clearly UI-facing.
 - `src/index.js`: app entry point
 - `src/inspection/InspectionCoordinator.js`: singleton coordinator for the
   single active inspection; bridges inspection events to UI side effects.
-- `src/inspection/parseInspectionStream.js`: streams parser events into
-  `InspectionParseHandle` without importing UI modules.
+  Creates for each new inspection an `InspectionParseHandle` as an interface
+  for parse-oriented logic and an `InspectionSourceHandle` as an interface
+  for the logic linked to input file selection.
 - `src/inspection/InspectionParseCollector.js`: parse-time collection of facts
   that need to survive parsing without retaining whole media payloads.
+- `src/inspection/parseInspectionStream.js`: streams parser events into
+  `InspectionParseHandle` without importing UI modules.
 - `src/inspection/byte-view/*.js`: byte-view capture and lookup APIs.
 - `src/sources/filetype_detection.js`: probes remote resources and classifies them (as
   DASH, HLS, direct ISOBMFF content...) before the main inspection flow.
@@ -88,9 +91,10 @@ The main runtime flow is:
 4. `src/inspection/parseInspectionStream.js` streams parser events into
    `InspectionParseHandle`; parser events and payload chunks use specialized
    ingestion methods for the hot path.
-5. `src/inspection/InspectionCoordinator.js` receives inspection events and
-   updates `ProgressBar`, `InspectionResultsView`, `InspectionSourceElement`,
-   and `PlaylistSegmentChooser`.
+5. `src/inspection/InspectionCoordinator.js` receives events through created
+   handles and updates the corresponding UI blocks: `ProgressBar`,
+   `InspectionResultsView`, `InspectionSourceElement`,
+   `PlaylistSegmentChooser`...
 6. `src/ui/InspectionResultsView.js` owns the results shell and derived tabs,
    including incremental box-tree mounting and post-parse rendering.
 
