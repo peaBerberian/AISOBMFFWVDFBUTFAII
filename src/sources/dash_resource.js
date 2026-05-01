@@ -33,7 +33,11 @@ export async function handleDashSource(
       selectedLabel: "DASH manifest",
       selectedValue: sourceUrl,
     },
-    status: { message: "Loading DASH manifest…" },
+    status: {
+      message: "Loading DASH manifest…",
+      state: "start",
+      progress: { phase: "manifest", indeterminate: true },
+    },
   });
 
   try {
@@ -63,14 +67,18 @@ export async function handleDashSource(
         sourceUrl,
         tree,
         onInspect: onSegmentChosen,
-        status: { message: "DASH manifest loaded.", state: "success" },
+        status: {
+          message: "DASH manifest loaded.",
+          state: "success",
+          progress: { phase: "manifest", ratio: 1 },
+        },
         async onLoadRepresentation(representation) {
           dispatch({
             type: "segment-list-loading",
             status: {
               message: "Loading DASH segment list...",
               state: "start",
-              easing: true,
+              progress: { phase: "resolve", indeterminate: true },
             },
           });
           try {
@@ -80,7 +88,11 @@ export async function handleDashSource(
             }
             dispatch({
               type: "segment-list-loaded",
-              status: { message: "DASH segment list loaded", state: "success" },
+              status: {
+                message: "DASH segment list loaded",
+                state: "success",
+                progress: { phase: "resolve", ratio: 1 },
+              },
             });
             renderChooser();
           } catch (err) {

@@ -101,6 +101,7 @@ export default class InspectionSourceHandle {
       message: status.message,
       state: status.state ?? "update",
       easing: status.easing,
+      progress: status.progress,
     });
   }
 

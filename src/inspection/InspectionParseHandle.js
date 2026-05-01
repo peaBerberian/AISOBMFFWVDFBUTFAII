@@ -74,9 +74,19 @@ export default class InspectionParseHandle {
   }
 
   // TODO: Remove the need for that step?
-  signalParseBegin() {
+  /**
+   * @param {{ inputTotalBytes?: number | null }} [options]
+   */
+  signalParseBegin(options = {}) {
     this.#dispatchEvent({ type: "render-initialize" });
-    this.reportStatus({ message: "parsing…" });
+    const inputTotalBytes = options.inputTotalBytes ?? null;
+    this.reportStatus({
+      message: "parsing…",
+      progress:
+        typeof inputTotalBytes === "number" && inputTotalBytes > 0
+          ? { phase: "parse", loadedBytes: 0, totalBytes: inputTotalBytes }
+          : { phase: "parse", indeterminate: true },
+    });
   }
 
   /**
@@ -196,7 +206,10 @@ export default class InspectionParseHandle {
    * @param {AbortSignal} abortSignal
    */
   async completeLocalFileAnalysis(readRange, abortSignal) {
-    this.reportStatus({ message: "deepening codec analysis by reading back…" });
+    this.reportStatus({
+      message: "deepening codec analysis by reading back…",
+      progress: { phase: "analyze", indeterminate: true },
+    });
     await this.#requireParseCollector().completeLocalFileAnalysis(
       readRange,
       abortSignal,
@@ -221,6 +234,10 @@ export default class InspectionParseHandle {
   }
 
   completeFromParseCollector() {
+    this.reportStatus({
+      message: "rendering results…",
+      progress: { phase: "render", ratio: 0.5 },
+    });
     const parseCollector = this.#requireParseCollector();
     const topLevelBoxes = parseCollector.getTopLevelBoxes();
     const supplementalMetadata = this.#supplementalMetadata;
@@ -255,6 +272,7 @@ export default class InspectionParseHandle {
       message: status.message,
       state: status.state ?? "update",
       easing: status.easing,
+      progress: status.progress,
     });
   }
 
@@ -291,6 +309,19 @@ export default class InspectionParseHandle {
  */
 
 /**
+ * @typedef {"probe" | "manifest" | "resolve" | "parse" | "analyze" | "render"} InspectionProgressPhase
+ */
+
+/**
+ * @typedef {Object} InspectionProgressInput
+ * @property {InspectionProgressPhase} phase
+ * @property {number} [ratio]
+ * @property {number} [loadedBytes]
+ * @property {number} [totalBytes]
+ * @property {boolean} [indeterminate]
+ */
+
+/**
  * @typedef {Object} InspectionResult
  * @property {Array<import("isobmff-inspector").ParsedBox>} topLevelBoxes
  * @property {{ boxes: Array<import("isobmff-inspector").ParsedBox> } | null} supplementalMetadata
@@ -314,6 +345,7 @@ export default class InspectionParseHandle {
  * @property {string} message
  * @property {InspectionStatusState} state
  * @property {boolean} [easing]
+ * @property {InspectionProgressInput} [progress]
  */
 
 /**
@@ -382,6 +414,7 @@ export default class InspectionParseHandle {
  * @property {string} message
  * @property {InspectionStatusState} [state]
  * @property {boolean} [easing]
+ * @property {InspectionProgressInput} [progress]
  */
 
 /**

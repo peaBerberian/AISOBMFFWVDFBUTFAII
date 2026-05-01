@@ -46,6 +46,7 @@ async function inspectRemoteUrl(
       message: "Probing remote source…",
       state: "start",
       easing: true,
+      progress: { phase: "probe", indeterminate: true },
     },
   });
 
@@ -73,7 +74,11 @@ async function inspectRemoteUrl(
         selectedValue: segmentUrl,
         originValue: sourceUrl,
         originLabel: originKindLabel,
-        status: { message: "Fetching segment..." },
+        status: {
+          message: "Fetching segment...",
+          state: "start",
+          progress: { phase: "resolve", indeterminate: true },
+        },
       },
     );
   };
@@ -107,9 +112,24 @@ async function inspectRemoteUrl(
     {
       selectedLabel: "Remote resource",
       selectedValue: sourceUrl,
+      totalBytes: probeResult.totalBytes,
       status: companionInit
-        ? { message: "Fetching segment...", state: "start", easing: true }
-        : { message: "fetching…" },
+        ? {
+            message: "Fetching segment...",
+            state: "start",
+            progress: { phase: "resolve", indeterminate: true },
+          }
+        : {
+            message: "fetching…",
+            progress:
+              probeResult.totalBytes !== null
+                ? {
+                    phase: "parse",
+                    loadedBytes: 0,
+                    totalBytes: probeResult.totalBytes,
+                  }
+                : { phase: "parse", indeterminate: true },
+          },
     },
   );
 }
@@ -125,6 +145,7 @@ async function inspectRemoteUrl(
  *   selectedValue: string,
  *   originLabel?: string,
  *   originValue?: string,
+ *   totalBytes?: number | null,
  *   status?: import("./InspectionParseHandle.js").InspectionStatusInput,
  * }} source
  * @returns {Promise<void>}
@@ -166,9 +187,10 @@ function inspectRemoteSegment(
   });
 
   return fetchRemoteSegment(input, byteRange, companionInit, signal)
-    .then(({ segmentData, companionDataPromise }) =>
+    .then(({ segmentData, segmentTotalBytes, companionDataPromise }) =>
       parseInspectionStream(segmentData, parseHandle, {
         supplementalMetadataPromise: companionDataPromise,
+        inputTotalBytes: segmentTotalBytes ?? source.totalBytes ?? null,
       }),
     )
     .catch((err) => {
