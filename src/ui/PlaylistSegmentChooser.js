@@ -280,6 +280,11 @@ function createChoiceCard(card, onInspect) {
   }
   article.appendChild(fields);
 
+  const typeSummary = createChoiceTypeSummary(card.choices);
+  if (typeSummary) {
+    article.appendChild(typeSummary);
+  }
+
   if (card.onLoadChoices) {
     const loadControls = document.createElement("div");
     loadControls.className = "segment-choice-controls";
@@ -364,6 +369,12 @@ function createChoiceCard(card, onInspect) {
 
   const selectedLabel = document.createElement("p");
   selectedLabel.className = "segment-choice-selected-label";
+  const selectedType = document.createElement("span");
+  selectedType.className = "segment-choice-selected-type";
+  const selectedText = document.createElement("span");
+  selectedText.className = "segment-choice-selected-text";
+  selectedLabel.appendChild(selectedType);
+  selectedLabel.appendChild(selectedText);
   article.appendChild(selectedLabel);
 
   const selectedUrl = document.createElement("div");
@@ -378,8 +389,9 @@ function createChoiceCard(card, onInspect) {
     const choice = card.choices[selectedIndex];
     indexInput.value = `${selectedIndex + 1}`;
     countLabel.textContent = `of ${card.choices.length}`;
-    selectedLabel.textContent = `Selected entry: ${choice.label}`;
-    selectedLabel.title = choice.label;
+    selectedType.textContent = formatChoiceTypeLabel(choice.type);
+    selectedText.textContent = choice.label;
+    selectedLabel.title = `${formatChoiceTypeLabel(choice.type)}: ${choice.label}`;
     selectedUrl.replaceChildren(
       createCompactSource("Selected URL", choice.url),
     );
@@ -453,6 +465,27 @@ function createChoiceCard(card, onInspect) {
 
   updateSelection(selectedIndex);
   return article;
+}
+
+/**
+ * @param {SegmentChoice[]} choices
+ */
+function createChoiceTypeSummary(choices) {
+  const entries = getChoiceTypeSummaryEntries(choices);
+  if (!entries.length) {
+    return null;
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "segment-choice-type-summary";
+  for (let i = 0; i < entries.length; i++) {
+    const [type, count] = entries[i];
+    const item = document.createElement("span");
+    item.className = "segment-choice-type-pill";
+    item.textContent = `${count} ${count === 1 ? formatChoiceTypeLabel(type) : `${formatChoiceTypeLabel(type)}s`}`;
+    wrap.appendChild(item);
+  }
+  return wrap;
 }
 
 /**
@@ -713,6 +746,47 @@ function updateShortcutState(wrap, selectedIndex) {
       "is-active",
       Number(button.dataset.choiceIndex) === selectedIndex,
     );
+  }
+}
+
+/**
+ * @param {SegmentChoice[]} choices
+ * @returns {Array<[string, number]>}
+ */
+function getChoiceTypeSummaryEntries(choices) {
+  /** @type {Array<[string, number]>} */
+  const entries = [];
+  const orderedTypes = ["init", "media", "index"];
+  for (let i = 0; i < orderedTypes.length; i++) {
+    const type = orderedTypes[i];
+    const count = choices.filter((choice) => choice.type === type).length;
+    if (count > 0) {
+      entries.push([type, count]);
+    }
+  }
+
+  const fallbackCount = choices.filter(
+    (choice) => choice.type && !orderedTypes.includes(choice.type),
+  ).length;
+  if (fallbackCount > 0) {
+    entries.push(["entry", fallbackCount]);
+  }
+  return entries;
+}
+
+/**
+ * @param {string | undefined} type
+ */
+function formatChoiceTypeLabel(type) {
+  switch (type) {
+    case "init":
+      return "Init";
+    case "media":
+      return "Media";
+    case "index":
+      return "Index";
+    default:
+      return "Entry";
   }
 }
 
