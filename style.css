@@ -1428,6 +1428,25 @@ summary:hover .box-type {
   min-width: 0;
 }
 
+.segment-choice-type-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.segment-choice-type-pill {
+  min-height: 20px;
+  padding: 1px 7px;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: 999px;
+  background: var(--color-background-primary);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
 .segment-choice-controls {
   display: grid;
   grid-template-columns: minmax(96px, 120px) auto auto;
@@ -1503,6 +1522,32 @@ summary:hover .box-type {
 }
 
 .segment-choice-selected-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.segment-choice-selected-type {
+  flex: none;
+  min-height: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(
+    in srgb,
+    var(--color-theme-accent) 10%,
+    var(--color-mix-surface)
+  );
+  color: var(--color-theme-accent);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.segment-choice-selected-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2140,6 +2185,20 @@ input[type="file"]:focus-visible,
   color: var(--color-text-secondary);
   font-family: var(--font-sans);
   line-height: 1.25;
+}
+
+.choice-hint {
+  margin: -2px 0 0;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.choice-hint code {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.95em;
 }
 
 .drop-hint {
@@ -3126,6 +3185,27 @@ input[type="file"]::file-selector-button:hover,
 
 .vv-block {
   display: block;
+}
+
+.annotated-value {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.value-annotation {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border: 0.5px solid
+    color-mix(in srgb, var(--color-border-secondary) 70%, transparent);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
 .vv-collapsible {
