@@ -76,7 +76,7 @@
   This page lets you inspect MP4, fragmented MP4, and ISOBMFF boxes locally in your browser.<br>
   Neither files nor metadata are sent to a server, everything stays on your computer.
   </p>
-  <div id="selection" role="group" aria-label="Choose an MP4 source">
+  <div id="selection" role="group" aria-label="Choose a media source">
     <div id="choices-local-segment" class="choices-element choices-input">
       <label class="choice-label" for="file-input">
         Local mp4 file <span class="drop-hint">(or drag-and-drop it )</span>
@@ -85,9 +85,13 @@
     </div>
     <div id="choices-separator" class="choices-element choices-separator">or</div>
     <div id="choices-url-segment" class="choices-element choices-input">
-      <label class="choice-label" for="url-input">Remote mp4 URL</label>
+      <label class="choice-label" for="url-input">Remote URL</label>
+      <p class="choice-hint">
+        Paste a direct MP4 URL, or a streaming playlist URL such as
+        <code>.m3u8</code> or <code>.mpd</code>.
+      </p>
       <div class="url-entry">
-        <input id="url-input" type="url" name="url" placeholder="https://example.com/video.mp4">
+        <input id="url-input" type="url" name="url" placeholder="https://example.com/video.mp4 or stream.mpd">
         <button type="button" id="url-button">Inspect</button>
       </div>
       <div class="example-sources" aria-label="Example files">

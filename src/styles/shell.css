@@ -129,6 +129,20 @@ input[type="file"]:focus-visible,
   line-height: 1.25;
 }
 
+.choice-hint {
+  margin: -2px 0 0;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.choice-hint code {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}
+
 .drop-hint {
   margin-left: 5px;
   color: var(--color-text-tertiary);
